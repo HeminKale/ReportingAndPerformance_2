@@ -50,6 +50,9 @@ export interface Task {
   assigned_by: string;
   is_common_task: boolean;
   is_active: boolean;
+  is_numeric_task: boolean;
+  numeric_unit: string | null;
+  linked_monthly_task_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -66,6 +69,9 @@ export interface TaskLog {
   verified_by: string | null;
   verification_status: VerificationStatus;
   verified_at: string | null;
+  submitted_at: string | null;
+  numeric_value: number | null;
+  manager_review_comment: string | null;
   created_at: string;
   updated_at: string;
 }

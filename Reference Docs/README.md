@@ -6,6 +6,17 @@ A comprehensive multi-tenant cloud-based employee performance and task tracking 
 
 This enterprise-grade system provides complete employee performance tracking with role-based access control, timezone-aware attendance, real-time notifications, and sophisticated approval workflows. Perfect for organizations of any size looking to streamline employee management and boost productivity.
 
+## Latest Updates (v2.0)
+
+**New Task Management Features** - See `../WHATS_NEW.md` for details:
+- Tabular task display with expandable rows
+- Numeric task support with auto-calculated monthly totals
+- Submission timestamps (HH:MM DD/MM/YYYY format)
+- Manager review interface with approve/reject
+- Monthly summary cards for numeric tasks
+
+**Action Required**: Run database migration - See `../MIGRATION_INSTRUCTIONS.md`
+
 ## Key Features
 
 ### Core Functionality

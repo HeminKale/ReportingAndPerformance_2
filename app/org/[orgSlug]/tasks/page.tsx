@@ -2,140 +2,90 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TaskLogDialog } from "@/components/tasks/task-log-dialog";
+import { TaskTable } from "@/components/tasks/task-table";
+import { MonthlyNumericSummary } from "@/components/tasks/monthly-numeric-summary";
 import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
-import type { Task, TaskLog } from "@/lib/types/database";
+import type { Task, TaskLog, User } from "@/lib/types/database";
 
 export default function TasksPage() {
   const params = useParams();
+  const [user, setUser] = useState<User | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [taskLogs, setTaskLogs] = useState<TaskLog[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTaskLog, setSelectedTaskLog] = useState<TaskLog | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
   const today = format(new Date(), 'yyyy-MM-dd');
+  const currentMonth = format(new Date(), 'yyyy-MM-dd');
 
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
     
-    if (!user) return;
+    if (!authUser) return;
 
     const { data: userData } = await supabase
       .from('users')
-      .select('organization_id')
-      .eq('id', user.id)
+      .select('*')
+      .eq('id', authUser.id)
       .single();
 
     const { data: tasksData } = await supabase
       .from('tasks')
       .select('*')
       .eq('organization_id', userData?.organization_id)
-      .or(`assigned_to.eq.${user.id},is_common_task.eq.true`)
+      .or(`assigned_to.eq.${authUser.id},is_common_task.eq.true`)
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
     const { data: logsData } = await supabase
       .from('task_logs')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', authUser.id)
       .eq('date', today);
 
+    setUser(userData);
     setTasks(tasksData || []);
     setTaskLogs(logsData || []);
     setLoading(false);
   };
 
-  const handleTaskClick = (task: Task) => {
+  const handleSubmit = (task: Task) => {
     setSelectedTask(task);
     setDialogOpen(true);
   };
 
-  const dailyTasks = tasks.filter(t => t.type === 'daily');
-  const weeklyTasks = tasks.filter(t => t.type === 'weekly');
-  const monthlyTasks = tasks.filter(t => t.type === 'monthly');
-
-  const getTaskLog = (taskId: string) => {
-    return taskLogs.find(log => log.task_id === taskId);
+  const handleView = (task: Task, taskLog?: TaskLog) => {
+    setSelectedTask(task);
+    setSelectedTaskLog(taskLog || null);
+    setViewDialogOpen(true);
   };
 
-  const renderTaskCard = (task: Task) => {
-    const log = getTaskLog(task.id);
-    
-    return (
-      <Card key={task.id} className="hover:shadow-md transition-shadow">
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <CardTitle className="text-lg">{task.title}</CardTitle>
-              {task.description && (
-                <CardDescription className="mt-2">
-                  {task.description}
-                </CardDescription>
-              )}
-            </div>
-            {log && (
-              <span className={`text-xs px-2 py-1 rounded ${
-                log.verification_status === 'approved' 
-                  ? 'bg-green-100 text-green-800'
-                  : log.verification_status === 'rejected'
-                  ? 'bg-red-100 text-red-800'
-                  : 'bg-yellow-100 text-yellow-800'
-              }`}>
-                {log.verification_status}
-              </span>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              {log ? (
-                <span className="flex items-center gap-2">
-                  <span className={`h-2 w-2 rounded-full ${
-                    log.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'
-                  }`} />
-                  {log.status === 'completed' ? 'Completed' : 'Pending'}
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-gray-300" />
-                  Not submitted
-                </span>
-              )}
-            </div>
-            <Button
-              size="sm"
-              onClick={() => handleTaskClick(task)}
-              variant={log ? 'outline' : 'default'}
-            >
-              {log ? 'Update' : 'Submit'}
-            </Button>
-          </div>
-          {log && log.comment && (
-            <div className="mt-3 p-3 bg-muted rounded-md">
-              <p className="text-sm font-medium mb-1">Comment:</p>
-              <p className="text-sm text-muted-foreground">{log.comment}</p>
-            </div>
-          )}
-          {log && log.reason && (
-            <div className="mt-3 p-3 bg-muted rounded-md">
-              <p className="text-sm font-medium mb-1">Reason:</p>
-              <p className="text-sm text-muted-foreground">{log.reason}</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    );
-  };
+  const dailyTasks = tasks.filter(t => t.type === 'daily').map(task => ({
+    ...task,
+    taskLog: taskLogs.find(log => log.task_id === task.id),
+  }));
+
+  const weeklyTasks = tasks.filter(t => t.type === 'weekly').map(task => ({
+    ...task,
+    taskLog: taskLogs.find(log => log.task_id === task.id),
+  }));
+
+  const monthlyTasks = tasks.filter(t => t.type === 'monthly').map(task => ({
+    ...task,
+    taskLog: taskLogs.find(log => log.task_id === task.id),
+  }));
 
   if (loading) {
     return (
@@ -164,40 +114,42 @@ export default function TasksPage() {
           <TabsTrigger value="monthly">Monthly ({monthlyTasks.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="daily" className="space-y-4">
-          {dailyTasks.length > 0 ? (
-            dailyTasks.map(renderTaskCard)
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center text-muted-foreground">
-                No daily tasks assigned
-              </CardContent>
-            </Card>
+        <TabsContent value="daily" className="space-y-6">
+          {dailyTasks.some(t => t.is_numeric_task && t.linked_monthly_task_id) && user && (
+            <div className="space-y-4">
+              {dailyTasks
+                .filter(t => t.is_numeric_task && t.linked_monthly_task_id)
+                .map(task => (
+                  <MonthlyNumericSummary
+                    key={task.id}
+                    dailyTask={task}
+                    userId={user.id}
+                    month={currentMonth}
+                  />
+                ))}
+            </div>
           )}
+          <TaskTable 
+            tasks={dailyTasks} 
+            onSubmit={handleSubmit}
+            onView={handleView}
+          />
         </TabsContent>
 
-        <TabsContent value="weekly" className="space-y-4">
-          {weeklyTasks.length > 0 ? (
-            weeklyTasks.map(renderTaskCard)
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center text-muted-foreground">
-                No weekly tasks assigned
-              </CardContent>
-            </Card>
-          )}
+        <TabsContent value="weekly">
+          <TaskTable 
+            tasks={weeklyTasks} 
+            onSubmit={handleSubmit}
+            onView={handleView}
+          />
         </TabsContent>
 
-        <TabsContent value="monthly" className="space-y-4">
-          {monthlyTasks.length > 0 ? (
-            monthlyTasks.map(renderTaskCard)
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-center text-muted-foreground">
-                No monthly tasks assigned
-              </CardContent>
-            </Card>
-          )}
+        <TabsContent value="monthly">
+          <TaskTable 
+            tasks={monthlyTasks} 
+            onSubmit={handleSubmit}
+            onView={handleView}
+          />
         </TabsContent>
       </Tabs>
 
@@ -214,6 +166,98 @@ export default function TasksPage() {
           date={today}
         />
       )}
+
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Task Details</DialogTitle>
+            <DialogDescription>
+              View complete task information
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedTask && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Task Name</p>
+                <p className="text-sm">{selectedTask.title}</p>
+              </div>
+
+              {selectedTask.description && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Description</p>
+                  <p className="text-sm">{selectedTask.description}</p>
+                </div>
+              )}
+
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Type</p>
+                <p className="text-sm capitalize">{selectedTask.type}</p>
+              </div>
+
+              {selectedTask.is_numeric_task && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Unit</p>
+                  <p className="text-sm">{selectedTask.numeric_unit || 'units'}</p>
+                </div>
+              )}
+
+              {selectedTaskLog && (
+                <>
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-semibold mb-2">Submission Details</p>
+                    
+                    {selectedTask.is_numeric_task ? (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Value</p>
+                        <p className="text-sm">{selectedTaskLog.numeric_value} {selectedTask.numeric_unit || 'units'}</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Status</p>
+                        <p className="text-sm capitalize">{selectedTaskLog.status}</p>
+                      </div>
+                    )}
+
+                    {selectedTaskLog.submitted_at && (
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-muted-foreground">Submitted At</p>
+                        <p className="text-sm">{format(new Date(selectedTaskLog.submitted_at), 'HH:mm dd/MM/yyyy')}</p>
+                      </div>
+                    )}
+
+                    {selectedTaskLog.comment && (
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-muted-foreground">Comment</p>
+                        <p className="text-sm">{selectedTaskLog.comment}</p>
+                      </div>
+                    )}
+
+                    {selectedTaskLog.reason && (
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-muted-foreground">Reason</p>
+                        <p className="text-sm">{selectedTaskLog.reason}</p>
+                      </div>
+                    )}
+
+                    <div className="mt-2">
+                      <p className="text-sm font-medium text-muted-foreground">Manager Approval</p>
+                      <p className="text-sm capitalize">{selectedTaskLog.verification_status}</p>
+                    </div>
+
+                    {selectedTaskLog.manager_review_comment && (
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-muted-foreground">Manager Review</p>
+                        <p className="text-sm">{selectedTaskLog.manager_review_comment}</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

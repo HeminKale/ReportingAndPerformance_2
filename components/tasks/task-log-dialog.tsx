@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
@@ -21,6 +22,7 @@ export function TaskLogDialog({ task, open, onOpenChange, date }: TaskLogDialogP
   const [status, setStatus] = useState<'completed' | 'pending'>('completed');
   const [comment, setComment] = useState("");
   const [reason, setReason] = useState("");
+  const [numericValue, setNumericValue] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
@@ -34,27 +36,45 @@ export function TaskLogDialog({ task, open, onOpenChange, date }: TaskLogDialogP
       
       if (!user) throw new Error("Not authenticated");
 
+      const taskLogData: any = {
+        task_id: task.id,
+        user_id: user.id,
+        organization_id: task.organization_id,
+        date,
+        status,
+        verification_status: 'pending',
+        submitted_at: new Date().toISOString(),
+      };
+
+      if (task.is_numeric_task) {
+        const numValue = parseFloat(numericValue);
+        if (isNaN(numValue) || numValue < 0) {
+          throw new Error("Please enter a valid positive number");
+        }
+        taskLogData.numeric_value = numValue;
+        taskLogData.comment = comment || null;
+      } else {
+        taskLogData.comment = status === 'completed' ? comment : null;
+        taskLogData.reason = status === 'pending' ? reason : null;
+      }
+
       const { error } = await supabase
         .from('task_logs')
-        .upsert({
-          task_id: task.id,
-          user_id: user.id,
-          organization_id: task.organization_id,
-          date,
-          status,
-          comment: status === 'completed' ? comment : null,
-          reason: status === 'pending' ? reason : null,
-          verification_status: 'pending',
-        });
+        .upsert(taskLogData);
 
       if (error) throw error;
 
       toast({
         title: "Task logged",
-        description: `Task marked as ${status}`,
+        description: task.is_numeric_task 
+          ? `Submitted ${numericValue} ${task.numeric_unit || 'units'}`
+          : `Task marked as ${status}`,
       });
 
       onOpenChange(false);
+      setComment("");
+      setReason("");
+      setNumericValue("");
       router.refresh();
     } catch (error: any) {
       toast({
@@ -78,50 +98,82 @@ export function TaskLogDialog({ task, open, onOpenChange, date }: TaskLogDialogP
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={status === 'completed' ? 'default' : 'outline'}
-                onClick={() => setStatus('completed')}
-                className="flex-1"
-              >
-                Completed
-              </Button>
-              <Button
-                type="button"
-                variant={status === 'pending' ? 'default' : 'outline'}
-                onClick={() => setStatus('pending')}
-                className="flex-1"
-              >
-                Pending
-              </Button>
-            </div>
-          </div>
-
-          {status === 'completed' ? (
-            <div className="space-y-2">
-              <Label htmlFor="comment">Comment (required)</Label>
-              <Textarea
-                id="comment"
-                placeholder="Describe what you accomplished..."
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                required
-              />
-            </div>
+          {task.is_numeric_task ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="numericValue">
+                  {task.numeric_unit ? `Number of ${task.numeric_unit}` : 'Value'} (required)
+                </Label>
+                <Input
+                  id="numericValue"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Enter value..."
+                  value={numericValue}
+                  onChange={(e) => setNumericValue(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="comment">Comment (optional)</Label>
+                <Textarea
+                  id="comment"
+                  placeholder="Add any additional notes..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            </>
           ) : (
-            <div className="space-y-2">
-              <Label htmlFor="reason">Reason (required)</Label>
-              <Textarea
-                id="reason"
-                placeholder="Explain why this task is pending..."
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                required
-              />
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={status === 'completed' ? 'default' : 'outline'}
+                    onClick={() => setStatus('completed')}
+                    className="flex-1"
+                  >
+                    Completed
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={status === 'pending' ? 'default' : 'outline'}
+                    onClick={() => setStatus('pending')}
+                    className="flex-1"
+                  >
+                    Pending
+                  </Button>
+                </div>
+              </div>
+
+              {status === 'completed' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="comment">Comment (required)</Label>
+                  <Textarea
+                    id="comment"
+                    placeholder="Describe what you accomplished..."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    required
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="reason">Reason (required)</Label>
+                  <Textarea
+                    id="reason"
+                    placeholder="Explain why this task is pending..."
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -131,7 +183,7 @@ export function TaskLogDialog({ task, open, onOpenChange, date }: TaskLogDialogP
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={loading || (status === 'completed' && !comment) || (status === 'pending' && !reason)}
+            disabled={loading || (task.is_numeric_task ? !numericValue : (status === 'completed' && !comment) || (status === 'pending' && !reason))}
           >
             {loading ? "Submitting..." : "Submit"}
           </Button>

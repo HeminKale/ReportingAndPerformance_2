@@ -63,6 +63,9 @@ export default function SettingsPage() {
     assignmentType: 'common' as 'common' | 'specific',
     assignedTo: '',
     isActive: true,
+    isNumericTask: false,
+    numericUnit: '',
+    linkedMonthlyTaskId: '',
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -305,6 +308,9 @@ export default function SettingsPage() {
         is_common_task: taskForm.assignmentType === 'common',
         assigned_to: taskForm.assignmentType === 'specific' ? taskForm.assignedTo : null,
         is_active: taskForm.isActive,
+        is_numeric_task: taskForm.isNumericTask,
+        numeric_unit: taskForm.isNumericTask ? taskForm.numericUnit : null,
+        linked_monthly_task_id: taskForm.linkedMonthlyTaskId || null,
       };
 
       if (taskForm.type === 'weekly' && taskForm.dayOfWeek) {
@@ -369,6 +375,9 @@ export default function SettingsPage() {
         is_common_task: taskForm.assignmentType === 'common',
         assigned_to: taskForm.assignmentType === 'specific' ? taskForm.assignedTo : null,
         is_active: taskForm.isActive,
+        is_numeric_task: taskForm.isNumericTask,
+        numeric_unit: taskForm.isNumericTask ? taskForm.numericUnit : null,
+        linked_monthly_task_id: taskForm.linkedMonthlyTaskId || null,
       };
 
       if (taskForm.type === 'weekly' && taskForm.dayOfWeek) {
@@ -455,6 +464,9 @@ export default function SettingsPage() {
       assignmentType: taskToEdit.is_common_task ? 'common' : 'specific',
       assignedTo: taskToEdit.assigned_to || '',
       isActive: taskToEdit.is_active,
+      isNumericTask: taskToEdit.is_numeric_task,
+      numericUnit: taskToEdit.numeric_unit || '',
+      linkedMonthlyTaskId: taskToEdit.linked_monthly_task_id || '',
     });
     setTaskDialog({ open: true, mode: 'edit', task: taskToEdit });
   };
@@ -469,6 +481,9 @@ export default function SettingsPage() {
       assignmentType: 'common',
       assignedTo: '',
       isActive: true,
+      isNumericTask: false,
+      numericUnit: '',
+      linkedMonthlyTaskId: '',
     });
     setTaskDialog({ open: true, mode: 'create', task: null });
   };
@@ -615,6 +630,11 @@ export default function SettingsPage() {
                               Inactive
                             </span>
                           )}
+                          {t.is_numeric_task && (
+                            <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded">
+                              Numeric
+                            </span>
+                          )}
                         </div>
                         {t.description && (
                           <p className="text-sm text-muted-foreground mb-2">{t.description}</p>
@@ -634,6 +654,11 @@ export default function SettingsPage() {
                           {t.type === 'monthly' && t.due_date && (
                             <span className="text-muted-foreground">
                               Due: {t.due_date}
+                            </span>
+                          )}
+                          {t.is_numeric_task && t.numeric_unit && (
+                            <span className="text-muted-foreground">
+                              Unit: {t.numeric_unit}
                             </span>
                           )}
                         </div>
@@ -980,6 +1005,54 @@ export default function SettingsPage() {
               />
               <Label htmlFor="isActive" className="cursor-pointer">Active</Label>
             </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isNumericTask"
+                checked={taskForm.isNumericTask}
+                onChange={(e) => setTaskForm({ ...taskForm, isNumericTask: e.target.checked })}
+              />
+              <Label htmlFor="isNumericTask" className="cursor-pointer">Numeric Task</Label>
+            </div>
+
+            {taskForm.isNumericTask && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="numericUnit">Unit Label (e.g., "certificates", "items")</Label>
+                  <Input
+                    id="numericUnit"
+                    type="text"
+                    placeholder="certificates"
+                    value={taskForm.numericUnit}
+                    onChange={(e) => setTaskForm({ ...taskForm, numericUnit: e.target.value })}
+                  />
+                </div>
+
+                {taskForm.type === 'daily' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="linkedMonthlyTask">Link to Monthly Task (optional)</Label>
+                    <Select 
+                      value={taskForm.linkedMonthlyTaskId} 
+                      onValueChange={(value) => setTaskForm({ ...taskForm, linkedMonthlyTaskId: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select monthly task for auto-calculation" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None</SelectItem>
+                        {allTasks.filter(t => t.type === 'monthly' && t.is_numeric_task).map(t => (
+                          <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Daily numeric values will automatically sum into the linked monthly task
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           <DialogFooter>
