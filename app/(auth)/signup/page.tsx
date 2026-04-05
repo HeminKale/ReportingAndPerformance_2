@@ -26,45 +26,40 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          fullName,
+          orgName,
+          orgSlug,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Signup failed');
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (authError) throw authError;
+      if (signInError) throw signInError;
 
-      if (authData.user) {
-        const { data: orgData, error: orgError } = await supabase
-          .from('organizations')
-          .insert({
-            name: orgName,
-            slug: orgSlug,
-          })
-          .select()
-          .single();
+      toast({
+        title: "Account created",
+        description: "Your account has been created successfully",
+      });
 
-        if (orgError) throw orgError;
-
-        const { error: userError } = await supabase
-          .from('users')
-          .insert({
-            id: authData.user.id,
-            organization_id: orgData.id,
-            email,
-            full_name: fullName,
-            role: 'admin',
-          });
-
-        if (userError) throw userError;
-
-        toast({
-          title: "Account created",
-          description: "Your account has been created successfully",
-        });
-
-        router.push(`/org/${orgSlug}/dashboard`);
-        router.refresh();
-      }
+      router.push(`/org/${orgSlug}/dashboard`);
+      router.refresh();
     } catch (error: any) {
       toast({
         title: "Signup failed",
