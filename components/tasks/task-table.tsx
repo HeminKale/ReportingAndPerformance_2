@@ -85,11 +85,10 @@ export function TaskTable({ tasks, onSubmit, onView }: TaskTableProps) {
           <TableRow>
             <TableHead className="w-[40px]"></TableHead>
             <TableHead>Task Name</TableHead>
-            <TableHead>Type</TableHead>
+            <TableHead>Task Description</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Submitted At</TableHead>
-            <TableHead>Manager Approval</TableHead>
-            <TableHead>Value</TableHead>
+            <TableHead>Created Time</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -116,13 +115,17 @@ export function TaskTable({ tasks, onSubmit, onView }: TaskTableProps) {
                   </TableCell>
                   <TableCell className="font-medium">
                     {task.title}
-                    {task.is_numeric_task && task.numeric_unit && (
+                    {task.is_numeric_task && taskLog?.numeric_value !== null && (
                       <span className="text-xs text-muted-foreground ml-2">
-                        ({task.numeric_unit})
+                        ({taskLog.numeric_value} {task.numeric_unit || 'units'})
                       </span>
                     )}
                   </TableCell>
-                  <TableCell>{getTypeBadge(task.type)}</TableCell>
+                  <TableCell className="max-w-md">
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {task.description || '-'}
+                    </p>
+                  </TableCell>
                   <TableCell>{getStatusBadge(taskLog?.status)}</TableCell>
                   <TableCell>
                     {taskLog?.submitted_at ? (
@@ -133,25 +136,28 @@ export function TaskTable({ tasks, onSubmit, onView }: TaskTableProps) {
                       <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
-                  <TableCell>{getApprovalBadge(taskLog?.verification_status)}</TableCell>
                   <TableCell>
-                    {task.is_numeric_task && taskLog?.numeric_value !== null ? (
-                      <span className="font-medium">{taskLog.numeric_value}</span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
+                    <span className="text-sm text-muted-foreground">
+                      {format(new Date(task.created_at), 'HH:mm dd/MM/yyyy')}
+                    </span>
                   </TableCell>
                 </TableRow>
                 {isExpanded && (
                   <TableRow>
-                    <TableCell colSpan={7} className="bg-muted/30">
+                    <TableCell colSpan={6} className="bg-muted/30">
                       <div className="py-4 space-y-4">
-                        {task.description && (
+                        <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <p className="text-sm font-medium mb-1">Description:</p>
-                            <p className="text-sm text-muted-foreground">{task.description}</p>
+                            <p className="text-sm font-medium mb-1">Full Description:</p>
+                            <p className="text-sm text-muted-foreground">{task.description || 'No description'}</p>
                           </div>
-                        )}
+                          {taskLog && (
+                            <div>
+                              <p className="text-sm font-medium mb-1">Manager Approval:</p>
+                              {getApprovalBadge(taskLog.verification_status)}
+                            </div>
+                          )}
+                        </div>
                         
                         {taskLog && (
                           <div className="space-y-2">

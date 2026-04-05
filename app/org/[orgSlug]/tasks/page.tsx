@@ -49,11 +49,15 @@ export default function TasksPage() {
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
+    // Get today's and previous incomplete task logs
+    const yesterday = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd');
+    
     const { data: logsData } = await supabase
       .from('task_logs')
       .select('*')
       .eq('user_id', authUser.id)
-      .eq('date', today);
+      .gte('date', yesterday)
+      .lte('date', today);
 
     setUser(userData);
     setTasks(tasksData || []);

@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
-import { Plus, Pencil, Trash2, Users as UsersIcon, ListTodo } from "lucide-react";
+import { Plus, Pencil, Trash2, Users as UsersIcon, ListTodo, ChevronDown, ChevronUp, Eye, AlertTriangle } from "lucide-react";
 import type { User, Task } from "@/lib/types/database";
 
 /** Radix Select.Item must not use value=""; map sentinels to "" in form state */
@@ -22,9 +23,13 @@ export default function SettingsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const [allMistakes, setAllMistakes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [taskSearchTerm, setTaskSearchTerm] = useState("");
+  const [mistakeSearchTerm, setMistakeSearchTerm] = useState("");
+  const [expandedTaskRows, setExpandedTaskRows] = useState<Set<string>>(new Set());
+  const [expandedMistakeRows, setExpandedMistakeRows] = useState<Set<string>>(new Set());
   
   const [userDialog, setUserDialog] = useState<{
     open: boolean;
@@ -44,6 +49,16 @@ export default function SettingsPage() {
     open: false,
     mode: 'create',
     task: null,
+  });
+
+  const [mistakeDialog, setMistakeDialog] = useState<{
+    open: boolean;
+    mode: 'create' | 'edit';
+    mistake: any | null;
+  }>({
+    open: false,
+    mode: 'create',
+    mistake: null,
   });
 
   const [userForm, setUserForm] = useState({
@@ -67,6 +82,13 @@ export default function SettingsPage() {
     isNumericTask: false,
     numericUnit: '',
     linkedMonthlyTaskId: '',
+  });
+
+  const [mistakeForm, setMistakeForm] = useState({
+    title: '',
+    description: '',
+    severity: 'medium' as 'low' | 'medium' | 'high',
+    userId: '',
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -109,9 +131,16 @@ export default function SettingsPage() {
       .eq('organization_id', userData.organization_id)
       .order('created_at', { ascending: false });
 
+    const { data: mistakes } = await supabase
+      .from('mistakes')
+      .select('*, users!mistakes_user_id_fkey(full_name), added_by_user:users!mistakes_added_by_fkey(full_name)')
+      .eq('organization_id', userData.organization_id)
+      .order('date', { ascending: false });
+
     setUser(userData);
     setAllUsers(users || []);
     setAllTasks(tasks || []);
+    setAllMistakes(mistakes || []);
     setLoading(false);
   };
 
@@ -460,6 +489,133 @@ export default function SettingsPage() {
     }
   };
 
+  const handleCreateMistake = async () => {
+    if (!mistakeForm.title || !mistakeForm.userId) {
+      toast({
+        title: "Error",
+        description: "Please fill in title and select an employee",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('mistakes')
+        .insert({
+          organization_id: user?.organization_id,
+          user_id: mistakeForm.userId,
+          added_by: user?.id,
+          description: mistakeForm.description,
+          severity: mistakeForm.severity,
+          date: new Date().toISOString().split('T')[0],
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Mistake recorded successfully",
+      });
+
+      setMistakeDialog({ open: false, mode: 'create', mistake: null });
+      setMistakeForm({ title: '', description: '', severity: 'medium', userId: '' });
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdateMistake = async () => {
+    if (!mistakeDialog.mistake || !mistakeForm.title || !mistakeForm.userId) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('mistakes')
+        .update({
+          user_id: mistakeForm.userId,
+          description: mistakeForm.description,
+          severity: mistakeForm.severity,
+        })
+        .eq('id', mistakeDialog.mistake.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Mistake updated successfully",
+      });
+
+      setMistakeDialog({ open: false, mode: 'edit', mistake: null });
+      setMistakeForm({ title: '', description: '', severity: 'medium', userId: '' });
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteMistake = async (mistakeId: string) => {
+    if (!confirm('Are you sure you want to delete this mistake record?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('mistakes')
+        .delete()
+        .eq('id', mistakeId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Mistake deleted successfully",
+      });
+
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openCreateMistakeDialog = () => {
+    setMistakeForm({ title: '', description: '', severity: 'medium', userId: '' });
+    setMistakeDialog({ open: true, mode: 'create', mistake: null });
+  };
+
+  const openEditMistakeDialog = (mistake: any) => {
+    setMistakeForm({
+      title: mistake.description || '',
+      description: mistake.description || '',
+      severity: mistake.severity || 'medium',
+      userId: mistake.user_id || '',
+    });
+    setMistakeDialog({ open: true, mode: 'edit', mistake });
+  };
+
   const openEditTaskDialog = (taskToEdit: Task) => {
     const assignedUser = allUsers.find(u => u.id === taskToEdit.assigned_to);
     setTaskForm({
@@ -504,6 +660,31 @@ export default function SettingsPage() {
     t.title.toLowerCase().includes(taskSearchTerm.toLowerCase())
   );
 
+  const filteredMistakes = allMistakes.filter(m => 
+    m.description?.toLowerCase().includes(mistakeSearchTerm.toLowerCase()) ||
+    m.users?.full_name?.toLowerCase().includes(mistakeSearchTerm.toLowerCase())
+  );
+
+  const toggleTaskRow = (taskId: string) => {
+    const newExpanded = new Set(expandedTaskRows);
+    if (newExpanded.has(taskId)) {
+      newExpanded.delete(taskId);
+    } else {
+      newExpanded.add(taskId);
+    }
+    setExpandedTaskRows(newExpanded);
+  };
+
+  const toggleMistakeRow = (mistakeId: string) => {
+    const newExpanded = new Set(expandedMistakeRows);
+    if (newExpanded.has(mistakeId)) {
+      newExpanded.delete(mistakeId);
+    } else {
+      newExpanded.add(mistakeId);
+    }
+    setExpandedMistakeRows(newExpanded);
+  };
+
   if (loading) {
     return (
       <div className="p-8">
@@ -533,6 +714,10 @@ export default function SettingsPage() {
           <TabsTrigger value="tasks">
             <ListTodo className="h-4 w-4 mr-2" />
             Task Assignment ({allTasks.length})
+          </TabsTrigger>
+          <TabsTrigger value="mistakes">
+            <AlertTriangle className="h-4 w-4 mr-2" />
+            Track Mistakes ({allMistakes.length})
           </TabsTrigger>
         </TabsList>
 
@@ -624,72 +809,107 @@ export default function SettingsPage() {
           </div>
 
           {filteredTasks.length > 0 ? (
-            <div className="space-y-4">
-              {filteredTasks.map((t) => (
-                <Card key={t.id}>
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-semibold text-lg">{t.title}</h3>
-                          {!t.is_active && (
-                            <span className="text-xs px-2 py-1 bg-gray-200 text-gray-600 rounded">
-                              Inactive
+            <div className="border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[40px]"></TableHead>
+                    <TableHead>Assigned To</TableHead>
+                    <TableHead>Task Name</TableHead>
+                    <TableHead>Task Type</TableHead>
+                    <TableHead>Task Description</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTasks.map((t) => {
+                    const isExpanded = expandedTaskRows.has(t.id);
+                    const assignedUser = t.assigned_to ? allUsers.find(u => u.id === t.assigned_to) : null;
+                    
+                    return (
+                      <>
+                        <TableRow key={t.id} className={isExpanded ? 'bg-muted/50' : ''}>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleTaskRow(t.id)}
+                              className="h-8 w-8 p-0"
+                            >
+                              {isExpanded ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </TableCell>
+                          <TableCell>
+                            {t.is_common_task ? (
+                              <span className="text-sm text-muted-foreground">All Employees</span>
+                            ) : (
+                              <span className="text-sm">{assignedUser?.full_name || 'Unknown'}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-medium">{t.title}</TableCell>
+                          <TableCell>
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                              {t.type.charAt(0).toUpperCase() + t.type.slice(1)}
                             </span>
-                          )}
-                          {t.is_numeric_task && (
-                            <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded">
-                              Numeric
-                            </span>
-                          )}
-                        </div>
-                        {t.description && (
-                          <p className="text-sm text-muted-foreground mb-2">{t.description}</p>
+                          </TableCell>
+                          <TableCell className="max-w-md">
+                            <p className="text-sm text-muted-foreground truncate">
+                              {t.description || '-'}
+                            </p>
+                          </TableCell>
+                        </TableRow>
+                        {isExpanded && (
+                          <TableRow>
+                            <TableCell colSpan={5} className="bg-muted/30">
+                              <div className="py-4 space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <p className="text-sm font-medium mb-1">Full Description:</p>
+                                    <p className="text-sm text-muted-foreground">{t.description || 'No description'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium mb-1">Details:</p>
+                                    <div className="space-y-1 text-sm text-muted-foreground">
+                                      <p>Status: {t.is_active ? 'Active' : 'Inactive'}</p>
+                                      {t.is_numeric_task && <p>Numeric Task: {t.numeric_unit || 'units'}</p>}
+                                      {t.type === 'weekly' && t.day_of_week && (
+                                        <p>Day: {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][t.day_of_week]}</p>
+                                      )}
+                                      {t.type === 'monthly' && t.due_date && <p>Due: {t.due_date}</p>}
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openEditTaskDialog(t)}
+                                  >
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => handleDeleteTask(t.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </Button>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
                         )}
-                        <div className="flex gap-4 text-sm">
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">
-                            {t.type.charAt(0).toUpperCase() + t.type.slice(1)}
-                          </span>
-                          <span className="text-muted-foreground">
-                            {t.is_common_task ? 'Common Task (All Employees)' : `Assigned to: ${allUsers.find(u => u.id === t.assigned_to)?.full_name || 'Unknown'}`}
-                          </span>
-                          {t.type === 'weekly' && t.day_of_week && (
-                            <span className="text-muted-foreground">
-                              Day: {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][t.day_of_week]}
-                            </span>
-                          )}
-                          {t.type === 'monthly' && t.due_date && (
-                            <span className="text-muted-foreground">
-                              Due: {t.due_date}
-                            </span>
-                          )}
-                          {t.is_numeric_task && t.numeric_unit && (
-                            <span className="text-muted-foreground">
-                              Unit: {t.numeric_unit}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditTaskDialog(t)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteTask(t.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      </>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
           ) : (
             <Card>
@@ -698,6 +918,134 @@ export default function SettingsPage() {
                 <h3 className="text-lg font-semibold mb-2">No tasks found</h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   {taskSearchTerm ? 'Try a different search term' : 'Create tasks to assign to your team'}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="mistakes" className="space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <Input
+              placeholder="Search mistakes..."
+              value={mistakeSearchTerm}
+              onChange={(e) => setMistakeSearchTerm(e.target.value)}
+              className="w-1/3"
+            />
+            <Button onClick={openCreateMistakeDialog}>
+              <Plus className="h-4 w-4 mr-2" />
+              Record Mistake
+            </Button>
+          </div>
+
+          {filteredMistakes.length > 0 ? (
+            <div className="border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[40px]"></TableHead>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Severity</TableHead>
+                    <TableHead>Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredMistakes.map((m) => {
+                    const isExpanded = expandedMistakeRows.has(m.id);
+                    
+                    return (
+                      <>
+                        <TableRow key={m.id} className={isExpanded ? 'bg-muted/50' : ''}>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleMistakeRow(m.id)}
+                              className="h-8 w-8 p-0"
+                            >
+                              {isExpanded ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </TableCell>
+                          <TableCell className="font-medium">{m.users?.full_name || 'Unknown'}</TableCell>
+                          <TableCell className="max-w-xs truncate">{m.description?.substring(0, 50) || '-'}</TableCell>
+                          <TableCell className="max-w-md">
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {m.description || '-'}
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded text-xs ${
+                              m.severity === 'high' ? 'bg-red-100 text-red-800' :
+                              m.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {m.severity?.charAt(0).toUpperCase() + m.severity?.slice(1)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {new Date(m.date).toLocaleDateString('en-GB')}
+                          </TableCell>
+                        </TableRow>
+                        {isExpanded && (
+                          <TableRow>
+                            <TableCell colSpan={6} className="bg-muted/30">
+                              <div className="py-4 space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <p className="text-sm font-medium mb-1">Full Description:</p>
+                                    <p className="text-sm text-muted-foreground">{m.description || 'No description'}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium mb-1">Details:</p>
+                                    <div className="space-y-1 text-sm text-muted-foreground">
+                                      <p>Employee: {m.users?.full_name}</p>
+                                      <p>Recorded by: {m.added_by_user?.full_name || 'Unknown'}</p>
+                                      <p>Date: {new Date(m.date).toLocaleDateString('en-GB')}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => openEditMistakeDialog(m)}
+                                  >
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => handleDeleteMistake(m.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </Button>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <AlertTriangle className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">No mistakes recorded</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {mistakeSearchTerm ? 'Try a different search term' : 'Record mistakes to track quality issues'}
                 </p>
               </CardContent>
             </Card>
@@ -1082,6 +1430,89 @@ export default function SettingsPage() {
               disabled={submitting || !taskForm.title}
             >
               {submitting ? "Saving..." : taskDialog.mode === 'create' ? "Create Task" : "Update Task"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={mistakeDialog.open} onOpenChange={(open) => {
+        if (!open) {
+          setMistakeDialog({ open: false, mode: 'create', mistake: null });
+          setMistakeForm({ title: '', description: '', severity: 'medium', userId: '' });
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {mistakeDialog.mode === 'create' ? 'Record Mistake' : 'Edit Mistake'}
+            </DialogTitle>
+            <DialogDescription>
+              {mistakeDialog.mode === 'create' 
+                ? 'Record a mistake for an employee' 
+                : 'Update mistake information'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="mistakeEmployee">Employee (required)</Label>
+              <Select 
+                value={mistakeForm.userId} 
+                onValueChange={(value) => setMistakeForm({ ...mistakeForm, userId: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allUsers.filter(u => u.role === 'employee').map(u => (
+                    <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="mistakeDescription">Description (required)</Label>
+              <Textarea
+                id="mistakeDescription"
+                placeholder="Describe the mistake..."
+                value={mistakeForm.description}
+                onChange={(e) => setMistakeForm({ ...mistakeForm, description: e.target.value })}
+                rows={4}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="mistakeSeverity">Severity</Label>
+              <Select 
+                value={mistakeForm.severity} 
+                onValueChange={(value: 'low' | 'medium' | 'high') => setMistakeForm({ ...mistakeForm, severity: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setMistakeDialog({ open: false, mode: 'create', mistake: null })}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={mistakeDialog.mode === 'create' ? handleCreateMistake : handleUpdateMistake} 
+              disabled={submitting || !mistakeForm.description || !mistakeForm.userId}
+            >
+              {submitting ? "Saving..." : mistakeDialog.mode === 'create' ? "Record Mistake" : "Update Mistake"}
             </Button>
           </DialogFooter>
         </DialogContent>
