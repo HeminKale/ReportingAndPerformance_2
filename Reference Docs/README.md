@@ -88,6 +88,7 @@ For detailed setup instructions, see [SETUP.md](SETUP.md).
 - **[SETUP.md](SETUP.md)** - Complete setup guide with step-by-step instructions
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment guide for Vercel
 - **[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)** - Comprehensive project overview and architecture
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
 
 ## Project Structure
 
