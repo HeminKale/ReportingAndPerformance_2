@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,6 +21,7 @@ export default function ManagerPage() {
   const [pendingAttendance, setPendingAttendance] = useState<any[]>([]);
   const [pendingLeaves, setPendingLeaves] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
   const [actionDialog, setActionDialog] = useState<{
     open: boolean;
     type: 'task' | 'attendance' | 'leave' | null;
@@ -51,7 +53,7 @@ export default function ManagerPage() {
       .eq('id', authUser.id)
       .single();
 
-    if (userData?.role !== 'admin' && userData?.role !== 'manager') {
+    if (userData?.role !== 'manager') {
       toast({
         title: "Access denied",
         description: "You don't have permission to access this page",
@@ -255,9 +257,22 @@ export default function ManagerPage() {
           <TabsTrigger value="team">Team Members ({teamMembers.length})</TabsTrigger>
         </TabsList>
 
+        <div className="flex justify-end mb-4">
+          <Input
+            placeholder="Search by name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-1/5"
+          />
+        </div>
+
         <TabsContent value="tasks" className="space-y-4">
-          {pendingTaskLogs.length > 0 ? (
-            pendingTaskLogs.map((log) => (
+          {pendingTaskLogs.filter(log => 
+            log.users.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+          ).length > 0 ? (
+            pendingTaskLogs.filter(log => 
+              log.users.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+            ).map((log) => (
               <Card key={log.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -325,8 +340,12 @@ export default function ManagerPage() {
         </TabsContent>
 
         <TabsContent value="attendance" className="space-y-4">
-          {pendingAttendance.length > 0 ? (
-            pendingAttendance.map((att) => (
+          {pendingAttendance.filter(att => 
+            att.users.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+          ).length > 0 ? (
+            pendingAttendance.filter(att => 
+              att.users.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+            ).map((att) => (
               <Card key={att.id}>
                 <CardHeader>
                   <CardTitle className="text-lg">{att.users.full_name}</CardTitle>
@@ -381,8 +400,12 @@ export default function ManagerPage() {
         </TabsContent>
 
         <TabsContent value="leaves" className="space-y-4">
-          {pendingLeaves.length > 0 ? (
-            pendingLeaves.map((leave) => (
+          {pendingLeaves.filter(leave => 
+            leave.users.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+          ).length > 0 ? (
+            pendingLeaves.filter(leave => 
+              leave.users.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+            ).map((leave) => (
               <Card key={leave.id}>
                 <CardHeader>
                   <CardTitle className="text-lg">{leave.users.full_name}</CardTitle>
@@ -437,8 +460,12 @@ export default function ManagerPage() {
         </TabsContent>
 
         <TabsContent value="team" className="space-y-4">
-          {teamMembers.length > 0 ? (
-            teamMembers.map((member) => (
+          {teamMembers.filter(member => 
+            member.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+          ).length > 0 ? (
+            teamMembers.filter(member => 
+              member.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+            ).map((member) => (
               <Card key={member.id}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
