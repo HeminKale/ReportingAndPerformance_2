@@ -14,6 +14,9 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { Plus, Pencil, Trash2, Users as UsersIcon, ListTodo } from "lucide-react";
 import type { User, Task } from "@/lib/types/database";
 
+/** Radix Select.Item must not use value=""; map this to no manager in form state */
+const NO_MANAGER_VALUE = "__no_manager__";
+
 export default function SettingsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -755,14 +758,19 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <Label htmlFor="manager">Manager (optional)</Label>
               <Select 
-                value={userForm.managerId} 
-                onValueChange={(value) => setUserForm({ ...userForm, managerId: value })}
+                value={userForm.managerId || NO_MANAGER_VALUE}
+                onValueChange={(value) =>
+                  setUserForm({
+                    ...userForm,
+                    managerId: value === NO_MANAGER_VALUE ? "" : value,
+                  })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a manager" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value={NO_MANAGER_VALUE}>None</SelectItem>
                   {allUsers.filter(u => 
                     (u.role === 'manager' || u.role === 'admin') && 
                     u.id !== userDialog.user?.id
