@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { format } from "date-fns";
 import { ChevronDown, ChevronUp, Eye } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -98,8 +98,8 @@ export function TaskTable({ tasks, onSubmit, onView }: TaskTableProps) {
             const taskLog = task.taskLog;
             
             return (
-              <>
-                <TableRow key={task.id} className={isExpanded ? 'bg-muted/50' : ''}>
+              <Fragment key={task.id}>
+                <TableRow className={isExpanded ? 'bg-muted/50' : ''}>
                   <TableCell>
                     <Button
                       variant="ghost"
@@ -198,7 +198,7 @@ export function TaskTable({ tasks, onSubmit, onView }: TaskTableProps) {
                     </TableCell>
                   </TableRow>
                 )}
-              </>
+              </Fragment>
             );
           })}
         </TableBody>

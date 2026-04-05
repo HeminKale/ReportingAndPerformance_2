@@ -14,8 +14,9 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { Plus, Pencil, Trash2, Users as UsersIcon, ListTodo } from "lucide-react";
 import type { User, Task } from "@/lib/types/database";
 
-/** Radix Select.Item must not use value=""; map this to no manager in form state */
+/** Radix Select.Item must not use value=""; map sentinels to "" in form state */
 const NO_MANAGER_VALUE = "__no_manager__";
+const NO_LINKED_MONTHLY_VALUE = "__no_linked_monthly__";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -264,12 +265,12 @@ export default function SettingsPage() {
 
   const openEditUserDialog = (userToEdit: User) => {
     setUserForm({
-      email: userToEdit.email,
+      email: userToEdit.email ?? '',
       password: '',
-      fullName: userToEdit.full_name,
+      fullName: userToEdit.full_name ?? '',
       role: userToEdit.role,
-      managerId: userToEdit.manager_id || '',
-      timezone: userToEdit.timezone,
+      managerId: userToEdit.manager_id ?? '',
+      timezone: userToEdit.timezone ?? 'UTC',
     });
     setUserDialog({ open: true, mode: 'edit', user: userToEdit });
   };
@@ -342,6 +343,9 @@ export default function SettingsPage() {
         assignmentType: 'common',
         assignedTo: '',
         isActive: true,
+        isNumericTask: false,
+        numericUnit: '',
+        linkedMonthlyTaskId: '',
       });
       fetchData();
     } catch (error: any) {
@@ -414,6 +418,9 @@ export default function SettingsPage() {
         assignmentType: 'common',
         assignedTo: '',
         isActive: true,
+        isNumericTask: false,
+        numericUnit: '',
+        linkedMonthlyTaskId: '',
       });
       fetchData();
     } catch (error: any) {
@@ -456,17 +463,17 @@ export default function SettingsPage() {
   const openEditTaskDialog = (taskToEdit: Task) => {
     const assignedUser = allUsers.find(u => u.id === taskToEdit.assigned_to);
     setTaskForm({
-      title: taskToEdit.title,
-      description: taskToEdit.description || '',
+      title: taskToEdit.title ?? '',
+      description: taskToEdit.description ?? '',
       type: taskToEdit.type,
-      dayOfWeek: taskToEdit.day_of_week?.toString() || '',
-      dueDate: taskToEdit.due_date || '',
+      dayOfWeek: taskToEdit.day_of_week != null ? String(taskToEdit.day_of_week) : '',
+      dueDate: taskToEdit.due_date ?? '',
       assignmentType: taskToEdit.is_common_task ? 'common' : 'specific',
-      assignedTo: taskToEdit.assigned_to || '',
-      isActive: taskToEdit.is_active,
-      isNumericTask: taskToEdit.is_numeric_task,
-      numericUnit: taskToEdit.numeric_unit || '',
-      linkedMonthlyTaskId: taskToEdit.linked_monthly_task_id || '',
+      assignedTo: taskToEdit.assigned_to ?? '',
+      isActive: Boolean(taskToEdit.is_active),
+      isNumericTask: Boolean(taskToEdit.is_numeric_task),
+      numericUnit: taskToEdit.numeric_unit ?? '',
+      linkedMonthlyTaskId: taskToEdit.linked_monthly_task_id ?? '',
     });
     setTaskDialog({ open: true, mode: 'edit', task: taskToEdit });
   };
@@ -860,6 +867,9 @@ export default function SettingsPage() {
             assignmentType: 'common',
             assignedTo: '',
             isActive: true,
+            isNumericTask: false,
+            numericUnit: '',
+            linkedMonthlyTaskId: '',
           });
         }
       }}>
@@ -1033,14 +1043,19 @@ export default function SettingsPage() {
                   <div className="space-y-2">
                     <Label htmlFor="linkedMonthlyTask">Link to Monthly Task (optional)</Label>
                     <Select 
-                      value={taskForm.linkedMonthlyTaskId} 
-                      onValueChange={(value) => setTaskForm({ ...taskForm, linkedMonthlyTaskId: value })}
+                      value={taskForm.linkedMonthlyTaskId || NO_LINKED_MONTHLY_VALUE}
+                      onValueChange={(value) =>
+                        setTaskForm({
+                          ...taskForm,
+                          linkedMonthlyTaskId: value === NO_LINKED_MONTHLY_VALUE ? "" : value,
+                        })
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select monthly task for auto-calculation" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value={NO_LINKED_MONTHLY_VALUE}>None</SelectItem>
                         {allTasks.filter(t => t.type === 'monthly' && t.is_numeric_task).map(t => (
                           <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
                         ))}
