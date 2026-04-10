@@ -130,6 +130,7 @@ manager_review_comment TEXT
 - Review submitted tasks
 - Approve/reject with comments
 - See all submission details
+- Receive `task_verification` notifications when direct reports submit tasks
 - Send notifications to employees
 
 ### Admin

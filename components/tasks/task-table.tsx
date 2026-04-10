@@ -1,8 +1,8 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { format } from "date-fns";
-import { ChevronDown, ChevronUp, Eye } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,55 +19,31 @@ interface TaskTableProps {
 }
 
 export function TaskTable({ tasks, onSubmit, onView }: TaskTableProps) {
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [openMenuTaskId, setOpenMenuTaskId] = useState<string | null>(null);
 
-  const toggleRow = (taskId: string) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(taskId)) {
-      newExpanded.delete(taskId);
-    } else {
-      newExpanded.add(taskId);
+  const getStatusBadge = (taskLog?: TaskLog) => {
+    if (!taskLog) return <Badge variant="outline">Not Submitted</Badge>;
+
+    if (taskLog.verification_status === "pending") {
+      return <Badge className="bg-yellow-100 text-yellow-800">Pending Approval</Badge>;
     }
-    setExpandedRows(newExpanded);
+    if (taskLog.verification_status === "rejected") {
+      return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
+    }
+    if (taskLog.verification_status === "approved" && taskLog.status === "completed") {
+      return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
+    }
+    if (taskLog.status === "pending") {
+      return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+    }
+    return <Badge className="bg-blue-100 text-blue-800">Completed</Badge>;
   };
 
-  const getStatusBadge = (status?: string) => {
-    if (!status) return <Badge variant="outline">Not Submitted</Badge>;
-    
-    switch (status) {
-      case 'completed':
-        return <Badge className="bg-blue-100 text-blue-800">Completed</Badge>;
-      case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  const getApprovalBadge = (verificationStatus?: string) => {
-    if (!verificationStatus) return <Badge variant="outline">-</Badge>;
-    
-    switch (verificationStatus) {
-      case 'approved':
-        return <Badge className="bg-green-100 text-green-800">Approved</Badge>;
-      case 'rejected':
-        return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
-      case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-800">Pending Review</Badge>;
-      default:
-        return <Badge variant="outline">{verificationStatus}</Badge>;
-    }
-  };
-
-  const getTypeBadge = (type: string) => {
-    const colors = {
-      daily: 'bg-purple-100 text-purple-800',
-      weekly: 'bg-blue-100 text-blue-800',
-      monthly: 'bg-green-100 text-green-800',
-    };
-    return <Badge className={colors[type as keyof typeof colors] || 'bg-gray-100 text-gray-800'}>
-      {type.charAt(0).toUpperCase() + type.slice(1)}
-    </Badge>;
+  const canSubmitTask = (taskLog?: TaskLog) => {
+    if (!taskLog) return true;
+    if (taskLog.verification_status === "pending") return false;
+    if (taskLog.verification_status === "approved") return false;
+    return true;
   };
 
   if (tasks.length === 0) {
@@ -83,128 +59,123 @@ export function TaskTable({ tasks, onSubmit, onView }: TaskTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[40px]"></TableHead>
             <TableHead>Task Name</TableHead>
             <TableHead>Task Description</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Assigned At</TableHead>
             <TableHead>Submitted At</TableHead>
-            <TableHead>Created Time</TableHead>
+            <TableHead className="w-[56px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {tasks.map((task) => {
-            const isExpanded = expandedRows.has(task.id);
             const taskLog = task.taskLog;
+            const canSubmit = canSubmitTask(taskLog);
+            const isMenuOpen = openMenuTaskId === task.id;
             
             return (
-              <Fragment key={task.id}>
-                <TableRow className={isExpanded ? 'bg-muted/50' : ''}>
-                  <TableCell>
+              <TableRow key={task.id}>
+                <TableCell className="font-medium">
+                  {task.title}
+                  {task.is_numeric_task && taskLog?.numeric_value != null && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      ({taskLog!.numeric_value} {task.numeric_unit || "units"})
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className="max-w-md">
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {task.description || "-"}
+                  </p>
+                </TableCell>
+                <TableCell>{getStatusBadge(taskLog)}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {format(new Date(task.created_at), "dd MMM yyyy")}
+                </TableCell>
+                <TableCell>
+                  {taskLog?.submitted_at ? (
+                    <span className="text-sm">
+                      {format(new Date(taskLog.submitted_at), "HH:mm dd/MM/yyyy")}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="relative inline-block text-left">
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => toggleRow(task.id)}
                       className="h-8 w-8 p-0"
+                      onClick={() =>
+                        setOpenMenuTaskId((prev) => (prev === task.id ? null : task.id))
+                      }
                     >
-                      {isExpanded ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
+                      <ChevronDown className="h-4 w-4" />
                     </Button>
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {task.title}
-                    {task.is_numeric_task && taskLog?.numeric_value !== null && (
-                      <span className="text-xs text-muted-foreground ml-2">
-                        ({taskLog.numeric_value} {task.numeric_unit || 'units'})
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="max-w-md">
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {task.description || '-'}
-                    </p>
-                  </TableCell>
-                  <TableCell>{getStatusBadge(taskLog?.status)}</TableCell>
-                  <TableCell>
-                    {taskLog?.submitted_at ? (
-                      <span className="text-sm">
-                        {format(new Date(taskLog.submitted_at), 'HH:mm dd/MM/yyyy')}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-muted-foreground">
-                      {format(new Date(task.created_at), 'HH:mm dd/MM/yyyy')}
-                    </span>
-                  </TableCell>
-                </TableRow>
-                {isExpanded && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="bg-muted/30">
-                      <div className="py-4 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm font-medium mb-1">Full Description:</p>
-                            <p className="text-sm text-muted-foreground">{task.description || 'No description'}</p>
-                          </div>
-                          {taskLog && (
-                            <div>
-                              <p className="text-sm font-medium mb-1">Manager Approval:</p>
-                              {getApprovalBadge(taskLog.verification_status)}
-                            </div>
-                          )}
-                        </div>
-                        
-                        {taskLog && (
-                          <div className="space-y-2">
-                            {taskLog.comment && (
-                              <div>
-                                <p className="text-sm font-medium mb-1">Comment:</p>
-                                <p className="text-sm text-muted-foreground">{taskLog.comment}</p>
-                              </div>
-                            )}
-                            {taskLog.reason && (
-                              <div>
-                                <p className="text-sm font-medium mb-1">Reason:</p>
-                                <p className="text-sm text-muted-foreground">{taskLog.reason}</p>
-                              </div>
-                            )}
-                            {taskLog.manager_review_comment && (
-                              <div>
-                                <p className="text-sm font-medium mb-1">Manager Review:</p>
-                                <p className="text-sm text-muted-foreground">{taskLog.manager_review_comment}</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => onView(task, taskLog)}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Details
-                          </Button>
-                          {!taskLog && (
+                    {isMenuOpen && (
+                      <div className="absolute right-0 z-10 mt-2 w-48 rounded-md border bg-background p-1 shadow-md">
+                        {/* For numeric tasks: "Enter Number" opens the submit dialog when submittable */}
+                        {task.is_numeric_task && canSubmit ? (
+                          <>
                             <Button
+                              variant="ghost"
                               size="sm"
-                              onClick={() => onSubmit(task)}
+                              className="w-full justify-start font-medium"
+                              onClick={() => {
+                                onSubmit(task);
+                                setOpenMenuTaskId(null);
+                              }}
                             >
-                              Submit Task
+                              {taskLog?.verification_status === "rejected" ? "Re-enter Number" : "Enter Number"}
                             </Button>
-                          )}
-                        </div>
+                            {taskLog && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start text-muted-foreground"
+                                onClick={() => {
+                                  onView(task, taskLog);
+                                  setOpenMenuTaskId(null);
+                                }}
+                              >
+                                View Details
+                              </Button>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="w-full justify-start"
+                              onClick={() => {
+                                onView(task, taskLog);
+                                setOpenMenuTaskId(null);
+                              }}
+                            >
+                              View Details
+                            </Button>
+                            {canSubmit && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start"
+                                onClick={() => {
+                                  onSubmit(task);
+                                  setOpenMenuTaskId(null);
+                                }}
+                              >
+                                {taskLog?.verification_status === "rejected" ? "Resubmit Task" : "Submit Task"}
+                              </Button>
+                            )}
+                          </>
+                        )}
                       </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </Fragment>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
             );
           })}
         </TableBody>

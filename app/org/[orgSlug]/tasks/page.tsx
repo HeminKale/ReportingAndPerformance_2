@@ -1,19 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { TaskLogDialog } from "@/components/tasks/task-log-dialog";
 import { TaskTable } from "@/components/tasks/task-table";
 import { MonthlyNumericSummary } from "@/components/tasks/monthly-numeric-summary";
 import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { Task, TaskLog, User } from "@/lib/types/database";
 
 export default function TasksPage() {
-  const params = useParams();
   const [user, setUser] = useState<User | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [taskLogs, setTaskLogs] = useState<TaskLog[]>([]);
@@ -22,8 +21,14 @@ export default function TasksPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [historyFilters, setHistoryFilters] = useState({
+    daily: { date: '', taskName: '' },
+    weekly: { date: '', taskName: '' },
+    monthly: { date: '', taskName: '' },
+  });
   const supabase = createClient();
   const currentMonth = format(new Date(), 'yyyy-MM-dd');
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   type TaskLifecycleState =
     | 'never_submitted'
@@ -141,12 +146,39 @@ export default function TasksPage() {
 
   // Phase 1 data split:
   // - currentTasks: active/incomplete and pending/rejected states
-  // - historyTasks: completed + manager-approved (prepared for Phase 2 UI)
+  // - historyTasks: completed + manager-approved where Assigned At is older than today
+  const getAssignedDay = (createdAt: string) => format(new Date(createdAt), "yyyy-MM-dd");
+
+  const groupByAssignedDate = (tasks: any[]): [string, any[]][] => {
+    const groups: Record<string, any[]> = {};
+    for (const task of tasks) {
+      const day = getAssignedDay(task.created_at);
+      if (!groups[day]) groups[day] = [];
+      groups[day].push(task);
+    }
+    return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
+  };
+
+  const applyHistoryFilters = (tasks: any[], freq: 'daily' | 'weekly' | 'monthly') => {
+    const { date, taskName } = historyFilters[freq];
+    return tasks.filter((t) => {
+      const matchDate = !date || getAssignedDay(t.created_at) === date;
+      const matchName = !taskName || t.title.toLowerCase().includes(taskName.toLowerCase());
+      return matchDate && matchName;
+    });
+  };
+
   const currentTasks = tasksWithState.filter(
-    (task) => task.lifecycleState !== 'approved_completed'
+    (task) =>
+      !(
+        task.lifecycleState === 'approved_completed' &&
+        getAssignedDay(task.created_at) < today
+      )
   );
   const historyTasks = tasksWithState.filter(
-    (task) => task.lifecycleState === 'approved_completed'
+    (task) =>
+      task.lifecycleState === 'approved_completed' &&
+      getAssignedDay(task.created_at) < today
   );
 
   const dailyTasks = currentTasks.filter(t => t.type === 'daily');
@@ -157,6 +189,90 @@ export default function TasksPage() {
   const dailyHistoryTasks = historyTasks.filter(t => t.type === 'daily');
   const weeklyHistoryTasks = historyTasks.filter(t => t.type === 'weekly');
   const monthlyHistoryTasks = historyTasks.filter(t => t.type === 'monthly');
+
+  const isPendingApprovalTask = (task: (Task & { taskLog?: TaskLog })) => {
+    const log = task.taskLog;
+    if (!log) return false;
+    return log.status === 'completed' && log.verification_status !== 'approved';
+  };
+
+  const dailyPendingApprovalTasks = dailyTasks.filter(isPendingApprovalTask);
+  const weeklyPendingApprovalTasks = weeklyTasks.filter(isPendingApprovalTask);
+  const monthlyPendingApprovalTasks = monthlyTasks.filter(isPendingApprovalTask);
+
+  const dailyFreshTasks = dailyTasks.filter((t) => !isPendingApprovalTask(t));
+  const weeklyFreshTasks = weeklyTasks.filter((t) => !isPendingApprovalTask(t));
+  const monthlyFreshTasks = monthlyTasks.filter((t) => !isPendingApprovalTask(t));
+
+  const isAssignedToday = (task: Task) => getAssignedDay(task.created_at) === today;
+  const dailyCurrentTodayCount = dailyTasks.filter(isAssignedToday).length;
+  const weeklyCurrentTodayCount = weeklyTasks.filter(isAssignedToday).length;
+  const monthlyCurrentTodayCount = monthlyTasks.filter(isAssignedToday).length;
+
+  const numericDailyTaskIds = useMemo(
+    () =>
+      new Set(
+        tasks
+          .filter((t) => t.type === "daily" && t.is_numeric_task)
+          .map((t) => t.id)
+      ),
+    [tasks]
+  );
+
+  // Monthly rollup should only come from daily numeric tasks linked to a monthly task.
+  const linkedNumericDailyTaskIds = useMemo(
+    () =>
+      new Set(
+        tasks
+          .filter((t) => t.type === "daily" && t.is_numeric_task && Boolean(t.linked_monthly_task_id))
+          .map((t) => t.id)
+      ),
+    [tasks]
+  );
+
+  const dailyCertificatesChartData = useMemo(() => {
+    const now = new Date();
+    const monthStart = format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd");
+    const monthEnd = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd");
+    const byDay: Record<string, number> = {};
+
+    for (const log of taskLogs) {
+      if (!numericDailyTaskIds.has(log.task_id)) continue;
+      if (!log.date || log.date < monthStart || log.date > monthEnd) continue;
+      if (log.numeric_value == null) continue;
+      byDay[log.date] = (byDay[log.date] || 0) + Number(log.numeric_value);
+    }
+
+    return Object.entries(byDay)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, value]) => ({
+        date,
+        label: format(new Date(date), "dd MMM"),
+        value,
+      }));
+  }, [taskLogs, numericDailyTaskIds]);
+
+  const monthlyCertificatesChartData = useMemo(() => {
+    const byMonth: Record<string, number> = {};
+    for (const log of taskLogs) {
+      if (!linkedNumericDailyTaskIds.has(log.task_id)) continue;
+      if (!log.date || log.numeric_value == null) continue;
+      const monthKey = format(new Date(log.date), "yyyy-MM");
+      byMonth[monthKey] = (byMonth[monthKey] || 0) + Number(log.numeric_value);
+    }
+
+    const months: string[] = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(format(d, "yyyy-MM"));
+    }
+
+    return months.map((m) => ({
+      month: format(new Date(`${m}-01`), "MMM yyyy"),
+      value: byMonth[m] || 0,
+    }));
+  }, [taskLogs, linkedNumericDailyTaskIds]);
 
   if (loading) {
     return (
@@ -180,47 +296,322 @@ export default function TasksPage() {
 
       <Tabs defaultValue="daily" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="daily">Daily ({dailyTasks.length})</TabsTrigger>
-          <TabsTrigger value="weekly">Weekly ({weeklyTasks.length})</TabsTrigger>
-          <TabsTrigger value="monthly">Monthly ({monthlyTasks.length})</TabsTrigger>
+          <TabsTrigger value="daily">Daily ({dailyCurrentTodayCount})</TabsTrigger>
+          <TabsTrigger value="weekly">Weekly ({weeklyCurrentTodayCount})</TabsTrigger>
+          <TabsTrigger value="monthly">Monthly ({monthlyCurrentTodayCount})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="daily" className="space-y-6">
-          {dailyTasks.some(t => t.is_numeric_task && t.linked_monthly_task_id) && user && (
-            <div className="space-y-4">
-              {dailyTasks
-                .filter(t => t.is_numeric_task && t.linked_monthly_task_id)
-                .map(task => (
-                  <MonthlyNumericSummary
-                    key={task.id}
-                    dailyTask={task}
-                    userId={user.id}
-                    month={currentMonth}
-                  />
-                ))}
-            </div>
-          )}
-          <TaskTable 
-            tasks={dailyTasks} 
-            onSubmit={handleSubmit}
-            onView={handleView}
-          />
+          <Tabs defaultValue="current" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="current">Current ({dailyCurrentTodayCount})</TabsTrigger>
+              <TabsTrigger value="history">History ({dailyHistoryTasks.length})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="current" className="space-y-6">
+              {dailyFreshTasks.some(t => t.is_numeric_task && t.linked_monthly_task_id) && user && (
+                <div className="space-y-4">
+                  {dailyFreshTasks
+                    .filter(t => t.is_numeric_task && t.linked_monthly_task_id)
+                    .map(task => (
+                      <MonthlyNumericSummary
+                        key={task.id}
+                        dailyTask={task}
+                        userId={user.id}
+                        month={currentMonth}
+                      />
+                    ))}
+                </div>
+              )}
+              <TaskTable 
+                tasks={dailyFreshTasks} 
+                onSubmit={handleSubmit}
+                onView={handleView}
+              />
+              {dailyPendingApprovalTasks.length > 0 && (
+                <details className="rounded-lg border">
+                  <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+                    Pending approvals ({dailyPendingApprovalTasks.length})
+                  </summary>
+                  <div className="border-t p-4">
+                    <TaskTable
+                      tasks={dailyPendingApprovalTasks}
+                      onSubmit={handleSubmit}
+                      onView={handleView}
+                    />
+                  </div>
+                </details>
+              )}
+
+              <details className="rounded-lg border">
+                <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+                  Number of certificates-daily
+                </summary>
+                <div className="border-t p-4">
+                  {dailyCertificatesChartData.length === 0 ? (
+                    <div className="text-sm text-muted-foreground py-8 text-center">
+                      No numeric submissions found for this month.
+                    </div>
+                  ) : (
+                    <div className="h-64 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={dailyCertificatesChartData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="label" />
+                          <YAxis />
+                          <Tooltip />
+                          <Line type="monotone" dataKey="value" strokeDasharray="4 4" strokeWidth={2} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+              </details>
+            </TabsContent>
+
+            <TabsContent value="history" className="space-y-4">
+              <div className="flex gap-3">
+                <Input
+                  type="date"
+                  className="w-44"
+                  value={historyFilters.daily.date}
+                  onChange={(e) =>
+                    setHistoryFilters((prev) => ({
+                      ...prev,
+                      daily: { ...prev.daily, date: e.target.value },
+                    }))
+                  }
+                />
+                <Input
+                  placeholder="Search by task name..."
+                  className="flex-1"
+                  value={historyFilters.daily.taskName}
+                  onChange={(e) =>
+                    setHistoryFilters((prev) => ({
+                      ...prev,
+                      daily: { ...prev.daily, taskName: e.target.value },
+                    }))
+                  }
+                />
+              </div>
+              {(() => {
+                const filtered = applyHistoryFilters(dailyHistoryTasks, 'daily');
+                const groups = groupByAssignedDate(filtered);
+                if (groups.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-muted-foreground">
+                      No history found
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-2">
+                    {groups.map(([date, tasks]) => (
+                      <details key={date} className="rounded-lg border">
+                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+                          Assigned {format(new Date(date), 'dd MMM yyyy')} &mdash; {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                        </summary>
+                        <div className="border-t p-4">
+                          <TaskTable tasks={tasks} onSubmit={handleSubmit} onView={handleView} />
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                );
+              })()}
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="weekly">
-          <TaskTable 
-            tasks={weeklyTasks} 
-            onSubmit={handleSubmit}
-            onView={handleView}
-          />
+          <Tabs defaultValue="current" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="current">Current ({weeklyCurrentTodayCount})</TabsTrigger>
+              <TabsTrigger value="history">History ({weeklyHistoryTasks.length})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="current">
+              <TaskTable 
+                tasks={weeklyFreshTasks} 
+                onSubmit={handleSubmit}
+                onView={handleView}
+              />
+              {weeklyPendingApprovalTasks.length > 0 && (
+                <details className="mt-4 rounded-lg border">
+                  <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+                    Pending approvals ({weeklyPendingApprovalTasks.length})
+                  </summary>
+                  <div className="border-t p-4">
+                    <TaskTable
+                      tasks={weeklyPendingApprovalTasks}
+                      onSubmit={handleSubmit}
+                      onView={handleView}
+                    />
+                  </div>
+                </details>
+              )}
+            </TabsContent>
+
+            <TabsContent value="history" className="space-y-4">
+              <div className="flex gap-3">
+                <Input
+                  type="date"
+                  className="w-44"
+                  value={historyFilters.weekly.date}
+                  onChange={(e) =>
+                    setHistoryFilters((prev) => ({
+                      ...prev,
+                      weekly: { ...prev.weekly, date: e.target.value },
+                    }))
+                  }
+                />
+                <Input
+                  placeholder="Search by task name..."
+                  className="flex-1"
+                  value={historyFilters.weekly.taskName}
+                  onChange={(e) =>
+                    setHistoryFilters((prev) => ({
+                      ...prev,
+                      weekly: { ...prev.weekly, taskName: e.target.value },
+                    }))
+                  }
+                />
+              </div>
+              {(() => {
+                const filtered = applyHistoryFilters(weeklyHistoryTasks, 'weekly');
+                const groups = groupByAssignedDate(filtered);
+                if (groups.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-muted-foreground">
+                      No history found
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-2">
+                    {groups.map(([date, tasks]) => (
+                      <details key={date} className="rounded-lg border">
+                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+                          Assigned {format(new Date(date), 'dd MMM yyyy')} &mdash; {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                        </summary>
+                        <div className="border-t p-4">
+                          <TaskTable tasks={tasks} onSubmit={handleSubmit} onView={handleView} />
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                );
+              })()}
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="monthly">
-          <TaskTable 
-            tasks={monthlyTasks} 
-            onSubmit={handleSubmit}
-            onView={handleView}
-          />
+          <Tabs defaultValue="current" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="current">Current ({monthlyCurrentTodayCount})</TabsTrigger>
+              <TabsTrigger value="history">History ({monthlyHistoryTasks.length})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="current">
+              <TaskTable 
+                tasks={monthlyFreshTasks} 
+                onSubmit={handleSubmit}
+                onView={handleView}
+              />
+              {monthlyPendingApprovalTasks.length > 0 && (
+                <details className="mt-4 rounded-lg border">
+                  <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+                    Pending approvals ({monthlyPendingApprovalTasks.length})
+                  </summary>
+                  <div className="border-t p-4">
+                    <TaskTable
+                      tasks={monthlyPendingApprovalTasks}
+                      onSubmit={handleSubmit}
+                      onView={handleView}
+                    />
+                  </div>
+                </details>
+              )}
+
+              <details className="mt-4 rounded-lg border">
+                <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+                  Number of certificates-monthly
+                </summary>
+                <div className="border-t p-4">
+                  {monthlyCertificatesChartData.some((p) => p.value > 0) ? (
+                    <div className="h-64 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={monthlyCertificatesChartData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="month" />
+                          <YAxis />
+                          <Tooltip />
+                          <Line type="monotone" dataKey="value" strokeDasharray="4 4" strokeWidth={2} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground py-8 text-center">
+                      No linked daily numeric submissions found yet.
+                    </div>
+                  )}
+                </div>
+              </details>
+            </TabsContent>
+
+            <TabsContent value="history" className="space-y-4">
+              <div className="flex gap-3">
+                <Input
+                  type="date"
+                  className="w-44"
+                  value={historyFilters.monthly.date}
+                  onChange={(e) =>
+                    setHistoryFilters((prev) => ({
+                      ...prev,
+                      monthly: { ...prev.monthly, date: e.target.value },
+                    }))
+                  }
+                />
+                <Input
+                  placeholder="Search by task name..."
+                  className="flex-1"
+                  value={historyFilters.monthly.taskName}
+                  onChange={(e) =>
+                    setHistoryFilters((prev) => ({
+                      ...prev,
+                      monthly: { ...prev.monthly, taskName: e.target.value },
+                    }))
+                  }
+                />
+              </div>
+              {(() => {
+                const filtered = applyHistoryFilters(monthlyHistoryTasks, 'monthly');
+                const groups = groupByAssignedDate(filtered);
+                if (groups.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-muted-foreground">
+                      No history found
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-2">
+                    {groups.map(([date, tasks]) => (
+                      <details key={date} className="rounded-lg border">
+                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+                          Assigned {format(new Date(date), 'dd MMM yyyy')} &mdash; {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                        </summary>
+                        <div className="border-t p-4">
+                          <TaskTable tasks={tasks} onSubmit={handleSubmit} onView={handleView} />
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                );
+              })()}
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
 

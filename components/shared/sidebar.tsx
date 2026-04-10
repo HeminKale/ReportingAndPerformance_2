@@ -17,15 +17,17 @@ import {
   Users,
   Settings,
   LogOut,
+  Megaphone,
 } from "lucide-react";
 
 interface SidebarProps {
   orgSlug: string;
   userRole: string;
   userId: string;
+  userName?: string;
 }
 
-export function Sidebar({ orgSlug, userRole, userId }: SidebarProps) {
+export function Sidebar({ orgSlug, userRole, userId, userName }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -86,10 +88,16 @@ export function Sidebar({ orgSlug, userRole, userId }: SidebarProps) {
       roles: ['admin', 'manager', 'employee'],
     },
     {
+      title: "Announcements",
+      href: `/org/${orgSlug}/announcements`,
+      icon: Megaphone,
+      roles: ['admin', 'manager', 'employee'],
+    },
+    {
       title: "Manager Panel",
       href: `/org/${orgSlug}/manager`,
       icon: Users,
-      roles: ['manager'],
+      roles: ['manager', 'admin'],
     },
     {
       title: "Settings",
@@ -106,7 +114,9 @@ export function Sidebar({ orgSlug, userRole, userId }: SidebarProps) {
   return (
     <div className="flex flex-col h-full w-64 bg-card border-r">
       <div className="p-6 border-b flex items-center justify-between">
-        <h1 className="text-xl font-bold">Employee Tracker</h1>
+        <h1 className="text-xl font-bold truncate" title={userName || 'Employee Tracker'}>
+          {userName || 'Employee Tracker'}
+        </h1>
         <NotificationBell userId={userId} orgSlug={orgSlug} />
       </div>
       

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,7 @@ import { Calendar as CalendarIcon, Plus } from "lucide-react";
 import type { Leave, User } from "@/lib/types/database";
 
 export default function LeavesPage() {
+  const params = useParams();
   const [user, setUser] = useState<User | null>(null);
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,10 +68,19 @@ export default function LeavesPage() {
       return;
     }
 
+    if (new Date(formData.endDate) < new Date(formData.startDate)) {
+      toast({
+        title: "Invalid date range",
+        description: "End date cannot be earlier than start date",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      const { error } = await supabase
+      const { data: createdLeave, error } = await supabase
         .from('leaves')
         .insert({
           user_id: user.id,
@@ -80,7 +91,9 @@ export default function LeavesPage() {
           leave_type: formData.leaveType,
           reason: formData.reason,
           status: 'pending',
-        });
+        })
+        .select("id")
+        .single();
 
       if (error) throw error;
 
@@ -93,7 +106,13 @@ export default function LeavesPage() {
             type: 'leave_approval',
             title: 'Leave Request',
             message: `${user.full_name} has requested leave from ${format(new Date(formData.startDate), 'MMM d')} to ${format(new Date(formData.endDate), 'MMM d')}`,
-            link: `/org/${user.organization_id}/manager`,
+            link: `/org/${String(params.orgSlug)}/manager`,
+            metadata: {
+              actionable: true,
+              resource_type: "leave",
+              resource_id: createdLeave?.id ?? null,
+              employee_id: user.id,
+            },
           });
       }
 
@@ -228,7 +247,14 @@ export default function LeavesPage() {
                   id="startDate"
                   type="date"
                   value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  onChange={(e) => {
+                    const startDate = e.target.value;
+                    setFormData((prev) => ({
+                      ...prev,
+                      startDate,
+                      endDate: prev.endDate && prev.endDate < startDate ? startDate : prev.endDate,
+                    }));
+                  }}
                   required
                 />
               </div>
@@ -237,6 +263,7 @@ export default function LeavesPage() {
                 <Input
                   id="endDate"
                   type="date"
+                  min={formData.startDate || undefined}
                   value={formData.endDate}
                   onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                   required

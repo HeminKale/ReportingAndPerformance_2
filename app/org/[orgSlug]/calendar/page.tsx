@@ -31,8 +31,8 @@ export default function CalendarPage() {
       .select('*')
       .eq('user_id', user.id)
       .eq('status', 'approved')
-      .gte('start_date', format(monthStart, 'yyyy-MM-dd'))
-      .lte('end_date', format(monthEnd, 'yyyy-MM-dd'));
+      .lte('start_date', format(monthEnd, 'yyyy-MM-dd'))
+      .gte('end_date', format(monthStart, 'yyyy-MM-dd'));
 
     setLeaves(leavesData || []);
     setLoading(false);

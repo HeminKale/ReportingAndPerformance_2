@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
-import { Plus, Pencil, Trash2, Users as UsersIcon, ListTodo, ChevronDown, ChevronUp, Eye, AlertTriangle } from "lucide-react";
-import type { User, Task } from "@/lib/types/database";
+import { Plus, Pencil, Trash2, Users as UsersIcon, ListTodo, ChevronDown, ChevronUp, Eye, AlertTriangle, Star, Trophy, Megaphone } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { RichTextEditor } from "@/components/shared/rich-text-editor";
+import { format } from "date-fns";
+import type { User, Task, Announcement } from "@/lib/types/database";
 
 /** Radix Select.Item must not use value=""; map sentinels to "" in form state */
 const NO_MANAGER_VALUE = "__no_manager__";
@@ -95,9 +98,27 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const supabase = createClient();
 
+  const [ratingsMonth, setRatingsMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [ratingsEntries, setRatingsEntries] = useState<Array<{ userId: string; score: number | ''; notes: string }>>([]);
+  const [publishingRatings, setPublishingRatings] = useState(false);
+
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [announcementTitle, setAnnouncementTitle] = useState('');
+  const [announcementContent, setAnnouncementContent] = useState('');
+  const [postingAnnouncement, setPostingAnnouncement] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (user && allUsers.length > 0) {
+      fetchRatings(ratingsMonth, user.organization_id, allUsers);
+    }
+  }, [user, allUsers, ratingsMonth]);
 
   const fetchData = async () => {
     const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -142,6 +163,10 @@ export default function SettingsPage() {
     setAllTasks(tasks || []);
     setAllMistakes(mistakes || []);
     setLoading(false);
+
+    if (userData?.organization_id) {
+      fetchAnnouncements(userData.organization_id);
+    }
   };
 
   const handleCreateUser = async () => {
@@ -601,6 +626,110 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchRatings = async (month: string, orgId: string, employees: User[]) => {
+    const firstDay = `${month}-01`;
+    const { data } = await supabase
+      .from('leaderboard')
+      .select('*')
+      .eq('organization_id', orgId)
+      .eq('month', firstDay);
+
+    const ratingsByUser: Record<string, any> = {};
+    for (const row of (data || [])) {
+      ratingsByUser[row.user_id] = row;
+    }
+
+    setRatingsEntries(
+      employees.filter(u => u.role !== 'admin').map(u => ({
+        userId: u.id,
+        score: ratingsByUser[u.id]?.score ?? '',
+        notes: ratingsByUser[u.id]?.notes ?? '',
+      }))
+    );
+  };
+
+  const handlePublishRatings = async () => {
+    const validEntries = ratingsEntries.filter(e => e.score !== '' && Number(e.score) > 0);
+    if (validEntries.length === 0) {
+      toast({ title: "No ratings entered", description: "Enter at least one score before publishing.", variant: "destructive" });
+      return;
+    }
+
+    setPublishingRatings(true);
+    try {
+      const firstDay = `${ratingsMonth}-01`;
+      const sorted = [...validEntries].sort((a, b) => (Number(b.score)) - (Number(a.score)));
+      const rows = sorted.map((e, i) => ({
+        user_id: e.userId,
+        organization_id: user!.organization_id,
+        month: firstDay,
+        score: Number(e.score),
+        rank: i + 1,
+        notes: e.notes || null,
+        decided_by: user!.id,
+      }));
+
+      const { error } = await supabase
+        .from('leaderboard')
+        .upsert(rows, { onConflict: 'user_id,month' });
+
+      if (error) throw error;
+
+      toast({ title: "Ratings published!", description: "Leaderboard has been updated." });
+      fetchRatings(ratingsMonth, user!.organization_id, allUsers);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setPublishingRatings(false);
+    }
+  };
+
+  const fetchAnnouncements = async (orgId: string) => {
+    const { data } = await supabase
+      .from('announcements')
+      .select('*')
+      .eq('organization_id', orgId)
+      .order('created_at', { ascending: false });
+    setAnnouncements((data as Announcement[]) || []);
+  };
+
+  const handlePostAnnouncement = async () => {
+    if (!announcementTitle.trim() || !announcementContent.trim() || announcementContent === '<p></p>') {
+      toast({ title: "Error", description: "Please enter a title and content.", variant: "destructive" });
+      return;
+    }
+    setPostingAnnouncement(true);
+    try {
+      const { error } = await supabase.from('announcements').insert({
+        organization_id: user!.organization_id,
+        title: announcementTitle.trim(),
+        content: announcementContent,
+        created_by: user!.id,
+      });
+      if (error) throw error;
+      toast({ title: "Announcement posted!" });
+      setAnnouncementTitle('');
+      setAnnouncementContent('');
+      fetchAnnouncements(user!.organization_id);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setPostingAnnouncement(false);
+    }
+  };
+
+  const handleDeleteAnnouncement = async (id: string) => {
+    if (!confirm('Delete this announcement?')) return;
+    try {
+      const { error } = await supabase.from('announcements').delete().eq('id', id);
+      if (error) throw error;
+      toast({ title: "Announcement deleted" });
+      setAnnouncements(prev => prev.filter(a => a.id !== id));
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
   const openCreateMistakeDialog = () => {
     setMistakeForm({ title: '', description: '', severity: 'medium', userId: '' });
     setMistakeDialog({ open: true, mode: 'create', mistake: null });
@@ -719,6 +848,14 @@ export default function SettingsPage() {
             <AlertTriangle className="h-4 w-4 mr-2" />
             Track Mistakes ({allMistakes.length})
           </TabsTrigger>
+          <TabsTrigger value="ratings">
+            <Star className="h-4 w-4 mr-2" />
+            Employee Ratings
+          </TabsTrigger>
+          <TabsTrigger value="announcements">
+            <Megaphone className="h-4 w-4 mr-2" />
+            Announcements ({announcements.length})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="space-y-4">
@@ -808,120 +945,139 @@ export default function SettingsPage() {
             </Button>
           </div>
 
-          {filteredTasks.length > 0 ? (
-            <div className="border rounded-lg">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[40px]"></TableHead>
-                    <TableHead>Assigned To</TableHead>
-                    <TableHead>Task Name</TableHead>
-                    <TableHead>Task Type</TableHead>
-                    <TableHead>Task Description</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTasks.map((t) => {
-                    const isExpanded = expandedTaskRows.has(t.id);
-                    const assignedUser = t.assigned_to ? allUsers.find(u => u.id === t.assigned_to) : null;
-                    
-                    return (
-                      <>
-                        <TableRow key={t.id} className={isExpanded ? 'bg-muted/50' : ''}>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleTaskRow(t.id)}
-                              className="h-8 w-8 p-0"
-                            >
-                              {isExpanded ? (
-                                <ChevronUp className="h-4 w-4" />
-                              ) : (
-                                <ChevronDown className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </TableCell>
-                          <TableCell>
-                            {t.is_common_task ? (
-                              <span className="text-sm text-muted-foreground">All Employees</span>
-                            ) : (
-                              <span className="text-sm">{assignedUser?.full_name || 'Unknown'}</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="font-medium">{t.title}</TableCell>
-                          <TableCell>
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                              {t.type.charAt(0).toUpperCase() + t.type.slice(1)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="max-w-md">
-                            <p className="text-sm text-muted-foreground truncate">
-                              {t.description || '-'}
-                            </p>
-                          </TableCell>
-                        </TableRow>
-                        {isExpanded && (
+          {(() => {
+            if (filteredTasks.length === 0) {
+              return (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <ListTodo className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">No tasks found</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {taskSearchTerm ? 'Try a different search term' : 'Create tasks to assign to your team'}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            }
+
+            // Group by employee bucket
+            const groups: Record<string, Task[]> = {};
+            for (const t of filteredTasks) {
+              const key = t.is_common_task
+                ? 'All Employees'
+                : allUsers.find(u => u.id === t.assigned_to)?.full_name || 'Unassigned';
+              if (!groups[key]) groups[key] = [];
+              groups[key].push(t);
+            }
+            const sortedGroups = Object.entries(groups).sort(([a], [b]) => {
+              if (a === 'All Employees') return -1;
+              if (b === 'All Employees') return 1;
+              return a.localeCompare(b);
+            });
+
+            return (
+              <div className="space-y-2">
+                {sortedGroups.map(([employeeName, tasks]) => (
+                  <details key={employeeName} className="rounded-lg border">
+                    <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+                      {employeeName} &mdash; {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                    </summary>
+                    <div className="border-t">
+                      <Table>
+                        <TableHeader>
                           <TableRow>
-                            <TableCell colSpan={5} className="bg-muted/30">
-                              <div className="py-4 space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <p className="text-sm font-medium mb-1">Full Description:</p>
-                                    <p className="text-sm text-muted-foreground">{t.description || 'No description'}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-medium mb-1">Details:</p>
-                                    <div className="space-y-1 text-sm text-muted-foreground">
-                                      <p>Status: {t.is_active ? 'Active' : 'Inactive'}</p>
-                                      {t.is_numeric_task && <p>Numeric Task: {t.numeric_unit || 'units'}</p>}
-                                      {t.type === 'weekly' && t.day_of_week && (
-                                        <p>Day: {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][t.day_of_week]}</p>
-                                      )}
-                                      {t.type === 'monthly' && t.due_date && <p>Due: {t.due_date}</p>}
-                                    </div>
-                                  </div>
-                                </div>
-                                
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => openEditTaskDialog(t)}
-                                  >
-                                    <Pencil className="h-4 w-4 mr-2" />
-                                    Edit
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => handleDeleteTask(t.id)}
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete
-                                  </Button>
-                                </div>
-                              </div>
-                            </TableCell>
+                            <TableHead className="w-[40px]"></TableHead>
+                            <TableHead>Task Name</TableHead>
+                            <TableHead>Task Type</TableHead>
+                            <TableHead>Task Description</TableHead>
                           </TableRow>
-                        )}
-                      </>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <ListTodo className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No tasks found</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {taskSearchTerm ? 'Try a different search term' : 'Create tasks to assign to your team'}
-                </p>
-              </CardContent>
-            </Card>
-          )}
+                        </TableHeader>
+                        <TableBody>
+                          {tasks.map((t) => {
+                            const isExpanded = expandedTaskRows.has(t.id);
+                            return (
+                              <React.Fragment key={t.id}>
+                                <TableRow className={isExpanded ? 'bg-muted/50' : ''}>
+                                  <TableCell>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => toggleTaskRow(t.id)}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      {isExpanded ? (
+                                        <ChevronUp className="h-4 w-4" />
+                                      ) : (
+                                        <ChevronDown className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  </TableCell>
+                                  <TableCell className="font-medium">{t.title}</TableCell>
+                                  <TableCell>
+                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                      {t.type.charAt(0).toUpperCase() + t.type.slice(1)}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="max-w-md">
+                                    <p className="text-sm text-muted-foreground truncate">
+                                      {t.description || '-'}
+                                    </p>
+                                  </TableCell>
+                                </TableRow>
+                                {isExpanded && (
+                                  <TableRow>
+                                    <TableCell colSpan={4} className="bg-muted/30">
+                                      <div className="py-4 space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                          <div>
+                                            <p className="text-sm font-medium mb-1">Full Description:</p>
+                                            <p className="text-sm text-muted-foreground">{t.description || 'No description'}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-sm font-medium mb-1">Details:</p>
+                                            <div className="space-y-1 text-sm text-muted-foreground">
+                                              <p>Status: {t.is_active ? 'Active' : 'Inactive'}</p>
+                                              {t.is_numeric_task && <p>Numeric Task: {t.numeric_unit || 'units'}</p>}
+                                              {t.type === 'weekly' && t.day_of_week !== null && (
+                                                <p>Day: {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][t.day_of_week!]}</p>
+                                              )}
+                                              {t.type === 'monthly' && t.due_date && <p>Due: {t.due_date}</p>}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => openEditTaskDialog(t)}
+                                          >
+                                            <Pencil className="h-4 w-4 mr-2" />
+                                            Edit
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            onClick={() => handleDeleteTask(t.id)}
+                                          >
+                                            <Trash2 className="h-4 w-4 mr-2" />
+                                            Delete
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </details>
+                ))}
+              </div>
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="mistakes" className="space-y-4">
@@ -1050,6 +1206,176 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="ratings" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Trophy className="h-5 w-5 text-yellow-500" />
+                    Employee Ratings
+                  </CardTitle>
+                  <CardDescription>
+                    Assign scores (1–10) and notes for employees. Publishing will update the leaderboard and recalculate ranks.
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Label htmlFor="ratingsMonth" className="whitespace-nowrap">Month</Label>
+                  <Input
+                    id="ratingsMonth"
+                    type="month"
+                    className="w-44"
+                    value={ratingsMonth}
+                    onChange={(e) => setRatingsMonth(e.target.value)}
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {allUsers.filter(u => u.role !== 'admin').length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">No employees found.</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead className="w-36">Score (1–10)</TableHead>
+                      <TableHead>Custom Message / Notes</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {ratingsEntries.map((entry) => {
+                      const emp = allUsers.find(u => u.id === entry.userId);
+                      if (!emp) return null;
+                      return (
+                        <TableRow key={entry.userId}>
+                          <TableCell className="font-medium">{emp.full_name}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="capitalize">{emp.role}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={10}
+                              step={1}
+                              placeholder="–"
+                              className="w-20"
+                              value={entry.score}
+                              onChange={(e) => {
+                                const val = e.target.value === '' ? '' : Math.min(10, Math.max(1, parseInt(e.target.value, 10)));
+                                setRatingsEntries(prev => prev.map(r => r.userId === entry.userId ? { ...r, score: val as number | '' } : r));
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="text"
+                              placeholder="Optional message shown on leaderboard..."
+                              value={entry.notes}
+                              onChange={(e) => setRatingsEntries(prev => prev.map(r => r.userId === entry.userId ? { ...r, notes: e.target.value } : r))}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+            {allUsers.filter(u => u.role !== 'admin').length > 0 && (
+              <div className="px-6 pb-6 flex justify-end">
+                <Button onClick={handlePublishRatings} disabled={publishingRatings} className="gap-2">
+                  <Trophy className="h-4 w-4" />
+                  {publishingRatings ? 'Publishing…' : 'Publish Ratings'}
+                </Button>
+              </div>
+            )}
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="announcements" className="space-y-6">
+          {/* Create announcement */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Megaphone className="h-5 w-5" />
+                Post an Announcement
+              </CardTitle>
+              <CardDescription>
+                Announcements are visible to all members of your organisation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="announcementTitle">Title</Label>
+                <Input
+                  id="announcementTitle"
+                  placeholder="Announcement title…"
+                  value={announcementTitle}
+                  onChange={(e) => setAnnouncementTitle(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Content</Label>
+                <RichTextEditor
+                  value={announcementContent}
+                  onChange={setAnnouncementContent}
+                  placeholder="Write your announcement here…"
+                />
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={handlePostAnnouncement} disabled={postingAnnouncement} className="gap-2">
+                  <Megaphone className="h-4 w-4" />
+                  {postingAnnouncement ? 'Posting…' : 'Post Announcement'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Existing announcements */}
+          <div className="space-y-3">
+            {announcements.length === 0 ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Megaphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">No announcements posted yet.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              announcements.map((ann) => (
+                <Card key={ann.id}>
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold truncate">{ann.title}</h3>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {format(new Date(ann.created_at), 'dd MMM yyyy')}
+                          </span>
+                        </div>
+                        <div
+                          className="text-sm text-muted-foreground prose prose-sm max-w-none line-clamp-3"
+                          dangerouslySetInnerHTML={{ __html: ann.content }}
+                        />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-shrink-0 text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteAnnouncement(ann.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -1454,6 +1780,18 @@ export default function SettingsPage() {
           </DialogHeader>
 
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="mistakeTitle">Title (required)</Label>
+              <Input
+                id="mistakeTitle"
+                type="text"
+                placeholder="Brief title for the mistake"
+                value={mistakeForm.title}
+                onChange={(e) => setMistakeForm({ ...mistakeForm, title: e.target.value })}
+                required
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="mistakeEmployee">Employee (required)</Label>
               <Select 

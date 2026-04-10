@@ -30,7 +30,7 @@ export default async function OrgLayout({
 
   return (
     <div className="flex h-screen">
-      <Sidebar orgSlug={orgSlug} userRole={userData.role} userId={user.id} />
+      <Sidebar orgSlug={orgSlug} userRole={userData.role} userId={user.id} userName={userData.full_name} />
       <main className="flex-1 overflow-y-auto bg-background">
         {children}
       </main>

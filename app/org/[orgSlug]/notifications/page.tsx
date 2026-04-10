@@ -7,12 +7,14 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { Bell, CheckCheck, Trash2 } from "lucide-react";
-import type { Notification } from "@/lib/types/database";
+import type { Notification, User } from "@/lib/types/database";
 import Link from "next/link";
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const { toast } = useToast();
   const supabase = createClient();
 
@@ -44,6 +46,12 @@ export default function NotificationsPage() {
     
     if (!user) return;
 
+    const { data: userData } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
     const { data } = await supabase
       .from('notifications')
       .select('*')
@@ -51,8 +59,99 @@ export default function NotificationsPage() {
       .order('created_at', { ascending: false })
       .limit(50);
 
+    setCurrentUser(userData || null);
     setNotifications(data || []);
     setLoading(false);
+  };
+
+  const isManagerApprover = currentUser?.role === "manager" || currentUser?.role === "admin";
+
+  const isActionableNotification = (notification: Notification) => {
+    const metadata = notification.metadata || {};
+    return Boolean(
+      isManagerApprover &&
+      metadata.actionable === true &&
+      metadata.resource_type &&
+      metadata.resource_id
+    );
+  };
+
+  const handleNotificationApproval = async (
+    notification: Notification,
+    action: "approve" | "reject"
+  ) => {
+    const metadata = notification.metadata || {};
+    const resourceType = metadata.resource_type;
+    const resourceId = metadata.resource_id;
+    if (!resourceType || !resourceId || !currentUser) return;
+
+    setActionLoadingId(notification.id);
+    try {
+      if (resourceType === "task_log") {
+        const { error } = await supabase
+          .from("task_logs")
+          .update({
+            verification_status: action === "approve" ? "approved" : "rejected",
+            verified_by: currentUser.id,
+            verified_at: new Date().toISOString(),
+          })
+          .eq("id", resourceId);
+        if (error) throw error;
+      }
+
+      if (resourceType === "attendance") {
+        const { error } = await supabase
+          .from("attendance")
+          .update({
+            approval_status: action === "approve" ? "approved" : "rejected",
+            approved_by: currentUser.id,
+          })
+          .eq("id", resourceId);
+        if (error) throw error;
+      }
+
+      if (resourceType === "leave") {
+        const { error } = await supabase
+          .from("leaves")
+          .update({
+            status: action === "approve" ? "approved" : "rejected",
+            approved_by: currentUser.id,
+          })
+          .eq("id", resourceId);
+        if (error) throw error;
+      }
+
+      // Mark actionable notification as actioned and read.
+      // We avoid delete because some environments may not allow notification deletes via RLS.
+      const { error: notificationUpdateError } = await supabase
+        .from("notifications")
+        .update({
+          is_read: true,
+          metadata: {
+            ...(notification.metadata || {}),
+            actionable: false,
+            actioned: true,
+            action_taken: action,
+            actioned_at: new Date().toISOString(),
+          },
+        })
+        .eq("id", notification.id);
+      if (notificationUpdateError) throw notificationUpdateError;
+
+      toast({
+        title: "Success",
+        description: `Request ${action === "approve" ? "approved" : "rejected"} successfully.`,
+      });
+      fetchNotifications();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoadingId(null);
+    }
   };
 
   const markAsRead = async (id: string) => {
@@ -146,6 +245,10 @@ export default function NotificationsPage() {
   }
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
+  const visibleNotifications = notifications.filter((notification) => {
+    const metadata = notification.metadata || {};
+    return metadata.actioned !== true;
+  });
 
   return (
     <div className="p-8">
@@ -165,8 +268,8 @@ export default function NotificationsPage() {
       </div>
 
       <div className="space-y-4">
-        {notifications.length > 0 ? (
-          notifications.map((notification) => (
+        {visibleNotifications.length > 0 ? (
+          visibleNotifications.map((notification) => (
             <Card
               key={notification.id}
               className={`border-l-4 ${getNotificationColor(notification.type)} ${
@@ -192,6 +295,25 @@ export default function NotificationsPage() {
                       <p className="text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                       </p>
+                      {isActionableNotification(notification) && (
+                        <div className="mt-3 flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleNotificationApproval(notification, "approve")}
+                            disabled={actionLoadingId === notification.id}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleNotificationApproval(notification, "reject")}
+                            disabled={actionLoadingId === notification.id}
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      )}
                       {notification.link && (
                         <Link
                           href={notification.link}

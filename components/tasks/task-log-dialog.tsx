@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -19,12 +19,23 @@ interface TaskLogDialogProps {
 }
 
 export function TaskLogDialog({ task, open, onOpenChange, date }: TaskLogDialogProps) {
+  const params = useParams();
   const [status, setStatus] = useState<'completed' | 'pending'>('completed');
   const [comment, setComment] = useState("");
   const [reason, setReason] = useState("");
   const [numericValue, setNumericValue] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  // Reset form when dialog opens
+  useEffect(() => {
+    if (open) {
+      setStatus('completed');
+      setComment('');
+      setReason('');
+      setNumericValue('');
+    }
+  }, [open]);
   const { toast } = useToast();
   const supabase = createClient();
 
@@ -60,9 +71,53 @@ export function TaskLogDialog({ task, open, onOpenChange, date }: TaskLogDialogP
 
       const { error } = await supabase
         .from('task_logs')
-        .upsert(taskLogData);
+        .upsert(taskLogData)
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      const { data: submittedTaskLog } = await supabase
+        .from("task_logs")
+        .select("id")
+        .eq("task_id", task.id)
+        .eq("user_id", user.id)
+        .eq("date", date)
+        .single();
+
+      // Best-effort manager notification on employee submission.
+      // If no manager is assigned (manager_id is null), skip silently.
+      // Do not block employee submission if notification insert fails.
+      const { data: submittingUser } = await supabase
+        .from('users')
+        .select('full_name, manager_id')
+        .eq('id', user.id)
+        .single();
+
+      if (submittingUser?.manager_id) {
+        const managerMessage = `${submittingUser.full_name} submitted "${task.title}" as ${status} and it is waiting for your review.`;
+        const { error: managerNotificationError } = await supabase
+          .from('notifications')
+          .insert({
+            organization_id: task.organization_id,
+            user_id: submittingUser.manager_id,
+            type: 'task_verification',
+            title: 'Task Submitted for Review',
+            message: managerMessage,
+            link: `/org/${String(params.orgSlug)}/manager`,
+            metadata: {
+              actionable: true,
+              resource_type: "task_log",
+              resource_id: submittedTaskLog?.id ?? null,
+              employee_id: user.id,
+              task_id: task.id,
+            },
+          });
+
+        if (managerNotificationError) {
+          console.warn("Failed to create manager notification:", managerNotificationError.message);
+        }
+      }
 
       toast({
         title: "Task logged",
@@ -91,9 +146,11 @@ export function TaskLogDialog({ task, open, onOpenChange, date }: TaskLogDialogP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Log Task: {task.title}</DialogTitle>
+          <DialogTitle>{task.is_numeric_task ? `Enter Number: ${task.title}` : `Log Task: ${task.title}`}</DialogTitle>
           <DialogDescription>
-            Mark this task as completed or pending
+            {task.is_numeric_task
+              ? `Enter the number${task.numeric_unit ? ` of ${task.numeric_unit}` : ''} completed today.${task.linked_monthly_task_id ? ' This will be added to your monthly total.' : ''}`
+              : 'Mark this task as completed or pending'}
           </DialogDescription>
         </DialogHeader>
 
@@ -102,14 +159,14 @@ export function TaskLogDialog({ task, open, onOpenChange, date }: TaskLogDialogP
             <>
               <div className="space-y-2">
                 <Label htmlFor="numericValue">
-                  {task.numeric_unit ? `Number of ${task.numeric_unit}` : 'Value'} (required)
+                  Number{task.numeric_unit ? ` (${task.numeric_unit})` : ''} <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="numericValue"
                   type="number"
                   step="0.01"
                   min="0"
-                  placeholder="Enter value..."
+                  placeholder={`Enter number${task.numeric_unit ? ` of ${task.numeric_unit}` : ''}…`}
                   value={numericValue}
                   onChange={(e) => setNumericValue(e.target.value)}
                   required

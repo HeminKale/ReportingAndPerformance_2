@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,7 @@ import { Clock, CheckCircle, XCircle } from "lucide-react";
 import type { Attendance, User } from "@/lib/types/database";
 
 export default function AttendancePage() {
+  const params = useParams();
   const [user, setUser] = useState<User | null>(null);
   const [attendance, setAttendance] = useState<Attendance | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,7 +67,7 @@ export default function AttendancePage() {
         return;
       }
 
-      const { error } = await supabase
+      const { data: createdAttendance, error } = await supabase
         .from('attendance')
         .insert({
           user_id: user.id,
@@ -111,7 +113,9 @@ export default function AttendancePage() {
           is_late_request: true,
           late_reason: lateReason,
           approval_status: 'pending',
-        });
+        })
+        .select("id")
+        .single();
 
       if (error) throw error;
 
@@ -130,7 +134,13 @@ export default function AttendancePage() {
             type: 'late_request',
             title: 'Late Clock-In Request',
             message: `${user.full_name} has requested approval for late clock-in`,
-            link: `/org/${user.organization_id}/manager`,
+            link: `/org/${String(params.orgSlug)}/manager`,
+            metadata: {
+              actionable: true,
+              resource_type: "attendance",
+              resource_id: createdAttendance?.id ?? null,
+              employee_id: user.id,
+            },
           });
       }
 

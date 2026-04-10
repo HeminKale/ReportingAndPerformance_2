@@ -137,17 +137,18 @@ Added new fields to `Task` and `TaskLog` interfaces for full type safety.
 ### Manager Review Flow
 
 1. **Employee submits task** (verification_status = 'pending')
-2. **Manager views in Settings** → Task Assignment tab
-3. **Manager clicks expand arrow** on task row
-4. **Manager clicks Review button** (only visible for submitted tasks)
-5. **Review dialog shows**:
+2. **Manager receives notification** (type: `task_verification`) if employee has `manager_id` assigned
+3. **Manager views pending items** in Manager Panel
+4. **Manager clicks expand arrow** on task row
+5. **Manager clicks Review button** (only visible for submitted tasks)
+6. **Review dialog shows**:
    - Employee name
    - Task details
    - Submission timestamp
    - Employee comment/reason/numeric value
-6. **Manager approves or rejects** with optional comment
-7. **Notification sent** to employee
-8. **Task status updates** in employee's task table
+7. **Manager approves or rejects** with optional comment
+8. **Notification sent** to employee
+9. **Task status updates** in employee's task table
 
 ## Key Features
 
@@ -175,6 +176,7 @@ Added new fields to `Task` and `TaskLog` interfaces for full type safety.
 - Centralized review interface
 - Shows all submission details
 - Approve/Reject with comments
+- Manager gets submission notification for direct reports
 - Notification system integration
 - Status tracking
 
