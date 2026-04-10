@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,8 +23,13 @@ export default function TasksPage() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
-  const today = format(new Date(), 'yyyy-MM-dd');
   const currentMonth = format(new Date(), 'yyyy-MM-dd');
+
+  type TaskLifecycleState =
+    | 'never_submitted'
+    | 'submitted_pending_approval'
+    | 'submitted_rejected'
+    | 'approved_completed';
 
   useEffect(() => {
     fetchData();
@@ -49,15 +54,16 @@ export default function TasksPage() {
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
-    // Get today's and previous incomplete task logs
-    const yesterday = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd');
-    
-    const { data: logsData } = await supabase
-      .from('task_logs')
-      .select('*')
-      .eq('user_id', authUser.id)
-      .gte('date', yesterday)
-      .lte('date', today);
+    const taskIds = (tasksData || []).map((task) => task.id);
+
+    const { data: logsData } = taskIds.length > 0
+      ? await supabase
+          .from('task_logs')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .in('task_id', taskIds)
+          .order('created_at', { ascending: false })
+      : { data: [] as TaskLog[] };
 
     setUser(userData);
     setTasks(tasksData || []);
@@ -76,20 +82,81 @@ export default function TasksPage() {
     setViewDialogOpen(true);
   };
 
-  const dailyTasks = tasks.filter(t => t.type === 'daily').map(task => ({
-    ...task,
-    taskLog: taskLogs.find(log => log.task_id === task.id),
-  }));
+  const taskLogsByTaskId = useMemo(() => {
+    const logsMap = new Map<string, TaskLog[]>();
+    for (const log of taskLogs) {
+      const existing = logsMap.get(log.task_id) || [];
+      existing.push(log);
+      logsMap.set(log.task_id, existing);
+    }
+    return logsMap;
+  }, [taskLogs]);
 
-  const weeklyTasks = tasks.filter(t => t.type === 'weekly').map(task => ({
-    ...task,
-    taskLog: taskLogs.find(log => log.task_id === task.id),
-  }));
+  const getLatestLog = (logs: TaskLog[]) => {
+    if (logs.length === 0) return null;
+    return [...logs].sort((a, b) => {
+      const aTime = new Date(a.submitted_at || a.created_at).getTime();
+      const bTime = new Date(b.submitted_at || b.created_at).getTime();
+      return bTime - aTime;
+    })[0];
+  };
 
-  const monthlyTasks = tasks.filter(t => t.type === 'monthly').map(task => ({
-    ...task,
-    taskLog: taskLogs.find(log => log.task_id === task.id),
-  }));
+  const getLifecycleState = (logs: TaskLog[]): TaskLifecycleState => {
+    if (logs.length === 0) return 'never_submitted';
+
+    const hasApprovedCompletion = logs.some(
+      (log) => log.status === 'completed' && log.verification_status === 'approved'
+    );
+
+    if (hasApprovedCompletion) return 'approved_completed';
+
+    const latestLog = getLatestLog(logs);
+    if (!latestLog) return 'never_submitted';
+
+    if (latestLog.verification_status === 'pending') {
+      return 'submitted_pending_approval';
+    }
+
+    if (latestLog.verification_status === 'rejected') {
+      return 'submitted_rejected';
+    }
+
+    return 'never_submitted';
+  };
+
+  const tasksWithState = useMemo(() => {
+    return tasks.map((task) => {
+      const logs = taskLogsByTaskId.get(task.id) || [];
+      const latestLog = getLatestLog(logs);
+      const lifecycleState = getLifecycleState(logs);
+
+      return {
+        ...task,
+        taskLog: latestLog || undefined,
+        lifecycleState,
+        logs,
+      };
+    });
+  }, [tasks, taskLogsByTaskId]);
+
+  // Phase 1 data split:
+  // - currentTasks: active/incomplete and pending/rejected states
+  // - historyTasks: completed + manager-approved (prepared for Phase 2 UI)
+  const currentTasks = tasksWithState.filter(
+    (task) => task.lifecycleState !== 'approved_completed'
+  );
+  const historyTasks = tasksWithState.filter(
+    (task) => task.lifecycleState === 'approved_completed'
+  );
+
+  const dailyTasks = currentTasks.filter(t => t.type === 'daily');
+  const weeklyTasks = currentTasks.filter(t => t.type === 'weekly');
+  const monthlyTasks = currentTasks.filter(t => t.type === 'monthly');
+
+  // Prepared for Phase 2 (Current/History sub-tabs + history accordion).
+  const dailyHistoryTasks = historyTasks.filter(t => t.type === 'daily');
+  const weeklyHistoryTasks = historyTasks.filter(t => t.type === 'weekly');
+  const monthlyHistoryTasks = historyTasks.filter(t => t.type === 'monthly');
 
   if (loading) {
     return (
@@ -167,7 +234,7 @@ export default function TasksPage() {
               fetchData();
             }
           }}
-          date={today}
+          date={format(new Date(), 'yyyy-MM-dd')}
         />
       )}
 
