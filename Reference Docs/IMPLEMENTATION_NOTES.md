@@ -18,7 +18,7 @@ All 16 phases of the Employee Performance & Task Tracking System have been succe
 8. **Manager Panel** - Comprehensive approval dashboard
 9. **Leaderboard** - Performance ranking system
 10. **Mistake Tracking** - Quality assurance system
-11. **Calendar View** - Unified calendar for leaves and events
+11. **Calendar View** - Month view: approved leaves, attendance (clock-in/out), and per-day task completion; see [`CALENDAR_FEATURE.md`](CALENDAR_FEATURE.md)
 12. **Admin Panel** - User and organization management
 13. **UI Components** - Complete shadcn/ui component library
 14. **Security** - RLS policies and tenant isolation
@@ -102,6 +102,11 @@ Each feature has its own page component:
 - Dashboard, Tasks, Attendance, Leaves
 - Notifications, Calendar, Leaderboard, Mistakes
 - Manager Panel, Admin Panel
+
+### Calendar (employee)
+- **Route**: `/org/[orgSlug]/calendar` — client component; loads leaves (approved, month overlap), attendance for the month, active tasks + `task_logs` for the month.
+- **Helpers**: `app/org/[orgSlug]/calendar/calendar-utils.ts` — due-day rules (daily only on `created_at` date; weekly on matching weekday; monthly on `due_date`; plus `created_at` floor), completed vs incomplete, local `HH:mm` vs clock cutoff and 17:00.
+- **Spec**: Full behavior, queries, and edge cases are documented in [`CALENDAR_FEATURE.md`](CALENDAR_FEATURE.md).
 
 ## API Design
 

@@ -28,7 +28,7 @@ This enterprise-grade system provides complete employee performance tracking wit
 - **Real-Time Notifications**: Live updates for all important events
 - **Performance Leaderboard**: Monthly rankings with historical tracking
 - **Mistake Tracking**: Quality assurance and improvement tracking
-- **Calendar View**: Unified view of leaves and important dates
+- **Calendar View**: Month view combining approved leaves, attendance, and per-day task status ([`CALENDAR_FEATURE.md`](CALENDAR_FEATURE.md))
 - **Manager Dashboard**: Centralized approval hub for all pending requests
 
 ### Technical Highlights
@@ -99,6 +99,7 @@ For detailed setup instructions, see [SETUP.md](SETUP.md).
 - **[SETUP.md](SETUP.md)** - Complete setup guide with step-by-step instructions
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment guide for Vercel
 - **[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)** - Comprehensive project overview and architecture
+- **[CALENDAR_FEATURE.md](CALENDAR_FEATURE.md)** - Calendar page: leaves, attendance, tasks, queries, and rules
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
 
 ## Project Structure
@@ -187,10 +188,11 @@ employee-tracker/
 - Quality improvement tracking
 
 ### 10. Calendar View
-- Unified calendar
-- Approved leaves display
-- Month navigation
-- Color-coded events
+- Approved leaves (cross-month ranges); leave days show only leave
+- Clock-in / clock-out with green and red rules (cutoff, 17:00, incomplete tasks)
+- Task stripes: incomplete (red) and manager-approved completed (green); hover for task names and type badges
+- Month navigation, today highlight, legend
+- Details: [`CALENDAR_FEATURE.md`](CALENDAR_FEATURE.md)
 
 ### 11. Admin Panel
 - User management

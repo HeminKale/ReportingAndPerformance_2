@@ -1,19 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { format } from "date-fns";
-import { CheckCircle, XCircle, Clock, Users } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Users, AlertTriangle, Plus, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { TaskLog, Attendance, Leave, User } from "@/lib/types/database";
 
 export default function ManagerPage() {
@@ -21,12 +23,20 @@ export default function ManagerPage() {
   const [teamMembers, setTeamMembers] = useState<User[]>([]);
   const [taskLogs, setTaskLogs] = useState<any[]>([]);
   const [attendanceItems, setAttendanceItems] = useState<any[]>([]);
+  const [attendanceReportItems, setAttendanceReportItems] = useState<any[]>([]);
+  const [allMistakes, setAllMistakes] = useState<any[]>([]);
   const [leaveItems, setLeaveItems] = useState<any[]>([]);
   const [teamTasks, setTeamTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentSearchTerm, setCurrentSearchTerm] = useState("");
   const [historySearchTerm, setHistorySearchTerm] = useState("");
   const [historyDateFilter, setHistoryDateFilter] = useState("");
+  const [mistakeSearchTerm, setMistakeSearchTerm] = useState("");
+  const [expandedMistakeRows, setExpandedMistakeRows] = useState<Set<string>>(new Set());
+  const [certGraphEmployeeFilter, setCertGraphEmployeeFilter] = useState("");
+  const [certGraphMode, setCertGraphMode] = useState<"daily" | "monthly">("daily");
+  const [selectedCertEmployeeIds, setSelectedCertEmployeeIds] = useState<string[]>([]);
+  const [certGraphDropdownOpen, setCertGraphDropdownOpen] = useState(false);
   const [actionDialog, setActionDialog] = useState<{
     open: boolean;
     type: 'task' | 'attendance' | 'leave' | null;
@@ -38,11 +48,31 @@ export default function ManagerPage() {
     item: null,
     action: null,
   });
+  const [mistakeDialog, setMistakeDialog] = useState<{
+    open: boolean;
+    mode: 'create' | 'edit';
+    mistake: any | null;
+  }>({
+    open: false,
+    mode: 'create',
+    mistake: null,
+  });
+  const [mistakeForm, setMistakeForm] = useState({
+    title: '',
+    description: '',
+    severity: 'medium' as 'low' | 'medium' | 'high',
+    userId: '',
+  });
   const [comment, setComment] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const { toast } = useToast();
   const supabase = createClient();
   const today = format(new Date(), "yyyy-MM-dd");
+  const CERT_GRAPH_MAX_EMPLOYEES = 10;
+  const CERT_GRAPH_COLORS = [
+    "#2563eb", "#16a34a", "#ea580c", "#7c3aed", "#dc2626",
+    "#0d9488", "#9333ea", "#db2777", "#4f46e5", "#65a30d",
+  ];
 
   useEffect(() => {
     fetchData();
@@ -116,6 +146,8 @@ export default function ManagerPage() {
       setTeamMembers([]);
       setTaskLogs([]);
       setAttendanceItems([]);
+      setAttendanceReportItems([]);
+      setAllMistakes([]);
       setLeaveItems([]);
       setTeamTasks([]);
       setLoading(false);
@@ -140,6 +172,14 @@ export default function ManagerPage() {
 
     if (attError) console.error('[Manager] attendance fetch error:', attError);
 
+    const { data: attendanceReport, error: attReportError } = await supabase
+      .from('attendance')
+      .select('*, users!user_id(*)')
+      .in('user_id', teamIds)
+      .order('date', { ascending: false });
+
+    if (attReportError) console.error('[Manager] attendance report fetch error:', attReportError);
+
     const { data: leaves, error: leavesError } = await supabase
       .from('leaves')
       .select('*, users!user_id(*)')
@@ -147,6 +187,14 @@ export default function ManagerPage() {
       .order('created_at', { ascending: false });
 
     if (leavesError) console.error('[Manager] leaves fetch error:', leavesError);
+
+    const { data: mistakes, error: mistakesError } = await supabase
+      .from('mistakes')
+      .select('*, users!mistakes_user_id_fkey(full_name), added_by_user:users!mistakes_added_by_fkey(full_name)')
+      .in('user_id', teamIds)
+      .order('date', { ascending: false });
+
+    if (mistakesError) console.error('[Manager] mistakes fetch error:', mistakesError);
 
     const tasksOrFilter = teamIds.length > 0
       ? `is_common_task.eq.true,assigned_to.in.(${teamIds.join(',')})`
@@ -163,6 +211,8 @@ export default function ManagerPage() {
     setTeamMembers(team || []);
     setTaskLogs(logs || []);
     setAttendanceItems(attendance || []);
+    setAttendanceReportItems(attendanceReport || []);
+    setAllMistakes(mistakes || []);
     setLeaveItems(leaves || []);
     setTeamTasks(assignedTasks || []);
     setLoading(false);
@@ -201,6 +251,8 @@ export default function ManagerPage() {
   // Today's Task: derive which tasks are due today per team member
   const todayWeekday = new Date().getDay();
   const dueTodayTasks = teamTasks.filter((task: any) => {
+    const createdToday = toDayString(task.created_at) === today;
+    if (!createdToday) return false;
     if (task.type === 'daily') return true;
     if (task.type === 'weekly') return task.day_of_week === todayWeekday;
     if (task.type === 'monthly') return task.due_date === today;
@@ -212,7 +264,9 @@ export default function ManagerPage() {
       ? teamMembers
       : teamMembers.filter((m: User) => m.id === task.assigned_to);
     return relevantMembers.map((member: User) => {
-      const log = taskLogs.find((l: any) => l.task_id === task.id && l.user_id === member.id);
+      const log = taskLogs.find(
+        (l: any) => l.task_id === task.id && l.user_id === member.id && getTaskDay(l) === today
+      );
       const status = !log
         ? 'Not Submitted'
         : log.verification_status === 'approved'
@@ -249,6 +303,121 @@ export default function ManagerPage() {
     getAttendanceDay(att) < today &&
     matchesHistoryFilters(att.users?.full_name, getAttendanceDay(att))
   );
+  const currentAttendanceReportItems = attendanceReportItems.filter((att) =>
+    getAttendanceDay(att) === today &&
+    matchesName(att.users?.full_name, currentSearchTerm)
+  );
+  const historyAttendanceReportItems = attendanceReportItems.filter((att) =>
+    getAttendanceDay(att) < today &&
+    matchesHistoryFilters(att.users?.full_name, getAttendanceDay(att))
+  );
+  const filteredMistakes = allMistakes.filter((m) =>
+    (m.title || '').toLowerCase().includes(mistakeSearchTerm.toLowerCase()) ||
+    (m.description || '').toLowerCase().includes(mistakeSearchTerm.toLowerCase()) ||
+    (m.users?.full_name || '').toLowerCase().includes(mistakeSearchTerm.toLowerCase())
+  );
+
+  const toggleMistakeRow = (mistakeId: string) => {
+    const newExpanded = new Set(expandedMistakeRows);
+    if (newExpanded.has(mistakeId)) newExpanded.delete(mistakeId);
+    else newExpanded.add(mistakeId);
+    setExpandedMistakeRows(newExpanded);
+  };
+
+  const openCreateMistakeDialog = () => {
+    setMistakeForm({ title: '', description: '', severity: 'medium', userId: '' });
+    setMistakeDialog({ open: true, mode: 'create', mistake: null });
+  };
+
+  const openEditMistakeDialog = (mistake: any) => {
+    setMistakeForm({
+      title: mistake.title || '',
+      description: mistake.description || '',
+      severity: mistake.severity || 'medium',
+      userId: mistake.user_id || '',
+    });
+    setMistakeDialog({ open: true, mode: 'edit', mistake });
+  };
+
+  const handleCreateMistake = async () => {
+    if (!user || !mistakeForm.title || !mistakeForm.userId) {
+      toast({
+        title: "Error",
+        description: "Please fill in title and select an employee",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('mistakes')
+        .insert({
+          organization_id: user.organization_id,
+          user_id: mistakeForm.userId,
+          added_by: user.id,
+          title: mistakeForm.title.trim(),
+          description: mistakeForm.description,
+          severity: mistakeForm.severity,
+          date: new Date().toISOString().split('T')[0],
+        });
+      if (error) throw error;
+
+      toast({ title: "Success", description: "Mistake recorded successfully" });
+      setMistakeDialog({ open: false, mode: 'create', mistake: null });
+      setMistakeForm({ title: '', description: '', severity: 'medium', userId: '' });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUpdateMistake = async () => {
+    if (!mistakeDialog.mistake || !mistakeForm.title || !mistakeForm.userId) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('mistakes')
+        .update({
+          title: mistakeForm.title.trim(),
+          user_id: mistakeForm.userId,
+          description: mistakeForm.description,
+          severity: mistakeForm.severity,
+        })
+        .eq('id', mistakeDialog.mistake.id);
+      if (error) throw error;
+      toast({ title: "Success", description: "Mistake updated successfully" });
+      setMistakeDialog({ open: false, mode: 'edit', mistake: null });
+      setMistakeForm({ title: '', description: '', severity: 'medium', userId: '' });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteMistake = async (mistakeId: string) => {
+    if (!confirm('Are you sure you want to delete this mistake record?')) return;
+    try {
+      const { error } = await supabase.from('mistakes').delete().eq('id', mistakeId);
+      if (error) throw error;
+      toast({ title: "Success", description: "Mistake deleted successfully" });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
 
   const currentLeaveItems = leaveItems.filter((leave) =>
     getLeaveDay(leave) === today &&
@@ -258,6 +427,91 @@ export default function ManagerPage() {
     getLeaveDay(leave) < today &&
     matchesHistoryFilters(leave.users?.full_name, getLeaveDay(leave))
   );
+
+  useEffect(() => {
+    if (teamMembers.length === 0) {
+      setSelectedCertEmployeeIds([]);
+      return;
+    }
+    setSelectedCertEmployeeIds((prev) => {
+      const valid = prev.filter((id) => teamMembers.some((m) => m.id === id));
+      if (valid.length > 0) return valid;
+      return teamMembers.slice(0, 3).map((m) => m.id);
+    });
+  }, [teamMembers]);
+
+  const filteredCertGraphMembers = useMemo(() => {
+    const term = certGraphEmployeeFilter.trim().toLowerCase();
+    if (!term) return teamMembers;
+    return teamMembers.filter((m) => m.full_name.toLowerCase().includes(term));
+  }, [teamMembers, certGraphEmployeeFilter]);
+
+  const certGraphData = useMemo(() => {
+    const selectedSet = new Set(selectedCertEmployeeIds);
+
+    const relevantLogs = taskLogs.filter((log: any) =>
+      selectedSet.has(log.user_id) &&
+      log.tasks?.is_numeric_task &&
+      log.numeric_value != null &&
+      log.date
+    );
+
+    if (certGraphMode === "daily") {
+      const now = new Date();
+      const monthStart = format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd");
+      const monthEnd = format(new Date(now.getFullYear(), now.getMonth() + 1, 0), "yyyy-MM-dd");
+      const byDate: Record<string, Record<string, number>> = {};
+
+      for (const log of relevantLogs) {
+        if (log.date < monthStart || log.date > monthEnd) continue;
+        if (!byDate[log.date]) byDate[log.date] = {};
+        byDate[log.date][log.user_id] = (byDate[log.date][log.user_id] || 0) + Number(log.numeric_value);
+      }
+
+      const sortedDates = Object.keys(byDate).sort((a, b) => a.localeCompare(b));
+      return sortedDates.map((date) => {
+        const row: Record<string, any> = {
+          key: date,
+          axisLabel: format(new Date(date), "dd MMM"),
+          total: 0,
+        };
+        for (const userId of selectedCertEmployeeIds) {
+          const value = byDate[date]?.[userId] || 0;
+          row[userId] = value;
+          row.total += value;
+        }
+        return row;
+      });
+    }
+
+    const byMonth: Record<string, Record<string, number>> = {};
+    for (const log of relevantLogs) {
+      const monthKey = format(new Date(log.date), "yyyy-MM");
+      if (!byMonth[monthKey]) byMonth[monthKey] = {};
+      byMonth[monthKey][log.user_id] = (byMonth[monthKey][log.user_id] || 0) + Number(log.numeric_value);
+    }
+
+    const monthKeys: string[] = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      monthKeys.push(format(d, "yyyy-MM"));
+    }
+
+    return monthKeys.map((monthKey) => {
+      const row: Record<string, any> = {
+        key: monthKey,
+        axisLabel: format(new Date(`${monthKey}-01`), "MMM yyyy"),
+        total: 0,
+      };
+      for (const userId of selectedCertEmployeeIds) {
+        const value = byMonth[monthKey]?.[userId] || 0;
+        row[userId] = value;
+        row.total += value;
+      }
+      return row;
+    });
+  }, [taskLogs, selectedCertEmployeeIds, teamMembers, certGraphMode]);
 
   const handleAction = async () => {
     if (!user || !actionDialog.item || !actionDialog.action) return;
@@ -416,9 +670,11 @@ export default function ManagerPage() {
       <Tabs defaultValue="today" className="space-y-6">
         <TabsList>
           <TabsTrigger value="today">Today's Task ({todayTaskRows.length})</TabsTrigger>
-          <TabsTrigger value="tasks">Task Verifications ({taskLogs.length})</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance ({attendanceItems.length})</TabsTrigger>
-          <TabsTrigger value="leaves">Leaves ({leaveItems.length})</TabsTrigger>
+          <TabsTrigger value="tasks">Task Verifications ({currentTaskLogs.length})</TabsTrigger>
+          <TabsTrigger value="attendance">Attendance ({currentAttendanceItems.length})</TabsTrigger>
+          <TabsTrigger value="attendance-report">Attendance Report ({currentAttendanceReportItems.length})</TabsTrigger>
+          <TabsTrigger value="mistakes">Track Mistakes ({allMistakes.length})</TabsTrigger>
+          <TabsTrigger value="leaves">Leaves ({currentLeaveItems.length})</TabsTrigger>
           <TabsTrigger value="team">Team Members ({teamMembers.length})</TabsTrigger>
         </TabsList>
 
@@ -490,6 +746,138 @@ export default function ManagerPage() {
               ))}
             </div>
           )}
+
+          <details className="rounded-lg border">
+            <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+              Number of certificates
+            </summary>
+            <div className="border-t p-4 space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                <div className="relative">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-between"
+                    onClick={() => setCertGraphDropdownOpen((prev) => !prev)}
+                  >
+                    <span className="truncate">
+                      {selectedCertEmployeeIds.length > 0
+                        ? `${selectedCertEmployeeIds.length} employee${selectedCertEmployeeIds.length !== 1 ? "s" : ""} selected`
+                        : "Select employees"}
+                    </span>
+                  </Button>
+                  {certGraphDropdownOpen && (
+                    <div className="absolute z-20 mt-2 w-full min-w-[280px] rounded-md border bg-background shadow-md p-2 space-y-2">
+                      <Input
+                        placeholder="Search employee..."
+                        value={certGraphEmployeeFilter}
+                        onChange={(e) => setCertGraphEmployeeFilter(e.target.value)}
+                      />
+                      <div className="max-h-56 overflow-y-auto rounded border">
+                        {filteredCertGraphMembers.length === 0 ? (
+                          <div className="text-sm text-muted-foreground p-3">No matching employees.</div>
+                        ) : (
+                          filteredCertGraphMembers.map((member) => {
+                            const selected = selectedCertEmployeeIds.includes(member.id);
+                            return (
+                              <button
+                                key={member.id}
+                                type="button"
+                                className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50"
+                                onClick={() => {
+                                  setSelectedCertEmployeeIds((prev) => {
+                                    if (prev.includes(member.id)) {
+                                      return prev.filter((id) => id !== member.id);
+                                    }
+                                    if (prev.length >= CERT_GRAPH_MAX_EMPLOYEES) return prev;
+                                    return [...prev, member.id];
+                                  });
+                                }}
+                              >
+                                <span className="truncate">{member.full_name}</span>
+                                <span className={selected ? "text-primary" : "text-muted-foreground"}>
+                                  {selected ? "✓" : ""}
+                                </span>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={certGraphMode === "daily" ? "default" : "outline"}
+                    onClick={() => setCertGraphMode("daily")}
+                  >
+                    Daily
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={certGraphMode === "monthly" ? "default" : "outline"}
+                    onClick={() => setCertGraphMode("monthly")}
+                  >
+                    Monthly
+                  </Button>
+                </div>
+                <div className="text-sm text-muted-foreground flex items-center">
+                  Select up to {CERT_GRAPH_MAX_EMPLOYEES} employees
+                </div>
+              </div>
+
+              {selectedCertEmployeeIds.length === 0 ? (
+                <div className="text-sm text-muted-foreground py-8 text-center">
+                  Select at least one employee to render the graph.
+                </div>
+              ) : (
+                <div className="h-72 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={certGraphData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="axisLabel" />
+                      <YAxis />
+                      <Tooltip
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload || payload.length === 0) return null;
+                          const total = payload.reduce((sum, p: any) => sum + (Number(p.value) || 0), 0);
+                          return (
+                            <div className="rounded-md border bg-background p-3 shadow-sm text-sm">
+                              <p className="font-medium mb-1">{label}</p>
+                              {payload.map((p: any, idx: number) => (
+                                <p key={`${p.dataKey}-${idx}`} style={{ color: p.color }}>
+                                  {p.name}: {p.value}
+                                </p>
+                              ))}
+                              <p className="mt-2 font-semibold">Total: {total}</p>
+                            </div>
+                          );
+                        }}
+                      />
+                      {selectedCertEmployeeIds.map((id, index) => {
+                        const member = teamMembers.find((m) => m.id === id);
+                        return (
+                          <Line
+                            key={id}
+                            type="monotone"
+                            dataKey={id}
+                            name={member?.full_name || "Employee"}
+                            stroke={CERT_GRAPH_COLORS[index % CERT_GRAPH_COLORS.length]}
+                            strokeDasharray="4 4"
+                            strokeWidth={2}
+                            dot={false}
+                          />
+                        );
+                      })}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+          </details>
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-4">
@@ -769,6 +1157,209 @@ export default function ManagerPage() {
           </Tabs>
         </TabsContent>
 
+        <TabsContent value="attendance-report" className="space-y-4">
+          <Tabs defaultValue="current" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="current">Current ({currentAttendanceReportItems.length})</TabsTrigger>
+              <TabsTrigger value="history">History ({historyAttendanceReportItems.length})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="current" className="space-y-4">
+              <Input
+                placeholder="Search by employee name..."
+                value={currentSearchTerm}
+                onChange={(e) => setCurrentSearchTerm(e.target.value)}
+                className="max-w-md"
+              />
+              {currentAttendanceReportItems.length > 0 ? (
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Employee</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Clock In</TableHead>
+                        <TableHead>Clock Out</TableHead>
+                        <TableHead>Reason</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {currentAttendanceReportItems.map((att) => (
+                        <TableRow key={att.id}>
+                          <TableCell>{att.users?.full_name}</TableCell>
+                          <TableCell>{format(new Date(att.date), "dd/MM/yyyy")}</TableCell>
+                          <TableCell>{att.clock_in_time ? format(new Date(att.clock_in_time), "HH:mm dd/MM/yyyy") : "-"}</TableCell>
+                          <TableCell>{att.clock_out_time ? format(new Date(att.clock_out_time), "HH:mm dd/MM/yyyy") : "-"}</TableCell>
+                          <TableCell>{att.late_reason || "-"}</TableCell>
+                          <TableCell className="capitalize">{att.approval_status}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <Card><CardContent className="p-6 text-center text-muted-foreground">No attendance report entries for today</CardContent></Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="history" className="space-y-4">
+              <div className="flex gap-3">
+                <Input
+                  placeholder="Search by employee name..."
+                  value={historySearchTerm}
+                  onChange={(e) => setHistorySearchTerm(e.target.value)}
+                  className="flex-1"
+                />
+                <Input
+                  type="date"
+                  value={historyDateFilter}
+                  onChange={(e) => setHistoryDateFilter(e.target.value)}
+                  className="w-44"
+                />
+              </div>
+              {historyAttendanceReportItems.length > 0 ? (
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Employee</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Clock In</TableHead>
+                        <TableHead>Clock Out</TableHead>
+                        <TableHead>Reason</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {historyAttendanceReportItems.map((att) => (
+                        <TableRow key={att.id}>
+                          <TableCell>{att.users?.full_name}</TableCell>
+                          <TableCell>{format(new Date(att.date), "dd/MM/yyyy")}</TableCell>
+                          <TableCell>{att.clock_in_time ? format(new Date(att.clock_in_time), "HH:mm dd/MM/yyyy") : "-"}</TableCell>
+                          <TableCell>{att.clock_out_time ? format(new Date(att.clock_out_time), "HH:mm dd/MM/yyyy") : "-"}</TableCell>
+                          <TableCell>{att.late_reason || "-"}</TableCell>
+                          <TableCell className="capitalize">{att.approval_status}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <Card><CardContent className="p-6 text-center text-muted-foreground">No attendance report history</CardContent></Card>
+              )}
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
+
+        <TabsContent value="mistakes" className="space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <Input
+              placeholder="Search mistakes..."
+              value={mistakeSearchTerm}
+              onChange={(e) => setMistakeSearchTerm(e.target.value)}
+              className="w-1/3"
+            />
+            <Button onClick={openCreateMistakeDialog}>
+              <Plus className="h-4 w-4 mr-2" />
+              Record Mistake
+            </Button>
+          </div>
+
+          {filteredMistakes.length > 0 ? (
+            <div className="border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead></TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Severity</TableHead>
+                    <TableHead>Added By</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredMistakes.map((m) => {
+                    const isExpanded = expandedMistakeRows.has(m.id);
+                    return (
+                      <Fragment key={m.id}>
+                        <TableRow>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => toggleMistakeRow(m.id)}
+                            >
+                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </Button>
+                          </TableCell>
+                          <TableCell>{m.date ? format(new Date(m.date), "dd/MM/yyyy") : "-"}</TableCell>
+                          <TableCell>{m.users?.full_name || "-"}</TableCell>
+                          <TableCell className="font-medium">{m.title || "-"}</TableCell>
+                          <TableCell>
+                            <Badge className={
+                              m.severity === 'high'
+                                ? 'bg-red-100 text-red-800'
+                                : m.severity === 'medium'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-green-100 text-green-800'
+                            }>
+                              {m.severity}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{m.added_by_user?.full_name || "-"}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditMistakeDialog(m)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteMistake(m.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                        {isExpanded && (
+                          <TableRow>
+                            <TableCell colSpan={7} className="bg-muted/30">
+                              <div className="py-2">
+                                <p className="text-sm font-medium mb-1">Description</p>
+                                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                  {m.description || "-"}
+                                </p>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">No mistakes recorded</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {mistakeSearchTerm ? "Try a different search term" : "Record mistakes to track quality issues"}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
         <TabsContent value="leaves" className="space-y-4">
           <Tabs defaultValue="current" className="space-y-4">
             <TabsList>
@@ -923,6 +1514,98 @@ export default function ManagerPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={mistakeDialog.open} onOpenChange={(open) => {
+        if (!open) {
+          setMistakeDialog({ open: false, mode: 'create', mistake: null });
+          setMistakeForm({ title: '', description: '', severity: 'medium', userId: '' });
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {mistakeDialog.mode === 'create' ? 'Record Mistake' : 'Edit Mistake'}
+            </DialogTitle>
+            <DialogDescription>
+              {mistakeDialog.mode === 'create'
+                ? 'Record a mistake for an employee'
+                : 'Update mistake information'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="mistakeTitle">Title (required)</Label>
+              <Input
+                id="mistakeTitle"
+                placeholder="Brief title for the mistake"
+                value={mistakeForm.title}
+                onChange={(e) => setMistakeForm({ ...mistakeForm, title: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mistakeEmployee">Employee (required)</Label>
+              <Select
+                value={mistakeForm.userId}
+                onValueChange={(value) => setMistakeForm({ ...mistakeForm, userId: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teamMembers.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mistakeDescription">Description (required)</Label>
+              <Textarea
+                id="mistakeDescription"
+                placeholder="Describe the mistake..."
+                value={mistakeForm.description}
+                onChange={(e) => setMistakeForm({ ...mistakeForm, description: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mistakeSeverity">Severity</Label>
+              <Select
+                value={mistakeForm.severity}
+                onValueChange={(value: 'low' | 'medium' | 'high') => setMistakeForm({ ...mistakeForm, severity: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setMistakeDialog({ open: false, mode: 'create', mistake: null })}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={mistakeDialog.mode === 'create' ? handleCreateMistake : handleUpdateMistake}
+              disabled={actionLoading || !mistakeForm.title || !mistakeForm.userId}
+            >
+              {actionLoading ? "Saving..." : mistakeDialog.mode === 'create' ? "Record Mistake" : "Update Mistake"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={actionDialog.open} onOpenChange={(open) => {
         if (!open) {

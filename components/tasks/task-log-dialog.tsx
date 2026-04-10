@@ -71,7 +71,7 @@ export function TaskLogDialog({ task, open, onOpenChange, date }: TaskLogDialogP
 
       const { error } = await supabase
         .from('task_logs')
-        .upsert(taskLogData)
+        .upsert(taskLogData, { onConflict: 'task_id,user_id,date' })
         .select('id')
         .single();
 

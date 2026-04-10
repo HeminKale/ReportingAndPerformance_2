@@ -532,6 +532,7 @@ export default function SettingsPage() {
           organization_id: user?.organization_id,
           user_id: mistakeForm.userId,
           added_by: user?.id,
+          title: mistakeForm.title.trim(),
           description: mistakeForm.description,
           severity: mistakeForm.severity,
           date: new Date().toISOString().split('T')[0],
@@ -573,6 +574,7 @@ export default function SettingsPage() {
       const { error } = await supabase
         .from('mistakes')
         .update({
+          title: mistakeForm.title.trim(),
           user_id: mistakeForm.userId,
           description: mistakeForm.description,
           severity: mistakeForm.severity,
@@ -737,7 +739,7 @@ export default function SettingsPage() {
 
   const openEditMistakeDialog = (mistake: any) => {
     setMistakeForm({
-      title: mistake.description || '',
+      title: mistake.title || '',
       description: mistake.description || '',
       severity: mistake.severity || 'medium',
       userId: mistake.user_id || '',
@@ -843,10 +845,6 @@ export default function SettingsPage() {
           <TabsTrigger value="tasks">
             <ListTodo className="h-4 w-4 mr-2" />
             Task Assignment ({allTasks.length})
-          </TabsTrigger>
-          <TabsTrigger value="mistakes">
-            <AlertTriangle className="h-4 w-4 mr-2" />
-            Track Mistakes ({allMistakes.length})
           </TabsTrigger>
           <TabsTrigger value="ratings">
             <Star className="h-4 w-4 mr-2" />

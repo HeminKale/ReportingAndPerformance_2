@@ -91,7 +91,9 @@ On notification action path:
 
 ---
 
-## 2) Late Clock-In Approval Flow
+## 2) Attendance Approval Flows
+
+### 2a) Late Clock-In Approval Flow
 
 ### Employee Submission
 
@@ -115,6 +117,24 @@ From Manager Panel Attendance tab or Notifications actions:
   - `attendance.approval_status = approved | rejected`
   - `attendance.approved_by = <manager_id>`
   - optional manager comment if provided via panel flow
+
+### 2b) Early Clock-Out Approval Flow
+
+When an employee attempts to clock out before 5:00 PM:
+
+1. A reason dialog is shown.
+2. On submit, the same `attendance` row for today is updated with:
+   - `clock_out_time = now`
+   - `approval_status = pending`
+   - `is_late_request = true` (used to route attendance approval in manager workflows)
+   - `late_reason` appends/contains an `Early clock-out: ...` reason note
+3. Manager notification is created with:
+   - `type = late_request`
+   - actionable metadata:
+     - `resource_type = attendance`
+     - `resource_id = <attendance_id>`
+
+Manager approval/rejection then follows the same attendance approval path above.
 
 ---
 

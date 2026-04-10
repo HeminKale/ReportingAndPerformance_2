@@ -95,12 +95,12 @@ A comprehensive multi-tenant employee performance and task tracking system built
 - Trend analysis capability
 
 #### 3.3 Calendar View
-- Unified calendar showing approved leaves
-- Month navigation
-- Color-coded events
-- Today indicator
-- Leave type labels
-- Clean, minimal design
+- Month navigation with expanded day cells (wide layout)
+- **Approved leaves** with cross-month overlap query; **leave-only** days hide tasks and attendance
+- **Attendance**: clock-in and clock-out per day, green/red based on cutoff (`organizations.settings.clock_in_cutoff`, default 09:15), early clock-out (before 17:00), and incomplete tasks due that day
+- **Tasks**: due-day scoping — daily only on `created_at` date; weekly on matching weekday; monthly on `due_date`; counts use `task_logs.date` for that cell; completed = manager-approved; hover lists task names with type badges
+- Today indicator and updated legend
+- See [`CALENDAR_FEATURE.md`](CALENDAR_FEATURE.md) for full specification
 
 #### 3.4 Task Verification Enhancements
 - Task verification history
