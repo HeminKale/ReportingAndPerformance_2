@@ -57,6 +57,24 @@ export interface Task {
   updated_at: string;
 }
 
+/** Manager-owned template; cron materializes into `tasks` for each direct report */
+export interface ManagerPeriodicTask {
+  id: string;
+  organization_id: string;
+  manager_id: string;
+  title: string;
+  description: string | null;
+  type: TaskType;
+  day_of_week: number | null;
+  monthly_day: number | null;
+  is_numeric_task: boolean;
+  numeric_unit: string | null;
+  linked_monthly_task_id: string | null;
+  is_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TaskLog {
   id: string;
   organization_id: string;

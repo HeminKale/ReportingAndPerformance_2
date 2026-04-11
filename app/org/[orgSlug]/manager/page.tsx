@@ -13,10 +13,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { format } from "date-fns";
-import { CheckCircle, XCircle, Clock, Users, AlertTriangle, Plus, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Users, AlertTriangle, Plus, Pencil, Trash2, ChevronDown, ChevronUp, ListTodo } from "lucide-react";
+import { TaskAssignmentPanel } from "@/components/shared/task-assignment-panel";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import type { TaskLog, Attendance, Leave, User } from "@/lib/types/database";
+import type { ManagerPeriodicTask, Task, TaskLog, Attendance, Leave, User } from "@/lib/types/database";
 
 export default function ManagerPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -27,6 +28,9 @@ export default function ManagerPage() {
   const [allMistakes, setAllMistakes] = useState<any[]>([]);
   const [leaveItems, setLeaveItems] = useState<any[]>([]);
   const [teamTasks, setTeamTasks] = useState<any[]>([]);
+  const [managedTeamTasks, setManagedTeamTasks] = useState<Task[]>([]);
+  const [monthlyNumericLinkOptions, setMonthlyNumericLinkOptions] = useState<Task[]>([]);
+  const [periodicTasks, setPeriodicTasks] = useState<ManagerPeriodicTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentSearchTerm, setCurrentSearchTerm] = useState("");
   const [historySearchTerm, setHistorySearchTerm] = useState("");
@@ -104,10 +108,30 @@ export default function ManagerPage() {
       )
       .subscribe();
 
+    const tasksChannel = supabase
+      .channel('manager-tasks')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tasks' },
+        () => fetchData()
+      )
+      .subscribe();
+
+    const periodicChannel = supabase
+      .channel('manager-periodic-tasks')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'manager_periodic_tasks' },
+        () => fetchData()
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(taskLogsChannel);
       supabase.removeChannel(attendanceChannel);
       supabase.removeChannel(leavesChannel);
+      supabase.removeChannel(tasksChannel);
+      supabase.removeChannel(periodicChannel);
     };
   }, []);
 
@@ -141,6 +165,21 @@ export default function ManagerPage() {
     const teamIds = team?.map(m => m.id) || [];
     console.log('[Manager] authUser.id:', authUser.id, '| teamIds:', teamIds);
 
+    const [{ data: periodicRows }, { data: monthlyNumericOrg }] = await Promise.all([
+      supabase
+        .from('manager_periodic_tasks')
+        .select('*')
+        .eq('manager_id', authUser.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('tasks')
+        .select('*')
+        .eq('organization_id', userData.organization_id)
+        .eq('type', 'monthly')
+        .eq('is_numeric_task', true),
+    ]);
+    setPeriodicTasks((periodicRows as ManagerPeriodicTask[]) || []);
+
     if (!teamIds.length) {
       setUser(userData);
       setTeamMembers([]);
@@ -150,6 +189,8 @@ export default function ManagerPage() {
       setAllMistakes([]);
       setLeaveItems([]);
       setTeamTasks([]);
+      setManagedTeamTasks([]);
+      setMonthlyNumericLinkOptions(monthlyNumericOrg || []);
       setLoading(false);
       return;
     }
@@ -207,6 +248,21 @@ export default function ManagerPage() {
       .eq('is_active', true)
       .or(tasksOrFilter);
 
+    const [managedRes, monthlyNumericRes] = await Promise.all([
+      supabase
+        .from('tasks')
+        .select('*')
+        .eq('organization_id', userData.organization_id)
+        .in('assigned_to', teamIds)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('tasks')
+        .select('*')
+        .eq('organization_id', userData.organization_id)
+        .eq('type', 'monthly')
+        .eq('is_numeric_task', true),
+    ]);
+
     setUser(userData);
     setTeamMembers(team || []);
     setTaskLogs(logs || []);
@@ -215,6 +271,8 @@ export default function ManagerPage() {
     setAllMistakes(mistakes || []);
     setLeaveItems(leaves || []);
     setTeamTasks(assignedTasks || []);
+    setManagedTeamTasks(managedRes.data || []);
+    setMonthlyNumericLinkOptions(monthlyNumericRes.data || []);
     setLoading(false);
   };
 
@@ -676,6 +734,10 @@ export default function ManagerPage() {
           <TabsTrigger value="mistakes">Track Mistakes ({allMistakes.length})</TabsTrigger>
           <TabsTrigger value="leaves">Leaves ({currentLeaveItems.length})</TabsTrigger>
           <TabsTrigger value="team">Team Members ({teamMembers.length})</TabsTrigger>
+          <TabsTrigger value="task-assignment">
+            <ListTodo className="h-4 w-4 mr-2" />
+            Task Assignment ({managedTeamTasks.length})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="today" className="space-y-4">
@@ -1511,6 +1573,22 @@ export default function ManagerPage() {
             </div>
           ) : (
             <Card><CardContent className="p-6 text-center text-muted-foreground">No team members assigned</CardContent></Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="task-assignment" className="space-y-4">
+          {user && (
+            <TaskAssignmentPanel
+              mode="manager"
+              organizationId={user.organization_id}
+              currentUserId={user.id}
+              assignableUsers={teamMembers}
+              tasks={managedTeamTasks}
+              monthlyNumericLinkOptions={monthlyNumericLinkOptions}
+              onTasksChanged={fetchData}
+              managerCurrentHistorySplit
+              managerPeriodicTasks={periodicTasks}
+            />
           )}
         </TabsContent>
       </Tabs>
