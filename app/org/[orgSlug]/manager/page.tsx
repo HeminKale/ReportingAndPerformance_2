@@ -156,9 +156,7 @@ export default function ManagerPage() {
     }
 
     const { data: team, error: teamError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('manager_id', authUser.id);
+      .rpc('get_all_subordinates', { manager_uuid: authUser.id });
 
     if (teamError) console.error('[Manager] team fetch error:', teamError);
 

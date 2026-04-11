@@ -1,0 +1,25 @@
+CREATE OR REPLACE FUNCTION get_all_subordinates(manager_uuid UUID)
+RETURNS TABLE (
+  id UUID,
+  full_name TEXT,
+  role TEXT,
+  manager_id UUID,
+  depth INT
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+AS $$
+  WITH RECURSIVE subordinates AS (
+    SELECT u.id, u.full_name, u.role::TEXT, u.manager_id, 1 AS depth
+    FROM users u
+    WHERE u.manager_id = manager_uuid
+
+    UNION ALL
+
+    SELECT u.id, u.full_name, u.role::TEXT, u.manager_id, s.depth + 1
+    FROM users u
+    INNER JOIN subordinates s ON u.manager_id = s.id
+  )
+  SELECT * FROM subordinates;
+$$;
