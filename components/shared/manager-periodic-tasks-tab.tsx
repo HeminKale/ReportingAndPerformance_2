@@ -4,7 +4,15 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -28,6 +36,7 @@ export type ManagerPeriodicTasksTabProps = {
   periodicTasks: ManagerPeriodicTask[];
   directReportCount: number;
   monthlyNumericLinkOptions: Task[];
+  monthlyPeriodicLinkOptions: ManagerPeriodicTask[];
   organizationId: string;
   managerId: string;
   onRefresh: () => void;
@@ -46,8 +55,15 @@ type PeriodicForm = {
   isNumericTask: boolean;
   numericUnit: string;
   linkedMonthlyTaskId: string;
+  linkedMonthlyPeriodicId: string;
   isEnabled: boolean;
 };
+
+function linkedMonthlySelectValue(form: PeriodicForm): string {
+  if (form.linkedMonthlyTaskId) return `task:${form.linkedMonthlyTaskId}`;
+  if (form.linkedMonthlyPeriodicId) return `periodic:${form.linkedMonthlyPeriodicId}`;
+  return NO_LINKED_MONTHLY_VALUE;
+}
 
 const emptyForm = (type: "daily" | "weekly" | "monthly"): PeriodicForm => ({
   title: "",
@@ -58,6 +74,7 @@ const emptyForm = (type: "daily" | "weekly" | "monthly"): PeriodicForm => ({
   isNumericTask: false,
   numericUnit: "",
   linkedMonthlyTaskId: "",
+  linkedMonthlyPeriodicId: "",
   isEnabled: true,
 });
 
@@ -71,6 +88,7 @@ export function ManagerPeriodicTasksTab({
   periodicSubTab,
   onPeriodicSubTabChange,
   periodicCreateTrigger,
+  monthlyPeriodicLinkOptions,
 }: ManagerPeriodicTasksTabProps) {
   const [dialog, setDialog] = useState<{
     open: boolean;
@@ -99,6 +117,9 @@ export function ManagerPeriodicTasksTab({
       isNumericTask: row.is_numeric_task,
       numericUnit: row.numeric_unit ?? "",
       linkedMonthlyTaskId: row.linked_monthly_task_id ?? "",
+      linkedMonthlyPeriodicId: row.linked_monthly_task_id
+        ? ""
+        : (row.linked_monthly_periodic_id ?? ""),
       isEnabled: row.is_enabled,
     });
     setDialog({ open: true, mode: "edit", row });
@@ -147,6 +168,13 @@ export function ManagerPeriodicTasksTab({
       linked_monthly_task_id:
         form.type === "daily" && form.isNumericTask && form.linkedMonthlyTaskId
           ? form.linkedMonthlyTaskId
+          : null,
+      linked_monthly_periodic_id:
+        form.type === "daily" &&
+        form.isNumericTask &&
+        !form.linkedMonthlyTaskId &&
+        form.linkedMonthlyPeriodicId
+          ? form.linkedMonthlyPeriodicId
           : null,
       is_enabled: form.isEnabled,
     };
@@ -320,8 +348,9 @@ export function ManagerPeriodicTasksTab({
               {dialog.mode === "create" ? "Create periodic task" : "Edit periodic task"}
             </DialogTitle>
             <DialogDescription>
-              One row per direct report is created on each run when enabled. Link to monthly task only works if
-              that monthly task row is stable (e.g. long-lived org task).
+              One row per direct report is created on each run when enabled. For daily numeric tasks you can link to
+              a fixed monthly task row, or to a monthly periodic template (resolved per employee after that monthly
+              row exists for the month).
             </DialogDescription>
           </DialogHeader>
 
@@ -348,7 +377,14 @@ export function ManagerPeriodicTasksTab({
               <Select
                 value={form.type}
                 onValueChange={(v: "daily" | "weekly" | "monthly") =>
-                  setForm({ ...form, type: v, dayOfWeek: "", monthlyDay: "" })
+                  setForm({
+                    ...form,
+                    type: v,
+                    dayOfWeek: "",
+                    monthlyDay: "",
+                    linkedMonthlyTaskId: "",
+                    linkedMonthlyPeriodicId: "",
+                  })
                 }
               >
                 <SelectTrigger>
@@ -417,7 +453,15 @@ export function ManagerPeriodicTasksTab({
                 type="checkbox"
                 id="pt-numeric"
                 checked={form.isNumericTask}
-                onChange={(e) => setForm({ ...form, isNumericTask: e.target.checked })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    isNumericTask: e.target.checked,
+                    ...(!e.target.checked
+                      ? { linkedMonthlyTaskId: "", linkedMonthlyPeriodicId: "" }
+                      : {}),
+                  })
+                }
               />
               <Label htmlFor="pt-numeric" className="cursor-pointer">
                 Numeric task
@@ -438,30 +482,57 @@ export function ManagerPeriodicTasksTab({
 
             {form.isNumericTask && form.type === "daily" && (
               <div className="space-y-2">
-                <Label>Link to monthly task (optional)</Label>
+                <Label>Link to monthly rollup (optional)</Label>
                 <Select
-                  value={form.linkedMonthlyTaskId || NO_LINKED_MONTHLY_VALUE}
-                  onValueChange={(v) =>
-                    setForm({
-                      ...form,
-                      linkedMonthlyTaskId: v === NO_LINKED_MONTHLY_VALUE ? "" : v,
-                    })
-                  }
+                  value={linkedMonthlySelectValue(form)}
+                  onValueChange={(v) => {
+                    if (v === NO_LINKED_MONTHLY_VALUE) {
+                      setForm({ ...form, linkedMonthlyTaskId: "", linkedMonthlyPeriodicId: "" });
+                    } else if (v.startsWith("task:")) {
+                      setForm({
+                        ...form,
+                        linkedMonthlyTaskId: v.slice(5),
+                        linkedMonthlyPeriodicId: "",
+                      });
+                    } else if (v.startsWith("periodic:")) {
+                      setForm({
+                        ...form,
+                        linkedMonthlyPeriodicId: v.slice(9),
+                        linkedMonthlyTaskId: "",
+                      });
+                    }
+                  }}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Monthly numeric task" />
+                    <SelectValue placeholder="Monthly task or template" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NO_LINKED_MONTHLY_VALUE}>None</SelectItem>
-                    {monthlyNumericLinkOptions.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.title}
-                      </SelectItem>
-                    ))}
+                    {monthlyNumericLinkOptions.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel>Monthly task rows</SelectLabel>
+                        {monthlyNumericLinkOptions.map((t) => (
+                          <SelectItem key={`task:${t.id}`} value={`task:${t.id}`}>
+                            {t.title}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                    {monthlyPeriodicLinkOptions.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel>Monthly periodic templates</SelectLabel>
+                        {monthlyPeriodicLinkOptions.map((p) => (
+                          <SelectItem key={`periodic:${p.id}`} value={`periodic:${p.id}`}>
+                            {p.title}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Best with a stable monthly task row; auto-generated monthlies change ID each run.
+                  Task rows work like before. Templates are resolved per employee when the monthly row exists (after
+                  its due day in the month).
                 </p>
               </div>
             )}

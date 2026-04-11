@@ -34,6 +34,8 @@ export type TaskAssignmentPanelProps = {
   tasks: Task[];
   /** Monthly numeric tasks in the org (for daily→monthly link); managers may read all org tasks per RLS */
   monthlyNumericLinkOptions: Task[];
+  /** Monthly numeric periodic templates (manager); optional daily rollup target via cron resolution */
+  monthlyPeriodicLinkOptions?: ManagerPeriodicTask[];
   onTasksChanged: () => void;
   /** Manager panel: Current (tasks created today) vs History with date/employee filters */
   managerCurrentHistorySplit?: boolean;
@@ -48,6 +50,7 @@ export function TaskAssignmentPanel({
   assignableUsers,
   tasks,
   monthlyNumericLinkOptions,
+  monthlyPeriodicLinkOptions = [],
   onTasksChanged,
   managerCurrentHistorySplit = false,
   managerPeriodicTasks = [],
@@ -561,6 +564,7 @@ export function TaskAssignmentPanel({
                 periodicTasks={managerPeriodicTasks}
                 directReportCount={assignableUsers.length}
                 monthlyNumericLinkOptions={monthlyNumericLinkOptions}
+                monthlyPeriodicLinkOptions={monthlyPeriodicLinkOptions}
                 organizationId={organizationId}
                 managerId={currentUserId}
                 onRefresh={onTasksChanged}
