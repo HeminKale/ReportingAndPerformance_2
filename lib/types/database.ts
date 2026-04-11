@@ -8,6 +8,27 @@ export type LeaveCategory = 'vacation' | 'sick' | 'personal';
 export type NotificationType = 'task_verification' | 'leave_approval' | 'late_request' | 'task_rejected' | 'general';
 export type MistakeSeverity = 'low' | 'medium' | 'high';
 
+/** Stored in DB enum `daily_performance_rating` */
+export type DailyPerformanceRating =
+  | 'very_poor'
+  | 'poor'
+  | 'average'
+  | 'good'
+  | 'very_good'
+  | 'excellent';
+
+export const DAILY_PERFORMANCE_OPTIONS: { value: DailyPerformanceRating; label: string }[] = [
+  { value: 'very_poor', label: 'Very poor' },
+  { value: 'poor', label: 'Poor' },
+  { value: 'average', label: 'Average' },
+  { value: 'good', label: 'Good' },
+  { value: 'very_good', label: 'Very Good' },
+  { value: 'excellent', label: 'Excellent' },
+];
+
+export const dailyPerformanceLabel = (v: DailyPerformanceRating) =>
+  DAILY_PERFORMANCE_OPTIONS.find((o) => o.value === v)?.label ?? v;
+
 export interface Organization {
   id: string;
   slug: string;
@@ -53,6 +74,8 @@ export interface Task {
   is_numeric_task: boolean;
   numeric_unit: string | null;
   linked_monthly_task_id: string | null;
+  /** Set when this row was materialized from a manager_periodic_tasks template (cron). */
+  source_manager_periodic_task_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -70,6 +93,8 @@ export interface ManagerPeriodicTask {
   is_numeric_task: boolean;
   numeric_unit: string | null;
   linked_monthly_task_id: string | null;
+  /** Daily numeric only: link rollup to a monthly periodic template (resolved at cron). */
+  linked_monthly_periodic_id?: string | null;
   is_enabled: boolean;
   created_at: string;
   updated_at: string;
@@ -148,6 +173,18 @@ export interface Leaderboard {
   score: number;
   decided_by: string;
   notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeaderboardDaily {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  rating_date: string;
+  performance: DailyPerformanceRating;
+  comments: string | null;
+  decided_by: string;
   created_at: string;
   updated_at: string;
 }

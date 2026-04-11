@@ -772,6 +772,7 @@ export default function SettingsPage() {
               monthlyNumericLinkOptions={allTasks.filter(
                 (t) => t.type === "monthly" && t.is_numeric_task
               )}
+              monthlyPeriodicLinkOptions={[]}
               onTasksChanged={fetchData}
             />
           )}

@@ -31,6 +31,10 @@ export default function ManagerPage() {
   const [managedTeamTasks, setManagedTeamTasks] = useState<Task[]>([]);
   const [monthlyNumericLinkOptions, setMonthlyNumericLinkOptions] = useState<Task[]>([]);
   const [periodicTasks, setPeriodicTasks] = useState<ManagerPeriodicTask[]>([]);
+  const monthlyPeriodicNumericLinkOptions = useMemo(
+    () => periodicTasks.filter((t) => t.type === "monthly" && t.is_numeric_task && t.is_enabled),
+    [periodicTasks]
+  );
   const [loading, setLoading] = useState(true);
   const [currentSearchTerm, setCurrentSearchTerm] = useState("");
   const [historySearchTerm, setHistorySearchTerm] = useState("");
@@ -160,7 +164,7 @@ export default function ManagerPage() {
 
     if (teamError) console.error('[Manager] team fetch error:', teamError);
 
-    const teamIds = team?.map(m => m.id) || [];
+    const teamIds = team?.map((m: { id: string }) => m.id) || [];
     console.log('[Manager] authUser.id:', authUser.id, '| teamIds:', teamIds);
 
     const [{ data: periodicRows }, { data: monthlyNumericOrg }] = await Promise.all([
@@ -1583,6 +1587,7 @@ export default function ManagerPage() {
               assignableUsers={teamMembers}
               tasks={managedTeamTasks}
               monthlyNumericLinkOptions={monthlyNumericLinkOptions}
+              monthlyPeriodicLinkOptions={monthlyPeriodicNumericLinkOptions}
               onTasksChanged={fetchData}
               managerCurrentHistorySplit
               managerPeriodicTasks={periodicTasks}

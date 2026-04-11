@@ -29,6 +29,7 @@ type PeriodicTask = {
   is_numeric_task: boolean;
   numeric_unit: string | null;
   linked_monthly_task_id: string | null;
+  linked_monthly_periodic_id?: string | null;
 };
 
 function pad2(n: number) {
@@ -116,6 +117,10 @@ async function handle(request: Request) {
   }
 
   const list = (templates || []) as PeriodicTask[];
+  /** Materialize monthlies before dailies so daily rows can resolve linked_monthly_periodic_id. */
+  const typeRank: Record<PeriodicTask["type"], number> = { monthly: 0, weekly: 1, daily: 2 };
+  list.sort((a, b) => typeRank[a.type] - typeRank[b.type]);
+
   const orgIds = [...new Set(list.map((t) => t.organization_id))];
   const { data: orgRows } = await supabase.from("organizations").select("id, timezone").in("id", orgIds);
 
@@ -165,24 +170,48 @@ async function handle(request: Request) {
         ? monthlyDueDateString(cal, template.monthly_day)
         : null;
 
-    const rows = members.map((u) => ({
-      organization_id: template.organization_id,
-      title: template.title,
-      description: template.description,
-      type: template.type,
-      day_of_week: template.type === "weekly" ? template.day_of_week : null,
-      due_date: dueDate,
-      assigned_by: template.manager_id,
-      assigned_to: u.id,
-      is_common_task: false,
-      is_active: true,
-      is_numeric_task: template.is_numeric_task,
-      numeric_unit: template.is_numeric_task ? template.numeric_unit : null,
-      linked_monthly_task_id:
-        template.type === "daily" && template.is_numeric_task
-          ? template.linked_monthly_task_id
-          : null,
-    }));
+    const rows = await Promise.all(
+      members.map(async (u) => {
+        let linkedMonthlyTaskId: string | null = null;
+        if (template.type === "daily" && template.is_numeric_task) {
+          if (template.linked_monthly_task_id) {
+            linkedMonthlyTaskId = template.linked_monthly_task_id;
+          } else if (template.linked_monthly_periodic_id) {
+            const monthlyTpl = list.find((t) => t.id === template.linked_monthly_periodic_id);
+            if (monthlyTpl?.type === "monthly" && monthlyTpl.monthly_day != null) {
+              const monthlyDue = monthlyDueDateString(cal, monthlyTpl.monthly_day);
+              const { data: mtRow } = await supabase
+                .from("tasks")
+                .select("id")
+                .eq("organization_id", template.organization_id)
+                .eq("assigned_to", u.id)
+                .eq("type", "monthly")
+                .eq("source_manager_periodic_task_id", monthlyTpl.id)
+                .eq("due_date", monthlyDue)
+                .maybeSingle();
+              linkedMonthlyTaskId = mtRow?.id ?? null;
+            }
+          }
+        }
+
+        return {
+          organization_id: template.organization_id,
+          title: template.title,
+          description: template.description,
+          type: template.type,
+          day_of_week: template.type === "weekly" ? template.day_of_week : null,
+          due_date: dueDate,
+          assigned_by: template.manager_id,
+          assigned_to: u.id,
+          is_common_task: false,
+          is_active: true,
+          is_numeric_task: template.is_numeric_task,
+          numeric_unit: template.is_numeric_task ? template.numeric_unit : null,
+          linked_monthly_task_id: linkedMonthlyTaskId,
+          source_manager_periodic_task_id: template.id,
+        };
+      })
+    );
 
     const { error: insErr } = await supabase.from("tasks").insert(rows);
     if (insErr) {
