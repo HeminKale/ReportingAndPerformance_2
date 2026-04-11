@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,17 +10,43 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
-import { format } from "date-fns";
+import { format, parse, startOfMonth } from "date-fns";
 import { getCurrentTimeInTimezone, isAfterCutoff, formatInUserTimezone } from "@/lib/utils/timezone";
-import { Clock, CheckCircle, XCircle } from "lucide-react";
+import { Clock, CheckCircle } from "lucide-react";
 import type { Attendance, User } from "@/lib/types/database";
+
+function sumAttendanceHours(rows: Attendance[]): number {
+  let sum = 0;
+  for (const row of rows) {
+    if (row.clock_in_time && row.clock_out_time) {
+      const ms =
+        new Date(row.clock_out_time).getTime() - new Date(row.clock_in_time).getTime();
+      if (ms > 0) sum += ms / (1000 * 60 * 60);
+    }
+  }
+  return sum;
+}
+
+function formatTotalHours(decimalHours: number): string {
+  if (decimalHours <= 0) return "0h";
+  const h = Math.floor(decimalHours);
+  const m = Math.round((decimalHours - h) * 60);
+  if (m >= 60) {
+    return `${h + 1}h`;
+  }
+  if (m === 0) {
+    return `${h}h`;
+  }
+  return `${h}h ${m}m`;
+}
 
 export default function AttendancePage() {
   const params = useParams();
   const [user, setUser] = useState<User | null>(null);
   const [attendance, setAttendance] = useState<Attendance | null>(null);
   const [attendanceHistory, setAttendanceHistory] = useState<Attendance[]>([]);
-  const [historyDateFilter, setHistoryDateFilter] = useState("");
+  const [historyDateFrom, setHistoryDateFrom] = useState("");
+  const [historyDateTo, setHistoryDateTo] = useState("");
   const [loading, setLoading] = useState(true);
   const [lateDialogOpen, setLateDialogOpen] = useState(false);
   const [lateReason, setLateReason] = useState("");
@@ -35,7 +61,60 @@ export default function AttendancePage() {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  const getEffectiveHistoryRange = useCallback((): { from: string; to: string } => {
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    if (!historyDateFrom && !historyDateTo) {
+      return {
+        from: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+        to: todayStr,
+      };
+    }
+    if (historyDateFrom && historyDateTo) {
+      let from = historyDateFrom;
+      let to = historyDateTo;
+      if (from > to) {
+        [from, to] = [to, from];
+      }
+      return { from, to };
+    }
+    if (historyDateFrom) {
+      const end = todayStr < historyDateFrom ? historyDateFrom : todayStr;
+      return { from: historyDateFrom, to: end };
+    }
+    const toDate = parse(historyDateTo, "yyyy-MM-dd", new Date());
+    return {
+      from: format(startOfMonth(toDate), "yyyy-MM-dd"),
+      to: historyDateTo,
+    };
+  }, [historyDateFrom, historyDateTo]);
+
+  const fetchAttendanceHistory = useCallback(
+    async (userId: string) => {
+      const { from, to } = getEffectiveHistoryRange();
+      const { data, error } = await supabase
+        .from("attendance")
+        .select("*")
+        .eq("user_id", userId)
+        .gte("date", from)
+        .lte("date", to)
+        .order("date", { ascending: false });
+
+      if (error) {
+        console.error("[Attendance] history fetch error:", error);
+        setAttendanceHistory([]);
+        return;
+      }
+      setAttendanceHistory(data || []);
+    },
+    [getEffectiveHistoryRange, supabase]
+  );
+
+  useEffect(() => {
+    if (!user?.id) return;
+    void fetchAttendanceHistory(user.id);
+  }, [user?.id, fetchAttendanceHistory]);
+
+  const fetchData = async (opts?: { refreshHistory?: boolean }) => {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     
     if (!authUser) return;
@@ -53,17 +132,13 @@ export default function AttendancePage() {
       .eq('date', today)
       .single();
 
-    const { data: attendanceHistoryData } = await supabase
-      .from('attendance')
-      .select('*')
-      .eq('user_id', authUser.id)
-      .order('date', { ascending: false })
-      .limit(10);
-
     setUser(userData);
     setAttendance(attendanceData);
-    setAttendanceHistory(attendanceHistoryData || []);
     setLoading(false);
+
+    if (opts?.refreshHistory) {
+      await fetchAttendanceHistory(authUser.id);
+    }
   };
 
   const handleClockIn = async () => {
@@ -98,7 +173,7 @@ export default function AttendancePage() {
         description: "Your attendance has been recorded",
       });
 
-      fetchData();
+      await fetchData({ refreshHistory: true });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -164,7 +239,7 @@ export default function AttendancePage() {
 
       setLateDialogOpen(false);
       setLateReason("");
-      fetchData();
+      await fetchData({ refreshHistory: true });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -241,7 +316,7 @@ export default function AttendancePage() {
         description: "Have a great day!",
       });
 
-      fetchData();
+      await fetchData({ refreshHistory: true });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -302,7 +377,7 @@ export default function AttendancePage() {
 
       setEarlyClockOutDialogOpen(false);
       setEarlyClockOutReason("");
-      fetchData();
+      await fetchData({ refreshHistory: true });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -325,29 +400,29 @@ export default function AttendancePage() {
     );
   }
 
-  const filteredAttendanceHistory = attendanceHistory.filter((item) => {
-    if (!historyDateFilter) return true;
-    return item.date === historyDateFilter;
-  });
+  const { from: rangeFrom, to: rangeTo } = getEffectiveHistoryRange();
+  const totalHoursDecimal = sumAttendanceHours(attendanceHistory);
+  const totalHoursDisplay = formatTotalHours(totalHoursDecimal);
+  const usingDefaultMonthRange = !historyDateFrom && !historyDateTo;
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
+    <div className="flex min-h-0 w-full flex-1 flex-col p-8">
+      <div className="mb-6 shrink-0">
         <h1 className="text-3xl font-bold">Attendance</h1>
         <p className="text-muted-foreground">
           Manage your daily attendance
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+      <div className="grid min-h-0 w-full flex-1 gap-6 md:grid-cols-2 md:items-stretch md:min-h-[calc(100dvh-11rem)]">
+        <Card className="flex h-full min-h-0 flex-col">
           <CardHeader>
             <CardTitle>Clock In/Out</CardTitle>
             <CardDescription>
               {format(new Date(), 'EEEE, MMMM d, yyyy')}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="flex flex-1 flex-col space-y-6">
             <div className="flex items-center justify-center p-8 bg-muted rounded-lg">
               <div className="text-center">
                 <Clock className="h-16 w-16 mx-auto mb-4 text-primary" />
@@ -427,29 +502,58 @@ export default function AttendancePage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
+        <Card className="flex h-full min-h-0 flex-col">
+          <CardHeader className="shrink-0">
             <CardTitle>Attendance History</CardTitle>
             <CardDescription>
-              Your recent attendance records
+              {usingDefaultMonthRange
+                ? `Showing this month through today (${format(parse(rangeFrom, "yyyy-MM-dd", new Date()), "MMM d")} – ${format(parse(rangeTo, "yyyy-MM-dd", new Date()), "MMM d, yyyy")}). Set dates below to use a custom range.`
+                : `Showing ${format(parse(rangeFrom, "yyyy-MM-dd", new Date()), "MMM d, yyyy")} – ${format(parse(rangeTo, "yyyy-MM-dd", new Date()), "MMM d, yyyy")}.`}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="mb-4">
-              <Input
-                type="date"
-                value={historyDateFilter}
-                onChange={(e) => setHistoryDateFilter(e.target.value)}
-                className="max-w-xs"
-              />
+          <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden pt-0">
+            <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+              <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+                <div className="space-y-2">
+                  <Label htmlFor="historyDateFrom">From</Label>
+                  <Input
+                    id="historyDateFrom"
+                    type="date"
+                    value={historyDateFrom}
+                    onChange={(e) => setHistoryDateFrom(e.target.value)}
+                    className="w-full sm:w-40"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="historyDateTo">To</Label>
+                  <Input
+                    id="historyDateTo"
+                    type="date"
+                    value={historyDateTo}
+                    onChange={(e) => setHistoryDateTo(e.target.value)}
+                    className="w-full sm:w-40"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col items-start gap-1 sm:items-end shrink-0">
+                <div className="inline-flex w-fit max-w-full items-baseline gap-2 rounded-md border border-border px-3 py-1.5">
+                  <span className="text-sm text-muted-foreground">Total Hours:</span>
+                  <span className="text-sm font-medium tabular-nums">{totalHoursDisplay}</span>
+                </div>
+                <p className="text-xs text-muted-foreground sm:text-right max-w-[220px]">
+                  {attendanceHistory.filter((r) => r.clock_in_time && r.clock_out_time).length} complete
+                  shift(s) in range; days without clock-out are excluded.
+                </p>
+              </div>
             </div>
-            {filteredAttendanceHistory.length === 0 ? (
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+            {attendanceHistory.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
-                {historyDateFilter ? "No attendance found for selected date" : "No attendance history yet"}
+                No attendance records in this date range
               </p>
             ) : (
-              <div className="space-y-3">
-                {filteredAttendanceHistory.map((item) => (
+              <div className="space-y-3 pb-2">
+                {attendanceHistory.map((item) => (
                   <div key={item.id} className="border rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
                       <p className="font-medium">{format(new Date(item.date), "EEE, MMM d, yyyy")}</p>
@@ -499,6 +603,7 @@ export default function AttendancePage() {
                 ))}
               </div>
             )}
+            </div>
           </CardContent>
         </Card>
       </div>

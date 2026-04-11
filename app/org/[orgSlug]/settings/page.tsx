@@ -16,11 +16,16 @@ import { Plus, Pencil, Trash2, Users as UsersIcon, ListTodo, ChevronDown, Chevro
 import { Badge } from "@/components/ui/badge";
 import { RichTextEditor } from "@/components/shared/rich-text-editor";
 import { TaskAssignmentPanel } from "@/components/shared/task-assignment-panel";
-import { format } from "date-fns";
-import type { User, Task, Announcement } from "@/lib/types/database";
+import { format, parse } from "date-fns";
+import type { User, Task, Announcement, DailyPerformanceRating } from "@/lib/types/database";
+import { DAILY_PERFORMANCE_OPTIONS } from "@/lib/types/database";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarIconLucide } from "lucide-react";
 
 /** Radix Select.Item must not use value=""; map sentinels to "" in form state */
 const NO_MANAGER_VALUE = "__no_manager__";
+const NO_DAILY_PERFORMANCE_VALUE = "__no_daily_performance__";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -79,6 +84,14 @@ export default function SettingsPage() {
   const [ratingsEntries, setRatingsEntries] = useState<Array<{ userId: string; score: number | ''; notes: string }>>([]);
   const [publishingRatings, setPublishingRatings] = useState(false);
 
+  const [ratingsSubTab, setRatingsSubTab] = useState<"monthly" | "daily">("monthly");
+  const [ratingsDay, setRatingsDay] = useState(() => format(new Date(), "yyyy-MM-dd"));
+  const [dailyRatingEntries, setDailyRatingEntries] = useState<
+    Array<{ userId: string; performance: DailyPerformanceRating | ""; comments: string }>
+  >([]);
+  const [publishingDailyRatings, setPublishingDailyRatings] = useState(false);
+  const [dailyCalendarOpen, setDailyCalendarOpen] = useState(false);
+
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementContent, setAnnouncementContent] = useState('');
@@ -93,6 +106,12 @@ export default function SettingsPage() {
       fetchRatings(ratingsMonth, user.organization_id, allUsers);
     }
   }, [user, allUsers, ratingsMonth]);
+
+  useEffect(() => {
+    if (user && allUsers.length > 0) {
+      fetchDailyRatings(ratingsDay, user.organization_id, allUsers);
+    }
+  }, [user, allUsers, ratingsDay]);
 
   const fetchData = async () => {
     const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -487,6 +506,67 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchDailyRatings = async (day: string, orgId: string, employees: User[]) => {
+    const { data } = await supabase
+      .from('leaderboard_daily')
+      .select('*')
+      .eq('organization_id', orgId)
+      .eq('rating_date', day);
+
+    const ratingsByUser: Record<string, { performance: DailyPerformanceRating; comments: string | null }> = {};
+    for (const row of (data || [])) {
+      ratingsByUser[row.user_id] = {
+        performance: row.performance as DailyPerformanceRating,
+        comments: row.comments,
+      };
+    }
+
+    setDailyRatingEntries(
+      employees.filter(u => u.role !== 'admin').map(u => ({
+        userId: u.id,
+        performance: ratingsByUser[u.id]?.performance ?? '',
+        comments: ratingsByUser[u.id]?.comments ?? '',
+      }))
+    );
+  };
+
+  const handlePublishDailyRatings = async () => {
+    const validEntries = dailyRatingEntries.filter(e => e.performance !== '');
+    if (validEntries.length === 0) {
+      toast({
+        title: "No daily ratings selected",
+        description: "Choose a performance level for at least one employee before publishing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPublishingDailyRatings(true);
+    try {
+      const rows = validEntries.map((e) => ({
+        user_id: e.userId,
+        organization_id: user!.organization_id,
+        rating_date: ratingsDay,
+        performance: e.performance,
+        comments: e.comments.trim() || null,
+        decided_by: user!.id,
+      }));
+
+      const { error } = await supabase
+        .from('leaderboard_daily')
+        .upsert(rows, { onConflict: 'organization_id,user_id,rating_date' });
+
+      if (error) throw error;
+
+      toast({ title: "Daily ratings published!", description: "The daily leaderboard has been updated." });
+      fetchDailyRatings(ratingsDay, user!.organization_id, allUsers);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setPublishingDailyRatings(false);
+    }
+  };
+
   const fetchAnnouncements = async (orgId: string) => {
     const { data } = await supabase
       .from('announcements')
@@ -828,89 +908,201 @@ export default function SettingsPage() {
         <TabsContent value="ratings" className="space-y-6">
           <Card>
             <CardHeader>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Trophy className="h-5 w-5 text-yellow-500" />
-                    Employee Ratings
-                  </CardTitle>
-                  <CardDescription>
-                    Assign scores (1–10) and notes for employees. Publishing will update the leaderboard and recalculate ranks.
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Label htmlFor="ratingsMonth" className="whitespace-nowrap">Month</Label>
-                  <Input
-                    id="ratingsMonth"
-                    type="month"
-                    className="w-44"
-                    value={ratingsMonth}
-                    onChange={(e) => setRatingsMonth(e.target.value)}
-                  />
-                </div>
-              </div>
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-yellow-500" />
+                Employee Ratings
+              </CardTitle>
+              <CardDescription>
+                Monthly scores (1–10) update the ranked leaderboard. Daily performance levels update the daily leaderboard table (admins are excluded from both).
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              {allUsers.filter(u => u.role !== 'admin').length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">No employees found.</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Employee</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead className="w-36">Score (1–10)</TableHead>
-                      <TableHead>Custom Message / Notes</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {ratingsEntries.map((entry) => {
-                      const emp = allUsers.find(u => u.id === entry.userId);
-                      if (!emp) return null;
-                      return (
-                        <TableRow key={entry.userId}>
-                          <TableCell className="font-medium">{emp.full_name}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="capitalize">{emp.role}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              min={1}
-                              max={10}
-                              step={1}
-                              placeholder="–"
-                              className="w-20"
-                              value={entry.score}
-                              onChange={(e) => {
-                                const val = e.target.value === '' ? '' : Math.min(10, Math.max(1, parseInt(e.target.value, 10)));
-                                setRatingsEntries(prev => prev.map(r => r.userId === entry.userId ? { ...r, score: val as number | '' } : r));
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="text"
-                              placeholder="Optional message shown on leaderboard..."
-                              value={entry.notes}
-                              onChange={(e) => setRatingsEntries(prev => prev.map(r => r.userId === entry.userId ? { ...r, notes: e.target.value } : r))}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-            {allUsers.filter(u => u.role !== 'admin').length > 0 && (
-              <div className="px-6 pb-6 flex justify-end">
-                <Button onClick={handlePublishRatings} disabled={publishingRatings} className="gap-2">
-                  <Trophy className="h-4 w-4" />
-                  {publishingRatings ? 'Publishing…' : 'Publish Ratings'}
-                </Button>
+            <Tabs value={ratingsSubTab} onValueChange={(v) => setRatingsSubTab(v as "monthly" | "daily")}>
+              <div className="px-6 pb-2">
+                <TabsList>
+                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                  <TabsTrigger value="daily">Daily</TabsTrigger>
+                </TabsList>
               </div>
-            )}
+              <TabsContent value="monthly" className="space-y-0 mt-0">
+                <CardContent className="pt-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 mb-4">
+                    <div className="flex items-center gap-3">
+                      <Label htmlFor="ratingsMonth" className="whitespace-nowrap">Month</Label>
+                      <Input
+                        id="ratingsMonth"
+                        type="month"
+                        className="w-44"
+                        value={ratingsMonth}
+                        onChange={(e) => setRatingsMonth(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  {allUsers.filter(u => u.role !== 'admin').length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">No employees found.</div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Employee</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead className="w-36">Score (1–10)</TableHead>
+                          <TableHead>Custom Message / Notes</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {ratingsEntries.map((entry) => {
+                          const emp = allUsers.find(u => u.id === entry.userId);
+                          if (!emp) return null;
+                          return (
+                            <TableRow key={entry.userId}>
+                              <TableCell className="font-medium">{emp.full_name}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="capitalize">{emp.role}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  max={10}
+                                  step={1}
+                                  placeholder="–"
+                                  className="w-20"
+                                  value={entry.score}
+                                  onChange={(e) => {
+                                    const val = e.target.value === '' ? '' : Math.min(10, Math.max(1, parseInt(e.target.value, 10)));
+                                    setRatingsEntries(prev => prev.map(r => r.userId === entry.userId ? { ...r, score: val as number | '' } : r));
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="text"
+                                  placeholder="Optional message shown on leaderboard..."
+                                  value={entry.notes}
+                                  onChange={(e) => setRatingsEntries(prev => prev.map(r => r.userId === entry.userId ? { ...r, notes: e.target.value } : r))}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+                {allUsers.filter(u => u.role !== 'admin').length > 0 && (
+                  <div className="px-6 pb-6 flex justify-end">
+                    <Button onClick={handlePublishRatings} disabled={publishingRatings} className="gap-2">
+                      <Trophy className="h-4 w-4" />
+                      {publishingRatings ? 'Publishing…' : 'Publish monthly ratings'}
+                    </Button>
+                  </div>
+                )}
+              </TabsContent>
+              <TabsContent value="daily" className="space-y-0 mt-0">
+                <CardContent className="pt-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 mb-4">
+                    <Popover open={dailyCalendarOpen} onOpenChange={setDailyCalendarOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full sm:w-auto justify-start text-left font-normal">
+                          <CalendarIconLucide className="mr-2 h-4 w-4" />
+                          {format(parse(ratingsDay, 'yyyy-MM-dd', new Date()), 'PPP')}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={parse(ratingsDay, 'yyyy-MM-dd', new Date())}
+                          onSelect={(d) => {
+                            if (d) {
+                              setRatingsDay(format(d, 'yyyy-MM-dd'));
+                              setDailyCalendarOpen(false);
+                            }
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  {allUsers.filter(u => u.role !== 'admin').length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">No employees found.</div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Employee</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead className="min-w-[180px]">Performance</TableHead>
+                          <TableHead>Comments</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {dailyRatingEntries.map((entry) => {
+                          const emp = allUsers.find(u => u.id === entry.userId);
+                          if (!emp) return null;
+                          return (
+                            <TableRow key={entry.userId}>
+                              <TableCell className="font-medium">{emp.full_name}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="capitalize">{emp.role}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Select
+                                  value={entry.performance === '' ? NO_DAILY_PERFORMANCE_VALUE : entry.performance}
+                                  onValueChange={(v) =>
+                                    setDailyRatingEntries((prev) =>
+                                      prev.map((r) =>
+                                        r.userId === entry.userId
+                                          ? {
+                                              ...r,
+                                              performance: v === NO_DAILY_PERFORMANCE_VALUE ? '' : (v as DailyPerformanceRating),
+                                            }
+                                          : r
+                                      )
+                                    )
+                                  }
+                                >
+                                  <SelectTrigger className="w-full max-w-[220px]">
+                                    <SelectValue placeholder="Select level" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value={NO_DAILY_PERFORMANCE_VALUE}>—</SelectItem>
+                                    {DAILY_PERFORMANCE_OPTIONS.map((opt) => (
+                                      <SelectItem key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell>
+                                <Input
+                                  type="text"
+                                  placeholder="Optional comments…"
+                                  value={entry.comments}
+                                  onChange={(e) =>
+                                    setDailyRatingEntries((prev) =>
+                                      prev.map((r) => (r.userId === entry.userId ? { ...r, comments: e.target.value } : r))
+                                    )
+                                  }
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+                {allUsers.filter(u => u.role !== 'admin').length > 0 && (
+                  <div className="px-6 pb-6 flex justify-end">
+                    <Button onClick={handlePublishDailyRatings} disabled={publishingDailyRatings} className="gap-2">
+                      <Star className="h-4 w-4" />
+                      {publishingDailyRatings ? 'Publishing…' : 'Publish daily ratings'}
+                    </Button>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </Card>
         </TabsContent>
 
