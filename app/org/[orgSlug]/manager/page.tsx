@@ -732,7 +732,6 @@ export default function ManagerPage() {
       <Tabs defaultValue="today" className="space-y-6">
         <TabsList>
           <TabsTrigger value="today">Today's Task ({todayTaskRows.length})</TabsTrigger>
-          <TabsTrigger value="shared-tasks">Shared Tasks</TabsTrigger>
           <TabsTrigger value="tasks">Task Verifications ({currentTaskLogs.length})</TabsTrigger>
           <TabsTrigger value="attendance">Attendance ({currentAttendanceItems.length})</TabsTrigger>
           <TabsTrigger value="attendance-report">Attendance Report ({currentAttendanceReportItems.length})</TabsTrigger>
@@ -749,6 +748,7 @@ export default function ManagerPage() {
           <Tabs defaultValue="regular" className="space-y-4">
             <TabsList>
               <TabsTrigger value="regular">Regular Tasks</TabsTrigger>
+              <TabsTrigger value="shared-tasks">Shared Tasks</TabsTrigger>
             </TabsList>
 
             <TabsContent value="regular" className="space-y-4">
@@ -955,15 +955,6 @@ export default function ManagerPage() {
           </Tabs>
         </TabsContent>
 
-        <TabsContent value="shared-tasks" className="space-y-4">
-          <SharedTasksView
-            tasks={teamTasks}
-            taskLogs={taskLogs}
-            employees={teamMembers}
-            filterDate={today}
-          />
-        </TabsContent>
-
         <TabsContent value="tasks" className="space-y-4">
           <Tabs defaultValue="current" className="space-y-4">
             <TabsList>
@@ -1136,6 +1127,15 @@ export default function ManagerPage() {
                 tasks={managedTeamTasks}
                 taskLogs={taskLogs}
                 employees={teamMembers}
+              />
+            </TabsContent>
+
+            <TabsContent value="shared-tasks" className="space-y-4">
+              <SharedTasksView
+                tasks={teamTasks}
+                taskLogs={taskLogs}
+                employees={teamMembers}
+                filterDate={today}
               />
             </TabsContent>
           </Tabs>
