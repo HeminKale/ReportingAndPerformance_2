@@ -95,6 +95,8 @@ export interface ManagerPeriodicTask {
   linked_monthly_task_id: string | null;
   /** Daily numeric only: link rollup to a monthly periodic template (resolved at cron). */
   linked_monthly_periodic_id?: string | null;
+  /** Array of user IDs to assign to. NULL or empty = all direct reports. */
+  assigned_user_ids?: string[] | null;
   is_enabled: boolean;
   created_at: string;
   updated_at: string;
