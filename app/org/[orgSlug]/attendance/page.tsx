@@ -391,10 +391,10 @@ export default function AttendancePage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="min-h-full bg-slate-50 p-6 md:p-8">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
+          <div className="h-10 max-w-md rounded-2xl bg-slate-200" />
+          <div className="h-64 rounded-2xl bg-slate-200" />
         </div>
       </div>
     );
@@ -406,30 +406,30 @@ export default function AttendancePage() {
   const usingDefaultMonthRange = !historyDateFrom && !historyDateTo;
 
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col p-8">
+    <div className="flex min-h-0 w-full flex-1 flex-col bg-slate-50 p-6 md:p-8">
       <div className="mb-6 shrink-0">
-        <h1 className="text-3xl font-bold">Attendance</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-3xl font-black tracking-tight text-slate-900">Attendance</h1>
+        <p className="text-slate-600">
           Manage your daily attendance
         </p>
       </div>
 
       <div className="grid min-h-0 w-full flex-1 gap-6 md:grid-cols-2 md:items-stretch md:min-h-[calc(100dvh-11rem)]">
-        <Card className="flex h-full min-h-0 flex-col">
+        <Card className="flex h-full min-h-0 flex-col rounded-2xl border-slate-200 shadow-sm">
           <CardHeader>
-            <CardTitle>Clock In/Out</CardTitle>
+            <CardTitle className="text-xl">Clock in / out</CardTitle>
             <CardDescription>
               {format(new Date(), 'EEEE, MMMM d, yyyy')}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col space-y-6">
-            <div className="flex items-center justify-center p-8 bg-muted rounded-lg">
+            <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-50/80 p-8">
               <div className="text-center">
-                <Clock className="h-16 w-16 mx-auto mb-4 text-primary" />
-                <div className="text-4xl font-bold mb-2">
+                <Clock className="mx-auto mb-4 h-16 w-16 text-indigo-500" />
+                <div className="mb-2 text-4xl font-black tabular-nums tracking-tight text-slate-900">
                   {user && formatInUserTimezone(new Date(), user.timezone, 'h:mm:ss a')}
                 </div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-slate-500">
                   {user?.timezone}
                 </p>
               </div>
@@ -474,10 +474,9 @@ export default function AttendancePage() {
                   <Button
                     onClick={handleClockOut}
                     disabled={actionLoading || attendance.approval_status === 'pending'}
-                    className="w-full"
-                    variant="destructive"
+                    className="w-full rounded-2xl bg-gradient-to-r from-rose-500 to-orange-500 py-7 text-lg font-bold text-white shadow-lg transition hover:from-rose-600 hover:to-orange-600"
                   >
-                    {actionLoading ? "Processing..." : "Clock Out"}
+                    {actionLoading ? "Processing..." : "End session"}
                   </Button>
                 )}
               </div>
@@ -485,10 +484,10 @@ export default function AttendancePage() {
               <Button
                 onClick={handleClockIn}
                 disabled={actionLoading}
-                className="w-full"
+                className="w-full rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 py-7 text-lg font-bold text-white shadow-lg transition hover:from-indigo-600 hover:to-violet-600"
                 size="lg"
               >
-                {actionLoading ? "Processing..." : "Clock In"}
+                {actionLoading ? "Processing..." : "Begin your day"}
               </Button>
             )}
 
@@ -502,9 +501,9 @@ export default function AttendancePage() {
           </CardContent>
         </Card>
 
-        <Card className="flex h-full min-h-0 flex-col">
+        <Card className="flex h-full min-h-0 flex-col rounded-2xl border-slate-200 shadow-sm">
           <CardHeader className="shrink-0">
-            <CardTitle>Attendance History</CardTitle>
+            <CardTitle className="text-xl">Attendance history</CardTitle>
             <CardDescription>
               {usingDefaultMonthRange
                 ? `Showing this month through today (${format(parse(rangeFrom, "yyyy-MM-dd", new Date()), "MMM d")} – ${format(parse(rangeTo, "yyyy-MM-dd", new Date()), "MMM d, yyyy")}). Set dates below to use a custom range.`

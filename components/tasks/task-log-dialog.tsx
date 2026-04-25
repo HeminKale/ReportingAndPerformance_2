@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
+import { fireTaskSubmitConfetti } from "@/lib/gamification/confetti";
 import type { Task } from "@/lib/types/database";
 
 interface TaskLogDialogProps {
@@ -125,6 +126,8 @@ export function TaskLogDialog({ task, open, onOpenChange, date }: TaskLogDialogP
           ? `Submitted ${numericValue} ${task.numeric_unit || 'units'}`
           : `Task marked as ${status}`,
       });
+
+      fireTaskSubmitConfetti();
 
       onOpenChange(false);
       setComment("");

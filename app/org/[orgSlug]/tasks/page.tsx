@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { GamifiedPageHeader } from "@/components/gamification/gamified-page-header";
+import { CompletionTrendsChart } from "@/components/gamification/completion-trends-chart";
+import { MotivationWidget } from "@/components/gamification/motivation-widget";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -8,7 +11,7 @@ import { TaskLogDialog } from "@/components/tasks/task-log-dialog";
 import { TaskTable } from "@/components/tasks/task-table";
 import { MonthlyNumericSummary } from "@/components/tasks/monthly-numeric-summary";
 import { createClient } from "@/lib/supabase/client";
-import { format } from "date-fns";
+import { format, subDays, eachDayOfInterval } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { Task, TaskLog, User } from "@/lib/types/database";
 
@@ -21,6 +24,7 @@ export default function TasksPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [leaderboardXp, setLeaderboardXp] = useState(0);
   const [historyFilters, setHistoryFilters] = useState({
     daily: { date: '', taskName: '' },
     weekly: { date: '', taskName: '' },
@@ -70,9 +74,23 @@ export default function TasksPage() {
           .order('created_at', { ascending: false })
       : { data: [] as TaskLog[] };
 
+    let xp = 0;
+    if (userData?.organization_id) {
+      const monthStart = `${format(new Date(), "yyyy-MM")}-01`;
+      const { data: lbRow } = await supabase
+        .from("leaderboard")
+        .select("score")
+        .eq("user_id", authUser.id)
+        .eq("organization_id", userData.organization_id)
+        .eq("month", monthStart)
+        .maybeSingle();
+      xp = lbRow?.score ?? 0;
+    }
+
     setUser(userData);
     setTasks(tasksData || []);
     setTaskLogs(logsData || []);
+    setLeaderboardXp(xp);
     setLoading(false);
   };
 
@@ -95,6 +113,22 @@ export default function TasksPage() {
       logsMap.set(log.task_id, existing);
     }
     return logsMap;
+  }, [taskLogs]);
+
+  const weekTrend = useMemo(() => {
+    const end = new Date();
+    const start = subDays(end, 6);
+    const days = eachDayOfInterval({ start, end });
+    return days.map((d) => {
+      const key = format(d, "yyyy-MM-dd");
+      const count = taskLogs.filter(
+        (l) =>
+          l.date === key &&
+          l.verification_status === "approved" &&
+          l.status === "completed"
+      ).length;
+      return { label: format(d, "EEE"), count };
+    });
   }, [taskLogs]);
 
   const getLatestLog = (logs: TaskLog[]) => {
@@ -274,41 +308,61 @@ export default function TasksPage() {
     }));
   }, [taskLogs, linkedNumericDailyTaskIds]);
 
+  const tabList3 =
+    "grid h-auto w-full max-w-xl grid-cols-3 gap-1 rounded-2xl bg-slate-100/90 p-1.5";
+  const tabList2 =
+    "grid h-auto w-full max-w-md grid-cols-2 gap-1 rounded-2xl bg-slate-100/90 p-1.5";
+  const tabTrig =
+    "flex-1 rounded-xl text-slate-600 data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-sm data-[state=active]:font-semibold";
+
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
+      <div className="min-h-full bg-slate-50 p-6 md:p-8">
+        <div className="animate-pulse space-y-6">
+          <div className="h-10 max-w-md rounded-2xl bg-slate-200" />
+          <div className="h-12 max-w-xl rounded-2xl bg-slate-200" />
+          <div className="h-64 rounded-2xl bg-slate-200" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Tasks</h1>
-        <p className="text-muted-foreground">
-          Manage your daily, weekly, and monthly tasks
-        </p>
-      </div>
+    <div className="min-h-full bg-slate-50 p-6 md:p-8">
+      <GamifiedPageHeader
+        firstName={user?.full_name?.split(/\s+/)[0] || "there"}
+        totalXp={leaderboardXp}
+        title="Tasks"
+        subtitle="Manage your daily, weekly, and monthly tasks — bank XP when submissions are approved."
+      />
 
       <Tabs defaultValue="daily" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="daily">Daily ({dailyCurrentTodayCount})</TabsTrigger>
-          <TabsTrigger value="weekly">Weekly ({weeklyCurrentTodayCount})</TabsTrigger>
-          <TabsTrigger value="monthly">Monthly ({monthlyCurrentTodayCount})</TabsTrigger>
+        <TabsList className={tabList3}>
+          <TabsTrigger value="daily" className={tabTrig}>
+            Daily ({dailyCurrentTodayCount})
+          </TabsTrigger>
+          <TabsTrigger value="weekly" className={tabTrig}>
+            Weekly ({weeklyCurrentTodayCount})
+          </TabsTrigger>
+          <TabsTrigger value="monthly" className={tabTrig}>
+            Monthly ({monthlyCurrentTodayCount})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="daily" className="space-y-6">
           <Tabs defaultValue="current" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="current">Current ({dailyCurrentTodayCount})</TabsTrigger>
-              <TabsTrigger value="history">History ({dailyHistoryTasks.length})</TabsTrigger>
+            <TabsList className={tabList2}>
+              <TabsTrigger value="current" className={tabTrig}>
+                Current ({dailyCurrentTodayCount})
+              </TabsTrigger>
+              <TabsTrigger value="history" className={tabTrig}>
+                History ({dailyHistoryTasks.length})
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="current" className="space-y-6">
+              <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-8 lg:items-start">
+              <div className="min-w-0 space-y-6">
               {dailyFreshTasks.some(t => t.is_numeric_task && t.linked_monthly_task_id) && user && (
                 <div className="space-y-4">
                   {dailyFreshTasks
@@ -367,6 +421,23 @@ export default function TasksPage() {
                   )}
                 </div>
               </details>
+              </div>
+              <aside className="mt-8 space-y-4 lg:mt-0">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <h3 className="text-sm font-bold text-slate-900">Completion trends</h3>
+                  <p className="mb-2 text-xs text-slate-500">Approved tasks, last 7 days</p>
+                  <CompletionTrendsChart data={weekTrend} />
+                </div>
+                <MotivationWidget
+                  headline={
+                    dailyFreshTasks.length > 0
+                      ? `${dailyFreshTasks.length} active daily task${dailyFreshTasks.length === 1 ? "" : "s"}`
+                      : "Daily queue clear"
+                  }
+                  subtext="Submit on time — XP lands when your manager approves."
+                />
+              </aside>
+              </div>
             </TabsContent>
 
             <TabsContent value="history" className="space-y-4">
@@ -425,9 +496,13 @@ export default function TasksPage() {
 
         <TabsContent value="weekly">
           <Tabs defaultValue="current" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="current">Current ({weeklyCurrentTodayCount})</TabsTrigger>
-              <TabsTrigger value="history">History ({weeklyHistoryTasks.length})</TabsTrigger>
+            <TabsList className={tabList2}>
+              <TabsTrigger value="current" className={tabTrig}>
+                Current ({weeklyCurrentTodayCount})
+              </TabsTrigger>
+              <TabsTrigger value="history" className={tabTrig}>
+                History ({weeklyHistoryTasks.length})
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="current">
@@ -508,9 +583,13 @@ export default function TasksPage() {
 
         <TabsContent value="monthly">
           <Tabs defaultValue="current" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="current">Current ({monthlyCurrentTodayCount})</TabsTrigger>
-              <TabsTrigger value="history">History ({monthlyHistoryTasks.length})</TabsTrigger>
+            <TabsList className={tabList2}>
+              <TabsTrigger value="current" className={tabTrig}>
+                Current ({monthlyCurrentTodayCount})
+              </TabsTrigger>
+              <TabsTrigger value="history" className={tabTrig}>
+                History ({monthlyHistoryTasks.length})
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="current">

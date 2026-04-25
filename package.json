@@ -33,8 +33,10 @@
     "@tiptap/starter-kit": "^3.22.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
+    "canvas-confetti": "^1.9.3",
     "date-fns": "^3.3.1",
     "date-fns-tz": "^3.2.0",
+    "framer-motion": "^12.0.0",
     "lucide-react": "^0.344.0",
     "next": "15.0.8",
     "react": "^19.0.0",
@@ -46,6 +48,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/canvas-confetti": "^1.6.4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

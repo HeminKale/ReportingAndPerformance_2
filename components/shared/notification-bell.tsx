@@ -11,9 +11,11 @@ import type { Notification } from "@/lib/types/database";
 interface NotificationBellProps {
   userId: string;
   orgSlug: string;
+  /** Use on dark sidebars */
+  variant?: "default" | "dark";
 }
 
-export function NotificationBell({ userId, orgSlug }: NotificationBellProps) {
+export function NotificationBell({ userId, orgSlug, variant = "default" }: NotificationBellProps) {
   const [unreadCount, setUnreadCount] = useState(0);
   const router = useRouter();
   const supabase = createClient();
@@ -56,7 +58,11 @@ export function NotificationBell({ userId, orgSlug }: NotificationBellProps) {
     <Button
       variant="ghost"
       size="icon"
-      className="relative"
+      className={
+        variant === "dark"
+          ? "relative text-slate-300 hover:bg-slate-800 hover:text-white"
+          : "relative"
+      }
       onClick={() => router.push(`/org/${orgSlug}/notifications`)}
     >
       <Bell className="h-5 w-5" />

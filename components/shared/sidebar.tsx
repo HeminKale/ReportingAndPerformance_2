@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { NotificationBell } from "@/components/shared/notification-bell";
+import { PlayerLevelWidget } from "@/components/gamification/player-level-widget";
 import {
   LayoutDashboard,
   CheckSquare,
@@ -22,12 +23,21 @@ import {
 
 interface SidebarProps {
   orgSlug: string;
+  orgName?: string | null;
   userRole: string;
   userId: string;
   userName?: string;
+  totalXp: number;
 }
 
-export function Sidebar({ orgSlug, userRole, userId, userName }: SidebarProps) {
+export function Sidebar({
+  orgSlug,
+  orgName,
+  userRole,
+  userId,
+  userName,
+  totalXp,
+}: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -112,15 +122,20 @@ export function Sidebar({ orgSlug, userRole, userId, userName }: SidebarProps) {
   );
 
   return (
-    <div className="flex flex-col h-full w-64 bg-card border-r">
-      <div className="p-6 border-b flex items-center justify-between">
-        <h1 className="text-xl font-bold truncate" title={userName || 'Employee Tracker'}>
-          {userName || 'Employee Tracker'}
-        </h1>
-        <NotificationBell userId={userId} orgSlug={orgSlug} />
+    <div className="flex h-full w-64 flex-col border-r border-slate-800/80 bg-slate-900 text-slate-200">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-800 p-5">
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium uppercase tracking-wider text-slate-500">
+            Workspace
+          </p>
+          <h1 className="truncate text-lg font-bold text-white" title={orgName || orgSlug}>
+            {orgName || orgSlug}
+          </h1>
+        </div>
+        <NotificationBell userId={userId} orgSlug={orgSlug} variant="dark" />
       </div>
       
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {filteredNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -130,26 +145,31 @@ export function Sidebar({ orgSlug, userRole, userId, userName }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-accent hover:text-accent-foreground"
+                  ? "border-l-2 border-indigo-400 bg-indigo-500/15 text-white"
+                  : "text-slate-300 hover:bg-slate-800/80 hover:text-white"
               )}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className={cn("h-5 w-5 shrink-0", isActive ? "text-indigo-300" : "text-slate-400")} />
               {item.title}
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-4 border-t">
+      <div className="space-y-3 border-t border-slate-800 p-4">
+        <div className="rounded-xl border border-slate-700/80 bg-slate-800/40 px-3 py-2">
+          <p className="truncate text-sm font-semibold text-white">{userName || "Member"}</p>
+          <p className="text-xs capitalize text-slate-400">{userRole}</p>
+        </div>
+        <PlayerLevelWidget totalXp={totalXp} compact />
         <Button
           variant="outline"
-          className="w-full justify-start"
+          className="w-full justify-start rounded-xl border-slate-600 bg-transparent text-slate-200 hover:bg-slate-800 hover:text-white"
           onClick={handleLogout}
         >
-          <LogOut className="h-5 w-5 mr-3" />
+          <LogOut className="mr-2 h-4 w-4" />
           Logout
         </Button>
       </div>
