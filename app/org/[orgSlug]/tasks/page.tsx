@@ -286,15 +286,15 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 md:p-8">
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="option-surface space-y-6 p-6 md:p-8">
+      <div className="option-panel rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
           Manage your daily, weekly, and monthly tasks
         </p>
       </div>
 
-      <Tabs defaultValue="daily" className="space-y-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-        <TabsList className="h-auto w-full justify-start gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+      <Tabs defaultValue="daily" className="option-panel space-y-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <TabsList className="option-tablist h-auto w-full justify-start gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
           <TabsTrigger value="daily">Daily ({dailyCurrentTodayCount})</TabsTrigger>
           <TabsTrigger value="weekly">Weekly ({weeklyCurrentTodayCount})</TabsTrigger>
           <TabsTrigger value="monthly">Monthly ({monthlyCurrentTodayCount})</TabsTrigger>
@@ -302,7 +302,7 @@ export default function TasksPage() {
 
         <TabsContent value="daily" className="space-y-6">
           <Tabs defaultValue="current" className="space-y-4">
-            <TabsList className="h-auto rounded-xl bg-slate-100 p-1">
+            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
               <TabsTrigger value="current">Current ({dailyCurrentTodayCount})</TabsTrigger>
               <TabsTrigger value="history">History ({dailyHistoryTasks.length})</TabsTrigger>
             </TabsList>
@@ -424,7 +424,7 @@ export default function TasksPage() {
 
         <TabsContent value="weekly">
           <Tabs defaultValue="current" className="space-y-4">
-            <TabsList className="h-auto rounded-xl bg-slate-100 p-1">
+            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
               <TabsTrigger value="current">Current ({weeklyCurrentTodayCount})</TabsTrigger>
               <TabsTrigger value="history">History ({weeklyHistoryTasks.length})</TabsTrigger>
             </TabsList>
@@ -507,7 +507,7 @@ export default function TasksPage() {
 
         <TabsContent value="monthly">
           <Tabs defaultValue="current" className="space-y-4">
-            <TabsList className="h-auto rounded-xl bg-slate-100 p-1">
+            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
               <TabsTrigger value="current">Current ({monthlyCurrentTodayCount})</TabsTrigger>
               <TabsTrigger value="history">History ({monthlyHistoryTasks.length})</TabsTrigger>
             </TabsList>

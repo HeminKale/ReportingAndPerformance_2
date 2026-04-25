@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, CheckSquare, Flame, Sparkles, TrendingUp } from 'lucide-react';
+import { AlertCircle, CheckSquare, Clock, Flame, Sparkles, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default async function DashboardPage({
@@ -58,7 +58,7 @@ export default async function DashboardPage({
     .eq('verification_status', 'pending');
 
   return (
-    <div className="space-y-6 p-6 md:p-8">
+    <div className="option-surface space-y-6 p-6 md:p-8">
       <section className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-[hsl(var(--hero-from))] to-[hsl(var(--hero-to))] p-8 text-white shadow-xl">
           <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
@@ -97,19 +97,19 @@ export default async function DashboardPage({
           </div>
         </div>
 
-        <Card className="rounded-3xl border-slate-200 shadow-sm">
+        <Card className="option-panel rounded-3xl border-slate-200 shadow-sm">
           <CardHeader>
             <CardTitle className="text-xl tracking-tight">Attendance</CardTitle>
             <CardDescription>{attendance?.clock_in_time ? "Clocked In" : "Not Clocked In"}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-2xl bg-slate-50 p-4 text-center">
+            <div className="option-soft-card rounded-2xl bg-slate-50 p-4 text-center">
               <p className="text-3xl font-black tracking-tight">{Math.max(totalTasks - completedTasks, 0)} / {totalTasks}</p>
               <p className="mt-1 text-sm text-muted-foreground">Essential tasks remaining today</p>
             </div>
             <a
               href={`/org/${orgSlug}/attendance`}
-              className="block rounded-2xl bg-slate-900 px-4 py-3 text-center text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-800"
+              className="option-cta block rounded-2xl bg-slate-900 px-4 py-3 text-center text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-800"
             >
               {attendance?.clock_in_time ? "Manage Attendance" : "Clock In to Start"}
             </a>
@@ -123,7 +123,7 @@ export default async function DashboardPage({
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Daily Quests</p>
         </div>
         <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="rounded-2xl border-emerald-200 bg-emerald-50/70">
+          <Card className="option-quest-card rounded-2xl border-emerald-200 bg-emerald-50/70">
             <CardContent className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <p className="font-semibold text-emerald-900">Approve 5 documents</p>
@@ -132,7 +132,7 @@ export default async function DashboardPage({
               <p className="mt-4 text-xs font-bold uppercase tracking-wider text-emerald-700/80">Pending</p>
             </CardContent>
           </Card>
-          <Card className="rounded-2xl border-blue-200 bg-blue-50/70">
+          <Card className="option-quest-card rounded-2xl border-blue-200 bg-blue-50/70">
             <CardContent className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <p className="font-semibold text-blue-900">Clock in before 9 AM</p>
@@ -141,7 +141,7 @@ export default async function DashboardPage({
               <p className="mt-4 text-xs font-bold uppercase tracking-wider text-blue-700/80">Pending</p>
             </CardContent>
           </Card>
-          <Card className="rounded-2xl border-fuchsia-200 bg-fuchsia-50/70">
+          <Card className="option-quest-card rounded-2xl border-fuchsia-200 bg-fuchsia-50/70">
             <CardContent className="p-5">
               <div className="flex items-start justify-between gap-3">
                 <p className="font-semibold text-fuchsia-900">Zero mistakes today</p>

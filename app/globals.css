@@ -105,6 +105,88 @@
   }
 }
 
+[data-theme="bloom"] .app-shell-nav {
+  border-color: hsl(270 35% 86% / 0.9);
+  background: hsl(0 0% 100% / 0.88);
+}
+
+[data-theme="bloom"] .app-logo-icon {
+  background: linear-gradient(135deg, hsl(292 72% 55%), hsl(261 75% 58%));
+}
+
+[data-theme="bloom"] .app-logo-text {
+  color: hsl(264 42% 24%);
+}
+
+[data-theme="bloom"] .app-nav-links,
+[data-theme="bloom"] .app-popover,
+[data-theme="bloom"] .app-profile-panel,
+[data-theme="bloom"] .option-panel {
+  border-color: hsl(270 35% 86%);
+  background-color: hsl(0 0% 100%);
+  box-shadow: 0 8px 28px rgba(124, 58, 237, 0.08);
+}
+
+[data-theme="bloom"] .option-tablist {
+  border-color: hsl(274 40% 85%);
+  background: hsl(276 50% 96%);
+}
+
+[data-theme="bloom"] .app-nav-link {
+  color: hsl(263 22% 43%);
+}
+
+[data-theme="bloom"] .app-nav-link:hover {
+  background: hsl(276 65% 95%);
+  color: hsl(267 58% 36%);
+}
+
+[data-theme="bloom"] .app-nav-link-active {
+  background: hsl(276 65% 93%);
+  color: hsl(267 58% 34%);
+}
+
+[data-theme="bloom"] .app-avatar-dot {
+  background: linear-gradient(135deg, hsl(292 72% 55%), hsl(261 75% 58%));
+}
+
+[data-theme="bloom"] .app-ghost-btn:hover {
+  background: hsl(276 65% 95%);
+}
+
+[data-theme="bloom"] .app-icon {
+  color: hsl(263 22% 43%);
+}
+
+[data-theme="bloom"] .app-theme-pill-active {
+  border-color: hsl(273 66% 68%);
+  background: hsl(276 65% 95%);
+  color: hsl(267 58% 36%);
+}
+
+[data-theme="bloom"] .option-surface {
+  background:
+    radial-gradient(circle at 15% 10%, hsl(281 87% 96%), transparent 40%),
+    radial-gradient(circle at 85% 20%, hsl(249 92% 95%), transparent 35%);
+}
+
+[data-theme="bloom"] .option-soft-card {
+  background: hsl(276 60% 97%);
+}
+
+[data-theme="bloom"] .option-cta {
+  background: linear-gradient(135deg, hsl(271 62% 38%), hsl(290 61% 42%));
+}
+
+[data-theme="bloom"] .option-cta:hover {
+  background: linear-gradient(135deg, hsl(271 62% 34%), hsl(290 61% 38%));
+}
+
+[data-theme="bloom"] .option-quest-card {
+  border-color: hsl(274 40% 85%);
+  background: hsl(278 70% 97%);
+}
+
 @layer base {
   * {
     @apply border-border;

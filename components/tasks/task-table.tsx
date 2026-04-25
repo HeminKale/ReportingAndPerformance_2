@@ -55,7 +55,7 @@ export function TaskTable({ tasks, onSubmit, onView }: TaskTableProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div className="option-panel overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <Table>
         <TableHeader>
           <TableRow className="bg-slate-50/80">
