@@ -22,6 +22,7 @@ import { SharedTasksView } from "@/components/manager/shared-tasks-view";
 import { SharedTasksHistoryView } from "@/components/manager/shared-tasks-history-view";
 import { ManagerDocumentsTab } from "@/components/manager/manager-documents-tab";
 import { ManagerSalaryTab } from "@/components/manager/manager-salary-tab";
+import { ManagerCalendarTab } from "@/components/manager/manager-calendar-tab";
 
 export default function ManagerPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -838,6 +839,7 @@ export default function ManagerPage() {
               <TabsTrigger value="attendance-report" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Attendance Report <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentAttendanceReportItems.length}</span></TabsTrigger>
               <TabsTrigger value="mistakes" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Track Mistakes <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{allMistakes.length}</span></TabsTrigger>
               <TabsTrigger value="leaves" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Leaves <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentLeaveItems.length}</span></TabsTrigger>
+              <TabsTrigger value="calendar" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Calendar</TabsTrigger>
               <TabsTrigger value="team" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Team Members <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
               <TabsTrigger value="documents" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Documents <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
               <TabsTrigger value="salary" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Salary <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
@@ -1738,6 +1740,10 @@ export default function ManagerPage() {
               })()}
             </TabsContent>
           </Tabs>
+        </TabsContent>
+
+        <TabsContent value="calendar" className="space-y-4">
+          <ManagerCalendarTab teamMembers={teamMembers} />
         </TabsContent>
 
         <TabsContent value="team" className="space-y-4">
