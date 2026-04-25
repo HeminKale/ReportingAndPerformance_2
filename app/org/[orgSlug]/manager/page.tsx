@@ -1415,26 +1415,25 @@ export default function ManagerPage() {
         </TabsContent>
 
         <TabsContent value="mistakes" className="space-y-4">
-          <div className="flex justify-between items-center mb-4 gap-3 flex-wrap">
-            <Input
-              placeholder="Search mistakes..."
-              value={mistakeSearchTerm}
-              onChange={(e) => setMistakeSearchTerm(e.target.value)}
-              className="w-full max-w-md"
-            />
-            <Button onClick={openCreateMistakeDialog}>
-              <Plus className="h-4 w-4 mr-2" />
-              Record Mistake
-            </Button>
-          </div>
-
           <Tabs defaultValue="mistakes-tracker" className="space-y-4">
-            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
-              <TabsTrigger value="closure-requests">
-                Closure Requests ({filteredClosureRequests.length})
-              </TabsTrigger>
-              <TabsTrigger value="mistakes-tracker">Mistakes</TabsTrigger>
-            </TabsList>
+            <div className="flex flex-wrap items-center gap-3">
+              <Input
+                placeholder="Search mistakes..."
+                value={mistakeSearchTerm}
+                onChange={(e) => setMistakeSearchTerm(e.target.value)}
+                className="min-w-[160px] flex-1 max-w-md"
+              />
+              <TabsList className="option-tablist h-auto shrink-0 rounded-xl bg-slate-100 p-1">
+                <TabsTrigger value="closure-requests">
+                  Closure Requests ({filteredClosureRequests.length})
+                </TabsTrigger>
+                <TabsTrigger value="mistakes-tracker">Mistakes</TabsTrigger>
+              </TabsList>
+              <Button type="button" className="shrink-0" onClick={openCreateMistakeDialog}>
+                <Plus className="h-4 w-4 mr-2" />
+                Record Mistake
+              </Button>
+            </div>
 
             <TabsContent value="closure-requests" className="space-y-4">
               {filteredClosureRequests.length > 0 ? (

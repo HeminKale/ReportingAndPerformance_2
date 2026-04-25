@@ -34,7 +34,6 @@ const NO_LINKED_MONTHLY_VALUE = "__no_linked_monthly__";
 
 export type ManagerPeriodicTasksTabProps = {
   periodicTasks: ManagerPeriodicTask[];
-  directReportCount: number;
   monthlyNumericLinkOptions: Task[];
   monthlyPeriodicLinkOptions: ManagerPeriodicTask[];
   organizationId: string;
@@ -84,7 +83,6 @@ const emptyForm = (type: "daily" | "weekly" | "monthly"): PeriodicForm => ({
 
 export function ManagerPeriodicTasksTab({
   periodicTasks,
-  directReportCount,
   monthlyNumericLinkOptions,
   organizationId,
   managerId,
@@ -102,6 +100,7 @@ export function ManagerPeriodicTasksTab({
   }>({ open: false, mode: "create", row: null });
   const [form, setForm] = useState<PeriodicForm>(emptyForm("daily"));
   const [submitting, setSubmitting] = useState(false);
+  const [periodicTaskNameSearch, setPeriodicTaskNameSearch] = useState("");
   const { toast } = useToast();
   const supabase = createClient();
 
@@ -249,41 +248,56 @@ export function ManagerPeriodicTasksTab({
 
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+  const matchesPeriodicNameSearch = (t: ManagerPeriodicTask) => {
+    const q = periodicTaskNameSearch.trim().toLowerCase();
+    if (!q) return true;
+    return (t.title || "").toLowerCase().includes(q);
+  };
+
   return (
     <>
-      <p className="text-sm text-muted-foreground max-w-2xl mb-4">
-        Create periodic tasks for your <strong>{directReportCount}</strong> direct report
-        {directReportCount !== 1 ? "s" : ""}. You can assign to specific team members or all members.
-        When enabled, the scheduled job creates matching tasks for selected employees on the correct day.
-        Uses your organization timezone. Use <strong>Create periodic task</strong> in the bar above while this tab is selected.
-      </p>
-
       <Tabs
         value={periodicSubTab}
         onValueChange={(v) => onPeriodicSubTabChange(v as "daily" | "weekly" | "monthly")}
         className="space-y-4"
       >
-        <TabsList>
-          <TabsTrigger value="daily">
-            Daily ({periodicTasks.filter((t) => t.type === "daily").length})
-          </TabsTrigger>
-          <TabsTrigger value="weekly">
-            Weekly ({periodicTasks.filter((t) => t.type === "weekly").length})
-          </TabsTrigger>
-          <TabsTrigger value="monthly">
-            Monthly ({periodicTasks.filter((t) => t.type === "monthly").length})
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex w-full flex-wrap items-center gap-3">
+          <TabsList className="h-auto shrink-0">
+            <TabsTrigger value="daily">
+              Daily ({periodicTasks.filter((t) => t.type === "daily").length})
+            </TabsTrigger>
+            <TabsTrigger value="weekly">
+              Weekly ({periodicTasks.filter((t) => t.type === "weekly").length})
+            </TabsTrigger>
+            <TabsTrigger value="monthly">
+              Monthly ({periodicTasks.filter((t) => t.type === "monthly").length})
+            </TabsTrigger>
+          </TabsList>
+          <Input
+            placeholder="Search by task name..."
+            value={periodicTaskNameSearch}
+            onChange={(e) => setPeriodicTaskNameSearch(e.target.value)}
+            className="min-w-[160px] flex-1 max-w-md"
+          />
+        </div>
 
         {(["daily", "weekly", "monthly"] as const).map((tab) => (
           <TabsContent key={tab} value={tab} className="space-y-4">
-            {periodicTasks.filter((t) => t.type === tab).length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center text-muted-foreground">
-                  No {tab} periodic tasks yet.
-                </CardContent>
-              </Card>
-            ) : (
+            {(() => {
+              const rowsForTab = periodicTasks.filter((t) => t.type === tab).filter(matchesPeriodicNameSearch);
+              if (rowsForTab.length === 0) {
+                const hasAnyOfType = periodicTasks.some((t) => t.type === tab);
+                return (
+                  <Card>
+                    <CardContent className="p-8 text-center text-muted-foreground">
+                      {!hasAnyOfType
+                        ? `No ${tab} periodic tasks yet.`
+                        : "No tasks match this search."}
+                    </CardContent>
+                  </Card>
+                );
+              }
+              return (
               <div className="border rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -298,9 +312,7 @@ export function ManagerPeriodicTasksTab({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {periodicTasks
-                      .filter((t) => t.type === tab)
-                      .map((row) => {
+                    {rowsForTab.map((row) => {
                         const assignedCount = row.assigned_user_ids?.length ?? 0;
                         const assignedText = assignedCount === 0
                           ? "All direct reports"
@@ -357,7 +369,8 @@ export function ManagerPeriodicTasksTab({
                   </TableBody>
                 </Table>
               </div>
-            )}
+              );
+            })()}
           </TabsContent>
         ))}
       </Tabs>

@@ -442,8 +442,8 @@ export function TaskAssignmentPanel({
             onValueChange={setMainAssignmentTab}
             className="space-y-4"
           >
-            <div className="flex items-center gap-3 flex-wrap">
-              <TabsList className="flex flex-wrap h-auto gap-1">
+            <div className="flex w-full flex-wrap items-center gap-3">
+              <TabsList className="flex h-auto flex-wrap gap-1">
                 <TabsTrigger value="current">
                   Current ({currentAssignmentTasks.length})
                 </TabsTrigger>
@@ -454,19 +454,22 @@ export function TaskAssignmentPanel({
                   Periodic tasks ({managerPeriodicTasks.length})
                 </TabsTrigger>
               </TabsList>
-              <Button
-                onClick={() => {
-                  if (mainAssignmentTab === "periodic") {
-                    setPeriodicCreateTrigger((n) => n + 1);
-                  } else {
-                    openCreateTaskDialog();
-                  }
-                }}
-                disabled={mainAssignmentTab !== "periodic" && assignableUsers.length === 0}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                {mainAssignmentTab === "periodic" ? "Create periodic task" : "Create Task"}
-              </Button>
+              <div className="ml-auto flex shrink-0">
+                <Button
+                  type="button"
+                  onClick={() => {
+                    if (mainAssignmentTab === "periodic") {
+                      setPeriodicCreateTrigger((n) => n + 1);
+                    } else {
+                      openCreateTaskDialog();
+                    }
+                  }}
+                  disabled={mainAssignmentTab !== "periodic" && assignableUsers.length === 0}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {mainAssignmentTab === "periodic" ? "Create periodic task" : "Create Task"}
+                </Button>
+              </div>
             </div>
 
             <TabsContent value="current" className="space-y-4">
@@ -561,7 +564,6 @@ export function TaskAssignmentPanel({
             <TabsContent value="periodic" className="space-y-4">
               <ManagerPeriodicTasksTab
                 periodicTasks={managerPeriodicTasks}
-                directReportCount={assignableUsers.length}
                 monthlyNumericLinkOptions={monthlyNumericLinkOptions}
                 monthlyPeriodicLinkOptions={monthlyPeriodicLinkOptions}
                 organizationId={organizationId}
