@@ -437,39 +437,37 @@ export function TaskAssignmentPanel({
     <>
       {splitView ? (
         <>
-          <div className="flex justify-between items-center mb-4">
-            <div />
-            <Button
-              onClick={() => {
-                if (mainAssignmentTab === "periodic") {
-                  setPeriodicCreateTrigger((n) => n + 1);
-                } else {
-                  openCreateTaskDialog();
-                }
-              }}
-              disabled={mainAssignmentTab !== "periodic" && assignableUsers.length === 0}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {mainAssignmentTab === "periodic" ? "Create periodic task" : "Create Task"}
-            </Button>
-          </div>
-
           <Tabs
             value={mainAssignmentTab}
             onValueChange={setMainAssignmentTab}
             className="space-y-4"
           >
-            <TabsList className="flex flex-wrap h-auto gap-1">
-              <TabsTrigger value="current">
-                Current ({currentAssignmentTasks.length})
-              </TabsTrigger>
-              <TabsTrigger value="history">
-                History ({historyAssignmentTasks.length})
-              </TabsTrigger>
-              <TabsTrigger value="periodic">
-                Periodic tasks ({managerPeriodicTasks.length})
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex items-center gap-3 flex-wrap">
+              <TabsList className="flex flex-wrap h-auto gap-1">
+                <TabsTrigger value="current">
+                  Current ({currentAssignmentTasks.length})
+                </TabsTrigger>
+                <TabsTrigger value="history">
+                  History ({historyAssignmentTasks.length})
+                </TabsTrigger>
+                <TabsTrigger value="periodic">
+                  Periodic tasks ({managerPeriodicTasks.length})
+                </TabsTrigger>
+              </TabsList>
+              <Button
+                onClick={() => {
+                  if (mainAssignmentTab === "periodic") {
+                    setPeriodicCreateTrigger((n) => n + 1);
+                  } else {
+                    openCreateTaskDialog();
+                  }
+                }}
+                disabled={mainAssignmentTab !== "periodic" && assignableUsers.length === 0}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {mainAssignmentTab === "periodic" ? "Create periodic task" : "Create Task"}
+              </Button>
+            </div>
 
             <TabsContent value="current" className="space-y-4">
               <Input

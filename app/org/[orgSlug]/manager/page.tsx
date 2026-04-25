@@ -138,12 +138,22 @@ export default function ManagerPage() {
       )
       .subscribe();
 
+    const mistakesChannel = supabase
+      .channel('manager-mistakes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'mistakes' },
+        () => fetchData()
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(taskLogsChannel);
       supabase.removeChannel(attendanceChannel);
       supabase.removeChannel(leavesChannel);
       supabase.removeChannel(tasksChannel);
       supabase.removeChannel(periodicChannel);
+      supabase.removeChannel(mistakesChannel);
     };
   }, []);
 
@@ -418,11 +428,15 @@ export default function ManagerPage() {
     getAttendanceDay(att) < today &&
     matchesHistoryFilters(att.users?.full_name, getAttendanceDay(att))
   );
-  const filteredMistakes = allMistakes.filter((m) =>
+  const mistakeMatchesSearch = (m: any) =>
     (m.title || '').toLowerCase().includes(mistakeSearchTerm.toLowerCase()) ||
     (m.description || '').toLowerCase().includes(mistakeSearchTerm.toLowerCase()) ||
-    (m.users?.full_name || '').toLowerCase().includes(mistakeSearchTerm.toLowerCase())
+    (m.users?.full_name || '').toLowerCase().includes(mistakeSearchTerm.toLowerCase());
+
+  const filteredClosureRequests = allMistakes.filter(
+    (m) => m.closure_request_pending === true && (m.status || 'open') === 'open' && mistakeMatchesSearch(m)
   );
+  const filteredMistakes = allMistakes.filter(mistakeMatchesSearch);
 
   const toggleMistakeRow = (mistakeId: string) => {
     const newExpanded = new Set(expandedMistakeRows);
@@ -468,6 +482,8 @@ export default function ManagerPage() {
           description: mistakeForm.description,
           severity: mistakeForm.severity,
           date: new Date().toISOString().split('T')[0],
+          status: 'open',
+          closure_request_pending: false,
         });
       if (error) throw error;
 
@@ -523,6 +539,40 @@ export default function ManagerPage() {
       fetchData();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleClosureAccept = async (mistakeId: string) => {
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('mistakes')
+        .update({ status: 'rectified', closure_request_pending: false })
+        .eq('id', mistakeId);
+      if (error) throw error;
+      toast({ title: "Success", description: "Closure accepted. Status set to Rectified." });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleClosureReject = async (mistakeId: string) => {
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('mistakes')
+        .update({ closure_request_pending: false })
+        .eq('id', mistakeId);
+      if (error) throw error;
+      toast({ title: "Closure request rejected", description: "The employee can submit a new request if needed." });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -1365,12 +1415,12 @@ export default function ManagerPage() {
         </TabsContent>
 
         <TabsContent value="mistakes" className="space-y-4">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center mb-4 gap-3 flex-wrap">
             <Input
               placeholder="Search mistakes..."
               value={mistakeSearchTerm}
               onChange={(e) => setMistakeSearchTerm(e.target.value)}
-              className="w-1/3"
+              className="w-full max-w-md"
             />
             <Button onClick={openCreateMistakeDialog}>
               <Plus className="h-4 w-4 mr-2" />
@@ -1378,98 +1428,200 @@ export default function ManagerPage() {
             </Button>
           </div>
 
-          {filteredMistakes.length > 0 ? (
-            <div className="border rounded-lg">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead></TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Severity</TableHead>
-                    <TableHead>Added By</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredMistakes.map((m) => {
-                    const isExpanded = expandedMistakeRows.has(m.id);
-                    return (
-                      <Fragment key={m.id}>
-                        <TableRow>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => toggleMistakeRow(m.id)}
-                            >
-                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                            </Button>
-                          </TableCell>
+          <Tabs defaultValue="mistakes-tracker" className="space-y-4">
+            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
+              <TabsTrigger value="closure-requests">
+                Closure Requests ({filteredClosureRequests.length})
+              </TabsTrigger>
+              <TabsTrigger value="mistakes-tracker">Mistakes</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="closure-requests" className="space-y-4">
+              {filteredClosureRequests.length > 0 ? (
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Employee</TableHead>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Severity</TableHead>
+                        <TableHead>Added By</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredClosureRequests.map((m) => (
+                        <TableRow key={m.id}>
                           <TableCell>{m.date ? format(new Date(m.date), "dd/MM/yyyy") : "-"}</TableCell>
                           <TableCell>{m.users?.full_name || "-"}</TableCell>
-                          <TableCell className="font-medium">{m.title || "-"}</TableCell>
+                          <TableCell className="font-medium max-w-xs truncate">{m.title || "-"}</TableCell>
                           <TableCell>
-                            <Badge className={
-                              m.severity === 'high'
-                                ? 'bg-red-100 text-red-800'
-                                : m.severity === 'medium'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-green-100 text-green-800'
-                            }>
+                            <Badge
+                              className={
+                                m.severity === "high"
+                                  ? "bg-red-100 text-red-800"
+                                  : m.severity === "medium"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-green-100 text-green-800"
+                              }
+                            >
                               {m.severity}
                             </Badge>
                           </TableCell>
                           <TableCell>{m.added_by_user?.full_name || "-"}</TableCell>
                           <TableCell>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                               <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openEditMistakeDialog(m)}
+                                size="sm"
+                                disabled={actionLoading}
+                                onClick={() => handleClosureAccept(m.id)}
                               >
-                                <Pencil className="h-4 w-4" />
+                                Accept
                               </Button>
                               <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteMistake(m.id)}
+                                size="sm"
+                                variant="destructive"
+                                disabled={actionLoading}
+                                onClick={() => handleClosureReject(m.id)}
                               >
-                                <Trash2 className="h-4 w-4 text-red-500" />
+                                Reject
                               </Button>
                             </div>
                           </TableCell>
                         </TableRow>
-                        {isExpanded && (
-                          <TableRow>
-                            <TableCell colSpan={7} className="bg-muted/30">
-                              <div className="py-2">
-                                <p className="text-sm font-medium mb-1">Description</p>
-                                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                                  {m.description || "-"}
-                                </p>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No mistakes recorded</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {mistakeSearchTerm ? "Try a different search term" : "Record mistakes to track quality issues"}
-                </p>
-              </CardContent>
-            </Card>
-          )}
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">No closure requests</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {mistakeSearchTerm ? "Try a different search term" : "Pending employee requests will appear here"}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="mistakes-tracker" className="space-y-4">
+              {filteredMistakes.length > 0 ? (
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead></TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Employee</TableHead>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Severity</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Added By</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredMistakes.map((m) => {
+                        const isExpanded = expandedMistakeRows.has(m.id);
+                        const trackerStatus = m.status || "open";
+                        return (
+                          <Fragment key={m.id}>
+                            <TableRow>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => toggleMistakeRow(m.id)}
+                                >
+                                  {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                </Button>
+                              </TableCell>
+                              <TableCell>{m.date ? format(new Date(m.date), "dd/MM/yyyy") : "-"}</TableCell>
+                              <TableCell>{m.users?.full_name || "-"}</TableCell>
+                              <TableCell className="font-medium">{m.title || "-"}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  className={
+                                    m.severity === "high"
+                                      ? "bg-red-100 text-red-800"
+                                      : m.severity === "medium"
+                                        ? "bg-yellow-100 text-yellow-800"
+                                        : "bg-green-100 text-green-800"
+                                  }
+                                >
+                                  {m.severity}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col gap-1">
+                                  <Badge
+                                    className={
+                                      trackerStatus === "rectified"
+                                        ? "bg-emerald-100 text-emerald-900 w-fit capitalize"
+                                        : "bg-slate-100 text-slate-800 w-fit capitalize"
+                                    }
+                                  >
+                                    {trackerStatus === "rectified" ? "Rectified" : "Open"}
+                                  </Badge>
+                                  {m.closure_request_pending && trackerStatus === "open" ? (
+                                    <span className="text-xs text-amber-700">Closure pending</span>
+                                  ) : null}
+                                </div>
+                              </TableCell>
+                              <TableCell>{m.added_by_user?.full_name || "-"}</TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => openEditMistakeDialog(m)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDeleteMistake(m.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                            {isExpanded && (
+                              <TableRow>
+                                <TableCell colSpan={8} className="bg-muted/30">
+                                  <div className="py-2">
+                                    <p className="text-sm font-medium mb-1">Description</p>
+                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                      {m.description || "-"}
+                                    </p>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">No mistakes recorded</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {mistakeSearchTerm ? "Try a different search term" : "Record mistakes to track quality issues"}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="leaves" className="space-y-4">

@@ -7,6 +7,7 @@ export type LeaveDayType = 'full_day' | 'half_day';
 export type LeaveCategory = 'vacation' | 'sick' | 'personal';
 export type NotificationType = 'task_verification' | 'leave_approval' | 'late_request' | 'task_rejected' | 'general';
 export type MistakeSeverity = 'low' | 'medium' | 'high';
+export type MistakeTrackerStatus = 'open' | 'rectified';
 export type DocumentType =
   | 'resume'
   | 'aadhar'
@@ -298,6 +299,10 @@ export interface Mistake {
   description: string;
   severity: MistakeSeverity;
   date: string;
+  /** open = active tracking; rectified = closure accepted */
+  status: MistakeTrackerStatus;
+  /** Employee requested closure; manager sees this in Closure Requests */
+  closure_request_pending: boolean;
   created_at: string;
   updated_at: string;
 }
