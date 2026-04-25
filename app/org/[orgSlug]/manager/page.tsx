@@ -667,7 +667,7 @@ export default function ManagerPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-6 md:p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
           <div className="h-64 bg-gray-200 rounded"></div>
@@ -677,10 +677,9 @@ export default function ManagerPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Manager Panel</h1>
-        <p className="text-muted-foreground">
+    <div className="space-y-6 p-6 md:p-8">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
           Manage your team and approve requests
         </p>
       </div>
@@ -729,8 +728,8 @@ export default function ManagerPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="today" className="space-y-6">
-        <TabsList>
+      <Tabs defaultValue="today" className="space-y-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <TabsList className="h-auto w-full justify-start gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
           <TabsTrigger value="today">Today's Task ({todayTaskRows.length})</TabsTrigger>
           <TabsTrigger value="tasks">Task Verifications ({currentTaskLogs.length})</TabsTrigger>
           <TabsTrigger value="attendance">Attendance ({currentAttendanceItems.length})</TabsTrigger>
@@ -746,7 +745,7 @@ export default function ManagerPage() {
 
         <TabsContent value="today" className="space-y-4">
           <Tabs defaultValue="regular" className="space-y-4">
-            <TabsList>
+            <TabsList className="h-auto rounded-xl bg-slate-100 p-1">
               <TabsTrigger value="regular">Regular Tasks</TabsTrigger>
               <TabsTrigger value="shared-tasks">Shared Tasks</TabsTrigger>
             </TabsList>
@@ -957,7 +956,7 @@ export default function ManagerPage() {
 
         <TabsContent value="tasks" className="space-y-4">
           <Tabs defaultValue="current" className="space-y-4">
-            <TabsList>
+            <TabsList className="h-auto rounded-xl bg-slate-100 p-1">
               <TabsTrigger value="current">Current ({currentTaskLogs.length})</TabsTrigger>
               <TabsTrigger value="history">History ({historyTaskLogs.length})</TabsTrigger>
               <TabsTrigger value="shared-tasks">Shared Tasks</TabsTrigger>
@@ -1143,7 +1142,7 @@ export default function ManagerPage() {
 
         <TabsContent value="attendance" className="space-y-4">
           <Tabs defaultValue="current" className="space-y-4">
-            <TabsList>
+            <TabsList className="h-auto rounded-xl bg-slate-100 p-1">
               <TabsTrigger value="current">Current ({currentAttendanceItems.length})</TabsTrigger>
               <TabsTrigger value="history">History ({historyAttendanceItems.length})</TabsTrigger>
             </TabsList>
@@ -1262,7 +1261,7 @@ export default function ManagerPage() {
 
         <TabsContent value="attendance-report" className="space-y-4">
           <Tabs defaultValue="current" className="space-y-4">
-            <TabsList>
+            <TabsList className="h-auto rounded-xl bg-slate-100 p-1">
               <TabsTrigger value="current">Current ({currentAttendanceReportItems.length})</TabsTrigger>
               <TabsTrigger value="history">History ({historyAttendanceReportItems.length})</TabsTrigger>
             </TabsList>
@@ -1465,7 +1464,7 @@ export default function ManagerPage() {
 
         <TabsContent value="leaves" className="space-y-4">
           <Tabs defaultValue="current" className="space-y-4">
-            <TabsList>
+            <TabsList className="h-auto rounded-xl bg-slate-100 p-1">
               <TabsTrigger value="current">Current ({currentLeaveItems.length})</TabsTrigger>
               <TabsTrigger value="history">History ({historyLeaveItems.length})</TabsTrigger>
             </TabsList>

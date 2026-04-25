@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckSquare, Clock, AlertCircle, TrendingUp } from 'lucide-react';
+import { AlertCircle, CheckSquare, Flame, Sparkles, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default async function DashboardPage({
@@ -58,15 +58,102 @@ export default async function DashboardPage({
     .eq('verification_status', 'pending');
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Welcome back, {userData?.full_name}
-        </p>
-      </div>
+    <div className="space-y-6 p-6 md:p-8">
+      <section className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+        <div className="relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-[hsl(var(--hero-from))] to-[hsl(var(--hero-to))] p-8 text-white shadow-xl">
+          <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+          <div className="absolute -bottom-20 right-20 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+          <div className="relative">
+            <p className="text-sm font-semibold text-white/80">Welcome back, {userData?.full_name || "Hero"}!</p>
+            <h2 className="mt-2 text-3xl font-black tracking-tight">Ready to crush another day?</h2>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
+                <p className="text-xs font-bold uppercase tracking-wider text-white/70">Current Rank</p>
+                <p className="mt-1 text-2xl font-extrabold">Focus Master</p>
+                <p className="text-sm text-white/80">Level 4</p>
+              </div>
+              <div className="rounded-2xl bg-white/10 p-4 text-center backdrop-blur">
+                <Flame className="mx-auto h-4 w-4 text-orange-300" />
+                <p className="mt-1 text-xl font-extrabold">5</p>
+                <p className="text-xs text-white/75">Day Streak</p>
+              </div>
+              <div className="rounded-2xl bg-white/10 p-4 text-center backdrop-blur">
+                <TrendingUp className="mx-auto h-4 w-4 text-cyan-200" />
+                <p className="mt-1 text-xl font-extrabold">{totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}%</p>
+                <p className="text-xs text-white/75">Completion</p>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="font-semibold text-white/80">XP Progress to Level 5</span>
+                <span className="font-semibold">850 / 1000 XP</span>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-white/20">
+                <div className="h-full w-[85%] animate-pulse-glow rounded-full bg-gradient-to-r from-sky-300 via-indigo-300 to-fuchsia-300" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <Card className="rounded-3xl border-slate-200 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl tracking-tight">Attendance</CardTitle>
+            <CardDescription>{attendance?.clock_in_time ? "Clocked In" : "Not Clocked In"}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-2xl bg-slate-50 p-4 text-center">
+              <p className="text-3xl font-black tracking-tight">{Math.max(totalTasks - completedTasks, 0)} / {totalTasks}</p>
+              <p className="mt-1 text-sm text-muted-foreground">Essential tasks remaining today</p>
+            </div>
+            <a
+              href={`/org/${orgSlug}/attendance`}
+              className="block rounded-2xl bg-slate-900 px-4 py-3 text-center text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-800"
+            >
+              {attendance?.clock_in_time ? "Manage Attendance" : "Clock In to Start"}
+            </a>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-amber-500" />
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Daily Quests</p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Card className="rounded-2xl border-emerald-200 bg-emerald-50/70">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-3">
+                <p className="font-semibold text-emerald-900">Approve 5 documents</p>
+                <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-emerald-600">+50 XP</span>
+              </div>
+              <p className="mt-4 text-xs font-bold uppercase tracking-wider text-emerald-700/80">Pending</p>
+            </CardContent>
+          </Card>
+          <Card className="rounded-2xl border-blue-200 bg-blue-50/70">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-3">
+                <p className="font-semibold text-blue-900">Clock in before 9 AM</p>
+                <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-blue-600">+20 XP</span>
+              </div>
+              <p className="mt-4 text-xs font-bold uppercase tracking-wider text-blue-700/80">Pending</p>
+            </CardContent>
+          </Card>
+          <Card className="rounded-2xl border-fuchsia-200 bg-fuchsia-50/70">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-3">
+                <p className="font-semibold text-fuchsia-900">Zero mistakes today</p>
+                <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-fuchsia-600">+100 XP</span>
+              </div>
+              <p className="mt-4 text-xs font-bold uppercase tracking-wider text-fuchsia-700/80">Pending</p>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
