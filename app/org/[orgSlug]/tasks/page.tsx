@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,65 @@ const TASK_SUB_TAB_LIST =
   "inline-flex h-auto w-full flex-wrap items-center justify-start gap-0 rounded-none border-0 bg-transparent p-0";
 const TASK_SUB_TAB_TRIGGER =
   "rounded-none border-b-2 border-transparent px-4 py-2 text-sm font-semibold text-slate-600 shadow-none transition-colors hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none";
+
+function TaskToolbarRow({
+  left,
+  onAddTask,
+  taskViewMode,
+  setTaskViewMode,
+}: {
+  left: ReactNode;
+  onAddTask: () => void;
+  taskViewMode: "list" | "board";
+  setTaskViewMode: (m: "list" | "board") => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
+      <div className="min-w-0 shrink-0">{left}</div>
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+        <Button
+          type="button"
+          size="sm"
+          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+          onClick={onAddTask}
+        >
+          + Add Task
+        </Button>
+        <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50/90 p-1">
+          <button
+            type="button"
+            onClick={() => setTaskViewMode("list")}
+            className={cn(
+              "rounded-md p-1.5 transition-colors",
+              taskViewMode === "list" ? "bg-primary/15 text-primary" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            )}
+            aria-label="List view"
+          >
+            <List className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setTaskViewMode("board")}
+            className={cn(
+              "rounded-md p-1.5 transition-colors",
+              taskViewMode === "board" ? "bg-primary/15 text-primary" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            )}
+            aria-label="Kanban view"
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+            aria-label="Filters"
+          >
+            <Filter className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function TasksPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -308,14 +367,14 @@ export default function TasksPage() {
       <Tabs
         value={taskPeriod}
         onValueChange={(v) => setTaskPeriod(v as "daily" | "weekly" | "monthly")}
-        className="flex min-h-0 flex-1 flex-col gap-6 md:flex-row md:items-stretch"
+        className="flex min-h-0 flex-1 flex-col gap-6 md:flex-row md:items-start"
       >
-        <aside className="flex w-full shrink-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:w-[248px] md:min-h-0 md:self-stretch">
+        <aside className="flex w-full shrink-0 flex-col items-stretch rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:w-[248px] md:self-start">
           <div className="shrink-0 space-y-1">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Tasks</p>
             <p className="text-sm leading-snug text-slate-600">Daily, weekly, and monthly work.</p>
           </div>
-          <TabsList className="mt-5 flex min-h-0 w-full flex-1 flex-col gap-1.5 bg-transparent p-0">
+          <TabsList className="mt-4 flex w-full flex-col gap-1.5 bg-transparent p-0">
             <TabsTrigger
               value="daily"
               className={cn(
@@ -359,109 +418,88 @@ export default function TasksPage() {
               </span>
             </TabsTrigger>
           </TabsList>
-          <Button
-            type="button"
-            className="mt-auto w-full shrink-0 rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
-            onClick={() => setAddTaskPanelOpen(true)}
-          >
-            + Add Task
-          </Button>
         </aside>
 
-        <section className="option-panel flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <TabsContent value="daily" className="mt-0 flex min-h-0 flex-1 flex-col space-y-4">
-          <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-              <TabsList className={TASK_SUB_TAB_LIST}>
-                <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
-                  Current ({dailyCurrentTodayCount})
-                </TabsTrigger>
-                <TabsTrigger value="history" className={TASK_SUB_TAB_TRIGGER}>
-                  History ({dailyHistoryTasks.length})
-                </TabsTrigger>
-              </TabsList>
-              <div className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white p-1">
-                <button
-                  type="button"
-                  onClick={() => setTaskViewMode("list")}
-                  className={`rounded-md p-1.5 ${taskViewMode === "list" ? "bg-slate-100 text-slate-900" : "text-slate-500"}`}
-                  aria-label="List view"
-                >
-                  <List className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTaskViewMode("board")}
-                  className={`rounded-md p-1.5 ${taskViewMode === "board" ? "bg-slate-100 text-slate-900" : "text-slate-500"}`}
-                  aria-label="Board view"
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </button>
-                <button type="button" className="rounded-md p-1.5 text-slate-500" aria-label="Filters">
-                  <Filter className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+        <section className="option-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:min-h-[min(70vh,32rem)]">
+        <TabsContent value="daily" className="mt-0 flex min-h-0 flex-1 flex-col">
+          <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col">
+            <TaskToolbarRow
+              left={
+                <TabsList className={TASK_SUB_TAB_LIST}>
+                  <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
+                    Current ({dailyCurrentTodayCount})
+                  </TabsTrigger>
+                  <TabsTrigger value="history" className={TASK_SUB_TAB_TRIGGER}>
+                    History ({dailyHistoryTasks.length})
+                  </TabsTrigger>
+                </TabsList>
+              }
+              onAddTask={() => setAddTaskPanelOpen(true)}
+              taskViewMode={taskViewMode}
+              setTaskViewMode={setTaskViewMode}
+            />
 
-            <TabsContent value="current" className="mt-0 space-y-6">
-              {dailyFreshTasks.some(t => t.is_numeric_task && t.linked_monthly_task_id) && user && (
-                <div className="space-y-4">
-                  {dailyFreshTasks
-                    .filter(t => t.is_numeric_task && t.linked_monthly_task_id)
-                    .map(task => (
-                      <MonthlyNumericSummary
-                        key={task.id}
-                        dailyTask={task}
-                        userId={user.id}
-                        month={currentMonth}
-                      />
-                    ))}
+            <TabsContent value="current" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="sticky top-0 z-10 -mx-5 border-b border-slate-200 bg-white px-5 pb-3 pt-0 shadow-sm">
+                  <TaskTable tasks={dailyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
                 </div>
-              )}
-              <TaskTable 
-                tasks={dailyFreshTasks} 
-                onSubmit={handleSubmit}
-                onView={handleView}
-              />
-              {dailyPendingApprovalTasks.length > 0 && (
-                <details className="rounded-lg border">
-                  <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                    Pending approvals ({dailyPendingApprovalTasks.length})
-                  </summary>
-                  <div className="border-t p-4">
-                    <TaskTable
-                      tasks={dailyPendingApprovalTasks}
-                      onSubmit={handleSubmit}
-                      onView={handleView}
-                    />
-                  </div>
-                </details>
-              )}
-
-              <details className="rounded-lg border">
-                <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                  Number of certificates-daily
-                </summary>
-                <div className="border-t p-4">
-                  {dailyCertificatesChartData.length === 0 ? (
-                    <div className="text-sm text-muted-foreground py-8 text-center">
-                      No numeric submissions found for this month.
-                    </div>
-                  ) : (
-                    <div className="h-64 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={dailyCertificatesChartData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="label" />
-                          <YAxis />
-                          <Tooltip />
-                          <Line type="monotone" dataKey="value" strokeDasharray="4 4" strokeWidth={2} dot={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                <div className="space-y-4 pt-4">
+                  {dailyFreshTasks.some((t) => t.is_numeric_task && t.linked_monthly_task_id) && user && (
+                    <div className="space-y-4">
+                      {dailyFreshTasks
+                        .filter((t) => t.is_numeric_task && t.linked_monthly_task_id)
+                        .map((task) => (
+                          <MonthlyNumericSummary
+                            key={task.id}
+                            dailyTask={task}
+                            userId={user.id}
+                            month={currentMonth}
+                          />
+                        ))}
                     </div>
                   )}
+                  {dailyPendingApprovalTasks.length > 0 && (
+                    <details className="rounded-lg border">
+                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+                        Pending approvals ({dailyPendingApprovalTasks.length})
+                      </summary>
+                      <div className="border-t p-4">
+                        <TaskTable
+                          tasks={dailyPendingApprovalTasks}
+                          onSubmit={handleSubmit}
+                          onView={handleView}
+                        />
+                      </div>
+                    </details>
+                  )}
+
+                  <details className="rounded-lg border">
+                    <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+                      Number of certificates-daily
+                    </summary>
+                    <div className="border-t p-4">
+                      {dailyCertificatesChartData.length === 0 ? (
+                        <div className="py-8 text-center text-sm text-muted-foreground">
+                          No numeric submissions found for this month.
+                        </div>
+                      ) : (
+                        <div className="h-64 w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={dailyCertificatesChartData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="label" />
+                              <YAxis />
+                              <Tooltip />
+                              <Line type="monotone" dataKey="value" strokeDasharray="4 4" strokeWidth={2} dot={false} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
+                    </div>
+                  </details>
                 </div>
-              </details>
+              </div>
             </TabsContent>
 
             <TabsContent value="history" className="mt-0 space-y-4">
@@ -521,60 +559,46 @@ export default function TasksPage() {
           </Tabs>
         </TabsContent>
 
-        <TabsContent value="weekly" className="mt-0 flex min-h-0 flex-1 flex-col space-y-4">
-          <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-              <TabsList className={TASK_SUB_TAB_LIST}>
-                <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
-                  Current ({weeklyCurrentTodayCount})
-                </TabsTrigger>
-                <TabsTrigger value="history" className={TASK_SUB_TAB_TRIGGER}>
-                  History ({weeklyHistoryTasks.length})
-                </TabsTrigger>
-              </TabsList>
-              <div className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white p-1">
-                <button
-                  type="button"
-                  onClick={() => setTaskViewMode("list")}
-                  className={`rounded-md p-1.5 ${taskViewMode === "list" ? "bg-slate-100 text-slate-900" : "text-slate-500"}`}
-                  aria-label="List view"
-                >
-                  <List className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTaskViewMode("board")}
-                  className={`rounded-md p-1.5 ${taskViewMode === "board" ? "bg-slate-100 text-slate-900" : "text-slate-500"}`}
-                  aria-label="Board view"
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </button>
-                <button type="button" className="rounded-md p-1.5 text-slate-500" aria-label="Filters">
-                  <Filter className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+        <TabsContent value="weekly" className="mt-0 flex min-h-0 flex-1 flex-col">
+          <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col">
+            <TaskToolbarRow
+              left={
+                <TabsList className={TASK_SUB_TAB_LIST}>
+                  <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
+                    Current ({weeklyCurrentTodayCount})
+                  </TabsTrigger>
+                  <TabsTrigger value="history" className={TASK_SUB_TAB_TRIGGER}>
+                    History ({weeklyHistoryTasks.length})
+                  </TabsTrigger>
+                </TabsList>
+              }
+              onAddTask={() => setAddTaskPanelOpen(true)}
+              taskViewMode={taskViewMode}
+              setTaskViewMode={setTaskViewMode}
+            />
 
-            <TabsContent value="current" className="mt-0">
-              <TaskTable 
-                tasks={weeklyFreshTasks} 
-                onSubmit={handleSubmit}
-                onView={handleView}
-              />
-              {weeklyPendingApprovalTasks.length > 0 && (
-                <details className="mt-4 rounded-lg border">
-                  <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                    Pending approvals ({weeklyPendingApprovalTasks.length})
-                  </summary>
-                  <div className="border-t p-4">
-                    <TaskTable
-                      tasks={weeklyPendingApprovalTasks}
-                      onSubmit={handleSubmit}
-                      onView={handleView}
-                    />
-                  </div>
-                </details>
-              )}
+            <TabsContent value="current" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="sticky top-0 z-10 -mx-5 border-b border-slate-200 bg-white px-5 pb-3 pt-0 shadow-sm">
+                  <TaskTable tasks={weeklyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
+                </div>
+                <div className="space-y-4 pt-4">
+                  {weeklyPendingApprovalTasks.length > 0 && (
+                    <details className="rounded-lg border">
+                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+                        Pending approvals ({weeklyPendingApprovalTasks.length})
+                      </summary>
+                      <div className="border-t p-4">
+                        <TaskTable
+                          tasks={weeklyPendingApprovalTasks}
+                          onSubmit={handleSubmit}
+                          onView={handleView}
+                        />
+                      </div>
+                    </details>
+                  )}
+                </div>
+              </div>
             </TabsContent>
 
             <TabsContent value="history" className="mt-0 space-y-4">
@@ -634,85 +658,71 @@ export default function TasksPage() {
           </Tabs>
         </TabsContent>
 
-        <TabsContent value="monthly" className="mt-0 flex min-h-0 flex-1 flex-col space-y-4">
-          <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-              <TabsList className={TASK_SUB_TAB_LIST}>
-                <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
-                  Current ({monthlyCurrentTodayCount})
-                </TabsTrigger>
-                <TabsTrigger value="history" className={TASK_SUB_TAB_TRIGGER}>
-                  History ({monthlyHistoryTasks.length})
-                </TabsTrigger>
-              </TabsList>
-              <div className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white p-1">
-                <button
-                  type="button"
-                  onClick={() => setTaskViewMode("list")}
-                  className={`rounded-md p-1.5 ${taskViewMode === "list" ? "bg-slate-100 text-slate-900" : "text-slate-500"}`}
-                  aria-label="List view"
-                >
-                  <List className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTaskViewMode("board")}
-                  className={`rounded-md p-1.5 ${taskViewMode === "board" ? "bg-slate-100 text-slate-900" : "text-slate-500"}`}
-                  aria-label="Board view"
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </button>
-                <button type="button" className="rounded-md p-1.5 text-slate-500" aria-label="Filters">
-                  <Filter className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+        <TabsContent value="monthly" className="mt-0 flex min-h-0 flex-1 flex-col">
+          <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col">
+            <TaskToolbarRow
+              left={
+                <TabsList className={TASK_SUB_TAB_LIST}>
+                  <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
+                    Current ({monthlyCurrentTodayCount})
+                  </TabsTrigger>
+                  <TabsTrigger value="history" className={TASK_SUB_TAB_TRIGGER}>
+                    History ({monthlyHistoryTasks.length})
+                  </TabsTrigger>
+                </TabsList>
+              }
+              onAddTask={() => setAddTaskPanelOpen(true)}
+              taskViewMode={taskViewMode}
+              setTaskViewMode={setTaskViewMode}
+            />
 
-            <TabsContent value="current" className="mt-0">
-              <TaskTable 
-                tasks={monthlyFreshTasks} 
-                onSubmit={handleSubmit}
-                onView={handleView}
-              />
-              {monthlyPendingApprovalTasks.length > 0 && (
-                <details className="mt-4 rounded-lg border">
-                  <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                    Pending approvals ({monthlyPendingApprovalTasks.length})
-                  </summary>
-                  <div className="border-t p-4">
-                    <TaskTable
-                      tasks={monthlyPendingApprovalTasks}
-                      onSubmit={handleSubmit}
-                      onView={handleView}
-                    />
-                  </div>
-                </details>
-              )}
-
-              <details className="mt-4 rounded-lg border">
-                <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                  Number of certificates-monthly
-                </summary>
-                <div className="border-t p-4">
-                  {monthlyCertificatesChartData.some((p) => p.value > 0) ? (
-                    <div className="h-64 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={monthlyCertificatesChartData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="month" />
-                          <YAxis />
-                          <Tooltip />
-                          <Line type="monotone" dataKey="value" strokeDasharray="4 4" strokeWidth={2} dot={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="text-sm text-muted-foreground py-8 text-center">
-                      No linked daily numeric submissions found yet.
-                    </div>
-                  )}
+            <TabsContent value="current" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className="sticky top-0 z-10 -mx-5 border-b border-slate-200 bg-white px-5 pb-3 pt-0 shadow-sm">
+                  <TaskTable tasks={monthlyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
                 </div>
-              </details>
+                <div className="space-y-4 pt-4">
+                  {monthlyPendingApprovalTasks.length > 0 && (
+                    <details className="rounded-lg border">
+                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+                        Pending approvals ({monthlyPendingApprovalTasks.length})
+                      </summary>
+                      <div className="border-t p-4">
+                        <TaskTable
+                          tasks={monthlyPendingApprovalTasks}
+                          onSubmit={handleSubmit}
+                          onView={handleView}
+                        />
+                      </div>
+                    </details>
+                  )}
+
+                  <details className="rounded-lg border">
+                    <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+                      Number of certificates-monthly
+                    </summary>
+                    <div className="border-t p-4">
+                      {monthlyCertificatesChartData.some((p) => p.value > 0) ? (
+                        <div className="h-64 w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={monthlyCertificatesChartData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="month" />
+                              <YAxis />
+                              <Tooltip />
+                              <Line type="monotone" dataKey="value" strokeDasharray="4 4" strokeWidth={2} dot={false} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="py-8 text-center text-sm text-muted-foreground">
+                          No linked daily numeric submissions found yet.
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                </div>
+              </div>
             </TabsContent>
 
             <TabsContent value="history" className="mt-0 space-y-4">

@@ -34,7 +34,7 @@ const navItems = [
 ];
 
 /** Primary bar shows this many links; additional routes go under "More". */
-const NAV_PRIMARY_MAX = 12;
+const NAV_PRIMARY_MAX = 10;
 
 function ThemeDot({ theme }: { theme: AppTheme }) {
   const colors: Record<AppTheme, string> = {
