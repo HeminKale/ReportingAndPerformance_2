@@ -571,6 +571,7 @@ export function TaskAssignmentPanel({
                 periodicSubTab={periodicSubTab}
                 onPeriodicSubTabChange={setPeriodicSubTab}
                 periodicCreateTrigger={periodicCreateTrigger}
+                assignableUsers={assignableUsers}
               />
             </TabsContent>
           </Tabs>

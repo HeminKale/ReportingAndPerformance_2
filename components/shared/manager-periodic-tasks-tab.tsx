@@ -44,6 +44,8 @@ export type ManagerPeriodicTasksTabProps = {
   onPeriodicSubTabChange: (v: "daily" | "weekly" | "monthly") => void;
   /** Increment (e.g. parent `setState(n => n + 1)`) to open create dialog from header */
   periodicCreateTrigger: number;
+  /** List of direct reports for selective assignment */
+  assignableUsers: { id: string; full_name: string; role: string }[];
 };
 
 type PeriodicForm = {
@@ -57,6 +59,7 @@ type PeriodicForm = {
   linkedMonthlyTaskId: string;
   linkedMonthlyPeriodicId: string;
   isEnabled: boolean;
+  assignedUserIds: string[];
 };
 
 function linkedMonthlySelectValue(form: PeriodicForm): string {
@@ -76,6 +79,7 @@ const emptyForm = (type: "daily" | "weekly" | "monthly"): PeriodicForm => ({
   linkedMonthlyTaskId: "",
   linkedMonthlyPeriodicId: "",
   isEnabled: true,
+  assignedUserIds: [],
 });
 
 export function ManagerPeriodicTasksTab({
@@ -89,6 +93,7 @@ export function ManagerPeriodicTasksTab({
   onPeriodicSubTabChange,
   periodicCreateTrigger,
   monthlyPeriodicLinkOptions,
+  assignableUsers,
 }: ManagerPeriodicTasksTabProps) {
   const [dialog, setDialog] = useState<{
     open: boolean;
@@ -121,6 +126,7 @@ export function ManagerPeriodicTasksTab({
         ? ""
         : (row.linked_monthly_periodic_id ?? ""),
       isEnabled: row.is_enabled,
+      assignedUserIds: row.assigned_user_ids ?? [],
     });
     setDialog({ open: true, mode: "edit", row });
   };
@@ -177,6 +183,7 @@ export function ManagerPeriodicTasksTab({
           ? form.linkedMonthlyPeriodicId
           : null,
       is_enabled: form.isEnabled,
+      assigned_user_ids: form.assignedUserIds.length > 0 ? form.assignedUserIds : null,
     };
     return payload;
   };
@@ -245,10 +252,10 @@ export function ManagerPeriodicTasksTab({
   return (
     <>
       <p className="text-sm text-muted-foreground max-w-2xl mb-4">
-        Applies to all <strong>{directReportCount}</strong> direct report
-        {directReportCount !== 1 ? "s" : ""}. When enabled, the scheduled job creates matching tasks for each
-        employee on the correct day. Uses your organization timezone. Use <strong>Create periodic task</strong> in
-        the bar above while this tab is selected.
+        Create periodic tasks for your <strong>{directReportCount}</strong> direct report
+        {directReportCount !== 1 ? "s" : ""}. You can assign to specific team members or all members.
+        When enabled, the scheduled job creates matching tasks for selected employees on the correct day.
+        Uses your organization timezone. Use <strong>Create periodic task</strong> in the bar above while this tab is selected.
       </p>
 
       <Tabs
@@ -283,6 +290,7 @@ export function ManagerPeriodicTasksTab({
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Description</TableHead>
+                      <TableHead>Assigned to</TableHead>
                       <TableHead>Schedule detail</TableHead>
                       <TableHead>Numeric / link</TableHead>
                       <TableHead className="w-[100px]">Enabled</TableHead>
@@ -292,47 +300,60 @@ export function ManagerPeriodicTasksTab({
                   <TableBody>
                     {periodicTasks
                       .filter((t) => t.type === tab)
-                      .map((row) => (
-                        <TableRow key={row.id}>
-                          <TableCell className="font-medium">{row.title}</TableCell>
-                          <TableCell className="max-w-[200px] truncate text-muted-foreground text-sm">
-                            {row.description || "—"}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {row.type === "weekly" && row.day_of_week != null
-                              ? dayNames[row.day_of_week]
-                              : row.type === "monthly" && row.monthly_day != null
-                                ? `Day ${row.monthly_day} of month`
-                                : "Every day"}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {row.is_numeric_task
-                              ? `Yes (${row.numeric_unit || "units"})`
-                              : "No"}
-                          </TableCell>
-                          <TableCell>
-                            <label className="inline-flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                className="rounded border-input h-4 w-4"
-                                checked={row.is_enabled}
-                                onChange={(e) => toggleEnabled(row, e.target.checked)}
-                              />
-                              <span className="text-sm">{row.is_enabled ? "On" : "Off"}</span>
-                            </label>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => openEdit(row)}>
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleDelete(row.id)}>
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      .map((row) => {
+                        const assignedCount = row.assigned_user_ids?.length ?? 0;
+                        const assignedText = assignedCount === 0
+                          ? "All direct reports"
+                          : assignedCount === 1
+                            ? "1 member"
+                            : `${assignedCount} members`;
+                        return (
+                          <TableRow key={row.id}>
+                            <TableCell className="font-medium">{row.title}</TableCell>
+                            <TableCell className="max-w-[200px] truncate text-muted-foreground text-sm">
+                              {row.description || "—"}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              <span className={assignedCount === 0 ? "text-muted-foreground italic" : ""}>
+                                {assignedText}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {row.type === "weekly" && row.day_of_week != null
+                                ? dayNames[row.day_of_week]
+                                : row.type === "monthly" && row.monthly_day != null
+                                  ? `Day ${row.monthly_day} of month`
+                                  : "Every day"}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {row.is_numeric_task
+                                ? `Yes (${row.numeric_unit || "units"})`
+                                : "No"}
+                            </TableCell>
+                            <TableCell>
+                              <label className="inline-flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  className="rounded border-input h-4 w-4"
+                                  checked={row.is_enabled}
+                                  onChange={(e) => toggleEnabled(row, e.target.checked)}
+                                />
+                                <span className="text-sm">{row.is_enabled ? "On" : "Off"}</span>
+                              </label>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button variant="ghost" size="icon" onClick={() => openEdit(row)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleDelete(row.id)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                   </TableBody>
                 </Table>
               </div>
@@ -348,9 +369,9 @@ export function ManagerPeriodicTasksTab({
               {dialog.mode === "create" ? "Create periodic task" : "Edit periodic task"}
             </DialogTitle>
             <DialogDescription>
-              One row per direct report is created on each run when enabled. For daily numeric tasks you can link to
-              a fixed monthly task row, or to a monthly periodic template (resolved per employee after that monthly
-              row exists for the month).
+              One row per selected team member is created on each run when enabled. Leave empty to assign to all direct reports.
+              For daily numeric tasks you can link to a fixed monthly task row, or to a monthly periodic template
+              (resolved per employee after that monthly row exists for the month).
             </DialogDescription>
           </DialogHeader>
 
@@ -446,6 +467,67 @@ export function ManagerPeriodicTasksTab({
               <Label htmlFor="pt-enabled" className="cursor-pointer">
                 Enabled (automation on)
               </Label>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Assign to (select one or more, or leave empty for all)</Label>
+              <div className="rounded-md border max-h-52 overflow-y-auto p-3 space-y-2 bg-muted/20">
+                {assignableUsers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No team members available</p>
+                ) : (
+                  assignableUsers.map((u) => (
+                    <label
+                      key={u.id}
+                      className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-1 py-0.5"
+                    >
+                      <input
+                        type="checkbox"
+                        className="rounded border-input"
+                        checked={form.assignedUserIds.includes(u.id)}
+                        onChange={() => {
+                          setForm((prev) => ({
+                            ...prev,
+                            assignedUserIds: prev.assignedUserIds.includes(u.id)
+                              ? prev.assignedUserIds.filter((id) => id !== u.id)
+                              : [...prev.assignedUserIds, u.id],
+                          }));
+                        }}
+                      />
+                      <span>
+                        {u.full_name} <span className="text-muted-foreground">({u.role})</span>
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+              {assignableUsers.length > 1 && (
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        assignedUserIds: assignableUsers.map((x) => x.id),
+                      }))
+                    }
+                  >
+                    Select all
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setForm((prev) => ({ ...prev, assignedUserIds: [] }))}
+                  >
+                    Clear (assign to all)
+                  </Button>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Empty selection means this task will be assigned to all direct reports automatically.
+              </p>
             </div>
 
             <div className="flex items-center gap-2">

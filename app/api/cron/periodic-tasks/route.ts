@@ -30,6 +30,7 @@ type PeriodicTask = {
   numeric_unit: string | null;
   linked_monthly_task_id: string | null;
   linked_monthly_periodic_id?: string | null;
+  assigned_user_ids?: string[] | null;
 };
 
 function pad2(n: number) {
@@ -154,15 +155,33 @@ async function handle(request: Request) {
       continue;
     }
 
-    const { data: members, error: mErr } = await supabase
-      .from("users")
-      .select("id")
-      .eq("manager_id", template.manager_id)
-      .eq("organization_id", template.organization_id);
+    let members: { id: string }[];
+    
+    if (template.assigned_user_ids && template.assigned_user_ids.length > 0) {
+      const { data: assignedMembers, error: mErr } = await supabase
+        .from("users")
+        .select("id")
+        .in("id", template.assigned_user_ids)
+        .eq("manager_id", template.manager_id)
+        .eq("organization_id", template.organization_id);
+      
+      if (mErr || !assignedMembers?.length) {
+        skipped++;
+        continue;
+      }
+      members = assignedMembers;
+    } else {
+      const { data: allMembers, error: mErr } = await supabase
+        .from("users")
+        .select("id")
+        .eq("manager_id", template.manager_id)
+        .eq("organization_id", template.organization_id);
 
-    if (mErr || !members?.length) {
-      skipped++;
-      continue;
+      if (mErr || !allMembers?.length) {
+        skipped++;
+        continue;
+      }
+      members = allMembers;
     }
 
     const dueDate =

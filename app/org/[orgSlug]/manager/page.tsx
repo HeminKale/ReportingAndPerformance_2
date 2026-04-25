@@ -18,6 +18,8 @@ import { TaskAssignmentPanel } from "@/components/shared/task-assignment-panel";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { ManagerPeriodicTask, Task, TaskLog, Attendance, Leave, User } from "@/lib/types/database";
+import { SharedTasksView } from "@/components/manager/shared-tasks-view";
+import { SharedTasksHistoryView } from "@/components/manager/shared-tasks-history-view";
 
 export default function ManagerPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -743,78 +745,85 @@ export default function ManagerPage() {
         </TabsList>
 
         <TabsContent value="today" className="space-y-4">
-          {sortedTodayGroups.length === 0 ? (
-            <Card><CardContent className="p-6 text-center text-muted-foreground">No tasks due today for your team</CardContent></Card>
-          ) : (
-            <div className="space-y-2">
-              {sortedTodayGroups.map(([employeeName, rows]) => (
-                <details key={employeeName} className="rounded-lg border">
-                  <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                    {employeeName} &mdash; {rows.length} task{rows.length !== 1 ? 's' : ''}
-                  </summary>
-                  <div className="border-t">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Employee</TableHead>
-                          <TableHead>Task Name</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Number</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {rows.map((row) => {
-                          const statusClass =
-                            row.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                            row.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                            row.status === 'Pending Approval' ? 'bg-yellow-100 text-yellow-800' : '';
-                          return (
-                            <TableRow key={`${row.member.id}-${row.task.id}`}>
-                              <TableCell>{row.member.full_name}</TableCell>
-                              <TableCell className="font-medium">{row.task.title}</TableCell>
-                              <TableCell className="max-w-md">
-                                <p className="text-sm text-muted-foreground line-clamp-2">
-                                  {row.task.description || '-'}
-                                </p>
-                              </TableCell>
-                              <TableCell>
-                                <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs capitalize">
-                                  {row.task.type}
-                                </span>
-                              </TableCell>
-                              <TableCell>
-                                {row.task.is_numeric_task ? (
-                                  row.log?.numeric_value != null ? (
-                                    <span className="text-sm">
-                                      {row.log.numeric_value} {row.task.numeric_unit || "units"}
-                                    </span>
-                                  ) : (
-                                    <span className="text-muted-foreground">-</span>
-                                  )
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <Badge className={statusClass}>{row.status}</Badge>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </details>
-              ))}
-            </div>
-          )}
+          <Tabs defaultValue="regular" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="regular">Regular Tasks</TabsTrigger>
+              <TabsTrigger value="shared-tasks">Shared Tasks</TabsTrigger>
+            </TabsList>
 
-          <details className="rounded-lg border">
-            <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-              Number of certificates
-            </summary>
+            <TabsContent value="regular" className="space-y-4">
+              {sortedTodayGroups.length === 0 ? (
+                <Card><CardContent className="p-6 text-center text-muted-foreground">No tasks due today for your team</CardContent></Card>
+              ) : (
+                <div className="space-y-2">
+                  {sortedTodayGroups.map(([employeeName, rows]) => (
+                    <details key={employeeName} className="rounded-lg border">
+                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+                        {employeeName} &mdash; {rows.length} task{rows.length !== 1 ? 's' : ''}
+                      </summary>
+                      <div className="border-t">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Employee</TableHead>
+                              <TableHead>Task Name</TableHead>
+                              <TableHead>Description</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead>Number</TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {rows.map((row) => {
+                              const statusClass =
+                                row.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                                row.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                                row.status === 'Pending Approval' ? 'bg-yellow-100 text-yellow-800' : '';
+                              return (
+                                <TableRow key={`${row.member.id}-${row.task.id}`}>
+                                  <TableCell>{row.member.full_name}</TableCell>
+                                  <TableCell className="font-medium">{row.task.title}</TableCell>
+                                  <TableCell className="max-w-md">
+                                    <p className="text-sm text-muted-foreground line-clamp-2">
+                                      {row.task.description || '-'}
+                                    </p>
+                                  </TableCell>
+                                  <TableCell>
+                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs capitalize">
+                                      {row.task.type}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell>
+                                    {row.task.is_numeric_task ? (
+                                      row.log?.numeric_value != null ? (
+                                        <span className="text-sm">
+                                          {row.log.numeric_value} {row.task.numeric_unit || "units"}
+                                        </span>
+                                      ) : (
+                                        <span className="text-muted-foreground">-</span>
+                                      )
+                                    ) : (
+                                      <span className="text-muted-foreground">-</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge className={statusClass}>{row.status}</Badge>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              )}
+
+              <details className="rounded-lg border">
+                <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
+                  Number of certificates
+                </summary>
             <div className="border-t p-4 space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                 <div className="relative">
@@ -942,6 +951,8 @@ export default function ManagerPage() {
               )}
             </div>
           </details>
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-4">
@@ -949,6 +960,8 @@ export default function ManagerPage() {
             <TabsList>
               <TabsTrigger value="current">Current ({currentTaskLogs.length})</TabsTrigger>
               <TabsTrigger value="history">History ({historyTaskLogs.length})</TabsTrigger>
+              <TabsTrigger value="shared-tasks">Shared Tasks</TabsTrigger>
+              <TabsTrigger value="shared-history">Shared History</TabsTrigger>
             </TabsList>
 
             <TabsContent value="current" className="space-y-4">
@@ -1098,6 +1111,32 @@ export default function ManagerPage() {
                   </div>
                 );
               })()}
+            </TabsContent>
+
+            <TabsContent value="shared-tasks" className="space-y-4">
+              <SharedTasksView
+                tasks={managedTeamTasks}
+                taskLogs={taskLogs}
+                employees={teamMembers}
+                filterDate={today}
+              />
+            </TabsContent>
+
+            <TabsContent value="shared-history" className="space-y-4">
+              <SharedTasksHistoryView
+                tasks={managedTeamTasks}
+                taskLogs={taskLogs}
+                employees={teamMembers}
+              />
+            </TabsContent>
+
+            <TabsContent value="shared-tasks" className="space-y-4">
+              <SharedTasksView
+                tasks={teamTasks}
+                taskLogs={taskLogs}
+                employees={teamMembers}
+                filterDate={today}
+              />
             </TabsContent>
           </Tabs>
         </TabsContent>
