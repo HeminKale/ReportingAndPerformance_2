@@ -118,7 +118,12 @@
   color: hsl(264 42% 24%);
 }
 
-[data-theme="bloom"] .app-nav-links,
+[data-theme="bloom"] .app-nav-links {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
 [data-theme="bloom"] .app-popover,
 [data-theme="bloom"] .app-profile-panel,
 [data-theme="bloom"] .option-panel {
@@ -137,12 +142,12 @@
 }
 
 [data-theme="bloom"] .app-nav-link:hover {
-  background: hsl(276 65% 95%);
+  background: transparent;
   color: hsl(267 58% 36%);
 }
 
 [data-theme="bloom"] .app-nav-link-active {
-  background: hsl(276 65% 93%);
+  background: transparent;
   color: hsl(267 58% 34%);
 }
 
@@ -201,7 +206,12 @@
   color: hsl(210 40% 98%);
 }
 
-[data-theme="midnight"] .app-nav-links,
+[data-theme="midnight"] .app-nav-links {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
 [data-theme="midnight"] .app-popover,
 [data-theme="midnight"] .app-profile-panel,
 [data-theme="midnight"] .option-panel {
@@ -220,12 +230,12 @@
 }
 
 [data-theme="midnight"] .app-nav-link:hover {
-  background: hsl(217 33% 18%);
+  background: transparent;
   color: hsl(191 91% 45%);
 }
 
 [data-theme="midnight"] .app-nav-link-active {
-  background: hsl(217 33% 19%);
+  background: transparent;
   color: hsl(191 91% 45%);
 }
 

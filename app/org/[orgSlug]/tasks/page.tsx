@@ -13,7 +13,14 @@ import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Filter, LayoutGrid, List } from "lucide-react";
+import { cn } from "@/lib/utils/cn";
 import type { Task, TaskLog, User } from "@/lib/types/database";
+
+/** Current / History row — underline active state (matches top nav). */
+const TASK_SUB_TAB_LIST =
+  "inline-flex h-auto w-full flex-wrap items-center justify-start gap-0 rounded-none border-0 bg-transparent p-0";
+const TASK_SUB_TAB_TRIGGER =
+  "rounded-none border-b-2 border-transparent px-4 py-2 text-sm font-semibold text-slate-600 shadow-none transition-colors hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none";
 
 export default function TasksPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -303,56 +310,77 @@ export default function TasksPage() {
         onValueChange={(v) => setTaskPeriod(v as "daily" | "weekly" | "monthly")}
         className="flex min-h-0 flex-1 flex-col gap-6 md:flex-row md:items-stretch"
       >
-        <aside className="flex w-full shrink-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:w-[240px]">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Tasks</p>
-          <p className="mt-1 text-sm text-slate-600">Daily, weekly, and monthly work.</p>
-          <TabsList className="mt-4 flex w-full flex-col gap-2 bg-transparent p-0">
+        <aside className="flex w-full shrink-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:w-[248px] md:min-h-0 md:self-stretch">
+          <div className="shrink-0 space-y-1">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Tasks</p>
+            <p className="text-sm leading-snug text-slate-600">Daily, weekly, and monthly work.</p>
+          </div>
+          <TabsList className="mt-5 flex min-h-0 w-full flex-1 flex-col gap-1.5 bg-transparent p-0">
             <TabsTrigger
               value="daily"
-              className="flex h-auto w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:[&>span:last-child]:bg-white/20 data-[state=active]:[&>span:last-child]:text-white"
+              className={cn(
+                "flex h-auto w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-700 shadow-sm transition-colors",
+                "hover:border-slate-300 hover:bg-slate-50",
+                "data-[state=active]:border-blue-600 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-950 data-[state=active]:shadow-sm",
+                "data-[state=active]:[&>span:last-child]:bg-blue-100 data-[state=active]:[&>span:last-child]:text-blue-900"
+              )}
             >
               <span>Daily</span>
-              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-800">
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600 tabular-nums">
                 {dailyTasks.length}
               </span>
             </TabsTrigger>
             <TabsTrigger
               value="weekly"
-              className="flex h-auto w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:[&>span:last-child]:bg-white/20 data-[state=active]:[&>span:last-child]:text-white"
+              className={cn(
+                "flex h-auto w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-700 shadow-sm transition-colors",
+                "hover:border-slate-300 hover:bg-slate-50",
+                "data-[state=active]:border-blue-600 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-950 data-[state=active]:shadow-sm",
+                "data-[state=active]:[&>span:last-child]:bg-blue-100 data-[state=active]:[&>span:last-child]:text-blue-900"
+              )}
             >
               <span>Weekly</span>
-              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-800">
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600 tabular-nums">
                 {weeklyTasks.length}
               </span>
             </TabsTrigger>
             <TabsTrigger
               value="monthly"
-              className="flex h-auto w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:[&>span:last-child]:bg-white/20 data-[state=active]:[&>span:last-child]:text-white"
+              className={cn(
+                "flex h-auto w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-700 shadow-sm transition-colors",
+                "hover:border-slate-300 hover:bg-slate-50",
+                "data-[state=active]:border-blue-600 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-950 data-[state=active]:shadow-sm",
+                "data-[state=active]:[&>span:last-child]:bg-blue-100 data-[state=active]:[&>span:last-child]:text-blue-900"
+              )}
             >
               <span>Monthly</span>
-              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-800">
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600 tabular-nums">
                 {monthlyTasks.length}
               </span>
             </TabsTrigger>
           </TabsList>
           <Button
             type="button"
-            className="mt-6 w-full rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+            className="mt-auto w-full shrink-0 rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
             onClick={() => setAddTaskPanelOpen(true)}
           >
             + Add Task
           </Button>
         </aside>
 
-        <section className="option-panel flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="option-panel flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <TabsContent value="daily" className="mt-0 flex min-h-0 flex-1 flex-col space-y-4">
           <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-              <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
-                <TabsTrigger value="current">Current ({dailyCurrentTodayCount})</TabsTrigger>
-                <TabsTrigger value="history">History ({dailyHistoryTasks.length})</TabsTrigger>
+              <TabsList className={TASK_SUB_TAB_LIST}>
+                <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
+                  Current ({dailyCurrentTodayCount})
+                </TabsTrigger>
+                <TabsTrigger value="history" className={TASK_SUB_TAB_TRIGGER}>
+                  History ({dailyHistoryTasks.length})
+                </TabsTrigger>
               </TabsList>
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1">
+              <div className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white p-1">
                 <button
                   type="button"
                   onClick={() => setTaskViewMode("list")}
@@ -375,7 +403,7 @@ export default function TasksPage() {
               </div>
             </div>
 
-            <TabsContent value="current" className="space-y-6">
+            <TabsContent value="current" className="mt-0 space-y-6">
               {dailyFreshTasks.some(t => t.is_numeric_task && t.linked_monthly_task_id) && user && (
                 <div className="space-y-4">
                   {dailyFreshTasks
@@ -436,8 +464,8 @@ export default function TasksPage() {
               </details>
             </TabsContent>
 
-            <TabsContent value="history" className="space-y-4">
-              <div className="flex gap-3">
+            <TabsContent value="history" className="mt-0 space-y-4">
+              <div className="flex flex-wrap gap-3">
                 <Input
                   type="date"
                   className="w-44"
@@ -451,7 +479,7 @@ export default function TasksPage() {
                 />
                 <Input
                   placeholder="Search by task name..."
-                  className="flex-1"
+                  className="min-w-[12rem] flex-1"
                   value={historyFilters.daily.taskName}
                   onChange={(e) =>
                     setHistoryFilters((prev) => ({
@@ -466,9 +494,12 @@ export default function TasksPage() {
                 const groups = groupByAssignedDate(filtered);
                 if (groups.length === 0) {
                   return (
-                    <div className="text-center py-12 text-muted-foreground">
-                      No history found
-                    </div>
+                    <TaskTable
+                      tasks={[]}
+                      onSubmit={handleSubmit}
+                      onView={handleView}
+                      emptyMessage="No history matches these filters."
+                    />
                   );
                 }
                 return (
@@ -493,11 +524,15 @@ export default function TasksPage() {
         <TabsContent value="weekly" className="mt-0 flex min-h-0 flex-1 flex-col space-y-4">
           <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-              <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
-                <TabsTrigger value="current">Current ({weeklyCurrentTodayCount})</TabsTrigger>
-                <TabsTrigger value="history">History ({weeklyHistoryTasks.length})</TabsTrigger>
+              <TabsList className={TASK_SUB_TAB_LIST}>
+                <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
+                  Current ({weeklyCurrentTodayCount})
+                </TabsTrigger>
+                <TabsTrigger value="history" className={TASK_SUB_TAB_TRIGGER}>
+                  History ({weeklyHistoryTasks.length})
+                </TabsTrigger>
               </TabsList>
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1">
+              <div className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white p-1">
                 <button
                   type="button"
                   onClick={() => setTaskViewMode("list")}
@@ -520,7 +555,7 @@ export default function TasksPage() {
               </div>
             </div>
 
-            <TabsContent value="current">
+            <TabsContent value="current" className="mt-0">
               <TaskTable 
                 tasks={weeklyFreshTasks} 
                 onSubmit={handleSubmit}
@@ -542,8 +577,8 @@ export default function TasksPage() {
               )}
             </TabsContent>
 
-            <TabsContent value="history" className="space-y-4">
-              <div className="flex gap-3">
+            <TabsContent value="history" className="mt-0 space-y-4">
+              <div className="flex flex-wrap gap-3">
                 <Input
                   type="date"
                   className="w-44"
@@ -557,7 +592,7 @@ export default function TasksPage() {
                 />
                 <Input
                   placeholder="Search by task name..."
-                  className="flex-1"
+                  className="min-w-[12rem] flex-1"
                   value={historyFilters.weekly.taskName}
                   onChange={(e) =>
                     setHistoryFilters((prev) => ({
@@ -572,9 +607,12 @@ export default function TasksPage() {
                 const groups = groupByAssignedDate(filtered);
                 if (groups.length === 0) {
                   return (
-                    <div className="text-center py-12 text-muted-foreground">
-                      No history found
-                    </div>
+                    <TaskTable
+                      tasks={[]}
+                      onSubmit={handleSubmit}
+                      onView={handleView}
+                      emptyMessage="No history matches these filters."
+                    />
                   );
                 }
                 return (
@@ -599,11 +637,15 @@ export default function TasksPage() {
         <TabsContent value="monthly" className="mt-0 flex min-h-0 flex-1 flex-col space-y-4">
           <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-              <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
-                <TabsTrigger value="current">Current ({monthlyCurrentTodayCount})</TabsTrigger>
-                <TabsTrigger value="history">History ({monthlyHistoryTasks.length})</TabsTrigger>
+              <TabsList className={TASK_SUB_TAB_LIST}>
+                <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
+                  Current ({monthlyCurrentTodayCount})
+                </TabsTrigger>
+                <TabsTrigger value="history" className={TASK_SUB_TAB_TRIGGER}>
+                  History ({monthlyHistoryTasks.length})
+                </TabsTrigger>
               </TabsList>
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1">
+              <div className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white p-1">
                 <button
                   type="button"
                   onClick={() => setTaskViewMode("list")}
@@ -626,7 +668,7 @@ export default function TasksPage() {
               </div>
             </div>
 
-            <TabsContent value="current">
+            <TabsContent value="current" className="mt-0">
               <TaskTable 
                 tasks={monthlyFreshTasks} 
                 onSubmit={handleSubmit}
@@ -673,8 +715,8 @@ export default function TasksPage() {
               </details>
             </TabsContent>
 
-            <TabsContent value="history" className="space-y-4">
-              <div className="flex gap-3">
+            <TabsContent value="history" className="mt-0 space-y-4">
+              <div className="flex flex-wrap gap-3">
                 <Input
                   type="date"
                   className="w-44"
@@ -688,7 +730,7 @@ export default function TasksPage() {
                 />
                 <Input
                   placeholder="Search by task name..."
-                  className="flex-1"
+                  className="min-w-[12rem] flex-1"
                   value={historyFilters.monthly.taskName}
                   onChange={(e) =>
                     setHistoryFilters((prev) => ({
@@ -703,9 +745,12 @@ export default function TasksPage() {
                 const groups = groupByAssignedDate(filtered);
                 if (groups.length === 0) {
                   return (
-                    <div className="text-center py-12 text-muted-foreground">
-                      No history found
-                    </div>
+                    <TaskTable
+                      tasks={[]}
+                      onSubmit={handleSubmit}
+                      onView={handleView}
+                      emptyMessage="No history matches these filters."
+                    />
                   );
                 }
                 return (

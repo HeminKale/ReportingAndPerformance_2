@@ -16,9 +16,11 @@ interface TaskTableProps {
   tasks: TaskWithLog[];
   onSubmit: (task: Task) => void;
   onView: (task: Task, taskLog?: TaskLog) => void;
+  /** Shown in the table body when there are zero rows (headers still visible). */
+  emptyMessage?: string;
 }
 
-export function TaskTable({ tasks, onSubmit, onView }: TaskTableProps) {
+export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks found" }: TaskTableProps) {
   const [openMenuTaskId, setOpenMenuTaskId] = useState<string | null>(null);
 
   const getStatusBadge = (taskLog?: TaskLog) => {
@@ -46,14 +48,6 @@ export function TaskTable({ tasks, onSubmit, onView }: TaskTableProps) {
     return true;
   };
 
-  if (tasks.length === 0) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">
-        No tasks found
-      </div>
-    );
-  }
-
   return (
     <div className="option-panel overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <Table>
@@ -68,6 +62,13 @@ export function TaskTable({ tasks, onSubmit, onView }: TaskTableProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
+          {tasks.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
+                {emptyMessage}
+              </TableCell>
+            </TableRow>
+          ) : null}
           {tasks.map((task) => {
             const taskLog = task.taskLog;
             const canSubmit = canSubmitTask(taskLog);
