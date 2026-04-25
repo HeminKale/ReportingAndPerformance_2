@@ -43,6 +43,10 @@ export default function ManagerPage() {
   const [currentSearchTerm, setCurrentSearchTerm] = useState("");
   const [historySearchTerm, setHistorySearchTerm] = useState("");
   const [historyDateFilter, setHistoryDateFilter] = useState("");
+  const [historyToDateFilter, setHistoryToDateFilter] = useState("");
+  const [leavesSearchTerm, setLeavesSearchTerm] = useState("");
+  const [leavesDateFilter, setLeavesDateFilter] = useState("");
+  const [teamSearchTerm, setTeamSearchTerm] = useState("");
   const [mistakeSearchTerm, setMistakeSearchTerm] = useState("");
   const [expandedMistakeRows, setExpandedMistakeRows] = useState<Set<string>>(new Set());
   const [certGraphEmployeeFilter, setCertGraphEmployeeFilter] = useState("");
@@ -312,6 +316,45 @@ export default function ManagerPage() {
     return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
   };
 
+  const groupByEmployee = (items: any[]): [string, any[]][] => {
+    const groups: Record<string, any[]> = {};
+    for (const item of items) {
+      const key = item.users?.full_name || "Unknown";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(item);
+    }
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  };
+
+  const calculateHours = (clockIn: string | null, clockOut: string | null): string => {
+    if (!clockIn || !clockOut) return '-';
+    const diff = new Date(clockOut).getTime() - new Date(clockIn).getTime();
+    if (diff <= 0) return '-';
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
+  };
+
+  const calculateTotalHours = (attendanceRecords: any[]): number => {
+    let totalMs = 0;
+    for (const att of attendanceRecords) {
+      if (att.clock_in_time && att.clock_out_time) {
+        const diff = new Date(att.clock_out_time).getTime() - new Date(att.clock_in_time).getTime();
+        if (diff > 0) totalMs += diff;
+      }
+    }
+    const hours = totalMs / (1000 * 60 * 60);
+    return Math.round(hours * 10) / 10;
+  };
+
+  const getTasksCompleteForDate = (userId: string, date: string): string => {
+    const logsForDate = taskLogs.filter((log: any) => 
+      log.user_id === userId && getTaskDay(log) === date
+    );
+    const completed = logsForDate.filter((log: any) => log.verification_status === 'approved').length;
+    return logsForDate.length > 0 ? `${completed}/${logsForDate.length}` : '0/0';
+  };
+
   // Today's Task: derive which tasks are due today per team member
   const todayWeekday = new Date().getDay();
   const dueTodayTasks = teamTasks.filter((task: any) => {
@@ -485,12 +528,16 @@ export default function ManagerPage() {
 
   const currentLeaveItems = leaveItems.filter((leave) =>
     getLeaveDay(leave) === today &&
-    matchesName(leave.users?.full_name, currentSearchTerm)
+    matchesName(leave.users?.full_name, leavesSearchTerm)
   );
-  const historyLeaveItems = leaveItems.filter((leave) =>
-    getLeaveDay(leave) < today &&
-    matchesHistoryFilters(leave.users?.full_name, getLeaveDay(leave))
-  );
+  const historyLeaveItems = leaveItems.filter((leave) => {
+    const nameMatch = matchesName(leave.users?.full_name, leavesSearchTerm);
+    const dayStr = getLeaveDay(leave);
+    if (leavesDateFilter) {
+      return dayStr === leavesDateFilter && nameMatch && dayStr < today;
+    }
+    return dayStr < today && nameMatch;
+  });
 
   useEffect(() => {
     if (teamMembers.length === 0) {
@@ -734,12 +781,10 @@ export default function ManagerPage() {
         <div className="flex flex-col gap-4 xl:flex-row">
           <aside className="option-panel w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:w-72">
             <p className="text-3xl font-bold tracking-tight">Manager Panel</p>
-            <p className="mt-1 text-sm text-muted-foreground">Control center overview</p>
 
             <TabsList className="option-tablist mt-4 h-auto w-full flex-col items-stretch gap-1 rounded-xl border border-slate-200 bg-slate-50 p-2">
               <TabsTrigger value="today" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Today's Tasks <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{todayTaskRows.length}</span></TabsTrigger>
               <TabsTrigger value="tasks" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Task Verifications <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentTaskLogs.length}</span></TabsTrigger>
-              <TabsTrigger value="attendance" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Attendance <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentAttendanceItems.length}</span></TabsTrigger>
               <TabsTrigger value="attendance-report" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Attendance Report <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentAttendanceReportItems.length}</span></TabsTrigger>
               <TabsTrigger value="mistakes" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Track Mistakes <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{allMistakes.length}</span></TabsTrigger>
               <TabsTrigger value="leaves" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Leaves <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentLeaveItems.length}</span></TabsTrigger>
@@ -747,7 +792,7 @@ export default function ManagerPage() {
               <TabsTrigger value="documents" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Documents <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
               <TabsTrigger value="salary" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Salary <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
               <TabsTrigger value="task-assignment" className="manager-side-trigger justify-between rounded-lg px-3 py-2">
-                <span className="flex items-center"><ListTodo className="mr-2 h-4 w-4" />Task Assignment</span>
+                <span>Task Assignment</span>
                 <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{managedTeamTasks.length}</span>
               </TabsTrigger>
             </TabsList>
@@ -1151,125 +1196,6 @@ export default function ManagerPage() {
           </Tabs>
         </TabsContent>
 
-        <TabsContent value="attendance" className="space-y-4">
-          <Tabs defaultValue="current" className="space-y-4">
-            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
-              <TabsTrigger value="current">Current ({currentAttendanceItems.length})</TabsTrigger>
-              <TabsTrigger value="history">History ({historyAttendanceItems.length})</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="current" className="space-y-4">
-              <Input
-                placeholder="Search by employee name..."
-                value={currentSearchTerm}
-                onChange={(e) => setCurrentSearchTerm(e.target.value)}
-                className="max-w-md"
-              />
-              {currentAttendanceItems.length > 0 ? (
-                <div className="border rounded-lg">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Employee</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Clock In</TableHead>
-                        <TableHead>Reason</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {currentAttendanceItems.map((att) => (
-                        <TableRow key={att.id}>
-                          <TableCell>{att.users?.full_name}</TableCell>
-                          <TableCell>{format(new Date(att.date), "dd/MM/yyyy")}</TableCell>
-                          <TableCell>{att.clock_in_time ? format(new Date(att.clock_in_time), "HH:mm dd/MM/yyyy") : "-"}</TableCell>
-                          <TableCell>{att.late_reason || "-"}</TableCell>
-                          <TableCell className="capitalize">{att.approval_status}</TableCell>
-                          <TableCell>
-                            {att.approval_status === "pending" ? (
-                              <div className="flex gap-2">
-                                <Button size="sm" onClick={() => setActionDialog({ open: true, type: "attendance", item: att, action: "approve" })}>
-                                  Approve
-                                </Button>
-                                <Button size="sm" variant="destructive" onClick={() => setActionDialog({ open: true, type: "attendance", item: att, action: "reject" })}>
-                                  Reject
-                                </Button>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <Card><CardContent className="p-6 text-center text-muted-foreground">No current attendance requests</CardContent></Card>
-              )}
-            </TabsContent>
-
-            <TabsContent value="history" className="space-y-4">
-              <div className="flex gap-3">
-                <Input
-                  placeholder="Search by employee name..."
-                  value={historySearchTerm}
-                  onChange={(e) => setHistorySearchTerm(e.target.value)}
-                  className="flex-1"
-                />
-                <Input
-                  type="date"
-                  value={historyDateFilter}
-                  onChange={(e) => setHistoryDateFilter(e.target.value)}
-                  className="w-44"
-                />
-              </div>
-              {(() => {
-                const groups = groupByDay(historyAttendanceItems, getAttendanceDay);
-                if (groups.length === 0) {
-                  return <Card><CardContent className="p-6 text-center text-muted-foreground">No attendance history</CardContent></Card>;
-                }
-                return (
-                  <div className="space-y-2">
-                    {groups.map(([date, items]) => (
-                      <details key={date} className="rounded-lg border">
-                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                          {format(new Date(date), 'dd MMM yyyy')} &mdash; {items.length} request{items.length !== 1 ? 's' : ''}
-                        </summary>
-                        <div className="border-t">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Employee</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Reason</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Manager Comment</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {items.map((att: any) => (
-                                <TableRow key={att.id}>
-                                  <TableCell>{att.users?.full_name}</TableCell>
-                                  <TableCell>{format(new Date(att.date), "dd/MM/yyyy")}</TableCell>
-                                  <TableCell>{att.late_reason || "-"}</TableCell>
-                                  <TableCell className="capitalize">{att.approval_status}</TableCell>
-                                  <TableCell>{att.manager_comment || "-"}</TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      </details>
-                    ))}
-                  </div>
-                );
-              })()}
-            </TabsContent>
-          </Tabs>
-        </TabsContent>
-
         <TabsContent value="attendance-report" className="space-y-4">
           <Tabs defaultValue="current" className="space-y-4">
             <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
@@ -1295,6 +1221,7 @@ export default function ManagerPage() {
                         <TableHead>Clock Out</TableHead>
                         <TableHead>Reason</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1306,6 +1233,20 @@ export default function ManagerPage() {
                           <TableCell>{att.clock_out_time ? format(new Date(att.clock_out_time), "HH:mm dd/MM/yyyy") : "-"}</TableCell>
                           <TableCell>{att.late_reason || "-"}</TableCell>
                           <TableCell className="capitalize">{att.approval_status}</TableCell>
+                          <TableCell>
+                            {att.is_late_request && att.approval_status === "pending" ? (
+                              <div className="flex gap-2">
+                                <Button size="sm" onClick={() => setActionDialog({ open: true, type: "attendance", item: att, action: "approve" })}>
+                                  Approve
+                                </Button>
+                                <Button size="sm" variant="destructive" onClick={() => setActionDialog({ open: true, type: "attendance", item: att, action: "reject" })}>
+                                  Reject
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1317,50 +1258,108 @@ export default function ManagerPage() {
             </TabsContent>
 
             <TabsContent value="history" className="space-y-4">
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-wrap">
                 <Input
                   placeholder="Search by employee name..."
                   value={historySearchTerm}
                   onChange={(e) => setHistorySearchTerm(e.target.value)}
-                  className="flex-1"
+                  className="flex-1 min-w-[200px]"
                 />
                 <Input
                   type="date"
+                  placeholder="From date"
                   value={historyDateFilter}
                   onChange={(e) => setHistoryDateFilter(e.target.value)}
                   className="w-44"
                 />
+                <Input
+                  type="date"
+                  placeholder="To date"
+                  value={historyToDateFilter}
+                  onChange={(e) => setHistoryToDateFilter(e.target.value)}
+                  className="w-44"
+                />
               </div>
-              {historyAttendanceReportItems.length > 0 ? (
-                <div className="border rounded-lg">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Employee</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Clock In</TableHead>
-                        <TableHead>Clock Out</TableHead>
-                        <TableHead>Reason</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {historyAttendanceReportItems.map((att) => (
-                        <TableRow key={att.id}>
-                          <TableCell>{att.users?.full_name}</TableCell>
-                          <TableCell>{format(new Date(att.date), "dd/MM/yyyy")}</TableCell>
-                          <TableCell>{att.clock_in_time ? format(new Date(att.clock_in_time), "HH:mm dd/MM/yyyy") : "-"}</TableCell>
-                          <TableCell>{att.clock_out_time ? format(new Date(att.clock_out_time), "HH:mm dd/MM/yyyy") : "-"}</TableCell>
-                          <TableCell>{att.late_reason || "-"}</TableCell>
-                          <TableCell className="capitalize">{att.approval_status}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <Card><CardContent className="p-6 text-center text-muted-foreground">No attendance report history</CardContent></Card>
-              )}
+              {(() => {
+                const filteredItems = historyAttendanceReportItems.filter((att) => {
+                  const nameMatch = matchesName(att.users?.full_name, historySearchTerm);
+                  const attDate = getAttendanceDay(att);
+                  let dateMatch = true;
+                  if (historyDateFilter && historyToDateFilter) {
+                    dateMatch = attDate >= historyDateFilter && attDate <= historyToDateFilter;
+                  } else if (historyDateFilter) {
+                    dateMatch = attDate >= historyDateFilter;
+                  } else if (historyToDateFilter) {
+                    dateMatch = attDate <= historyToDateFilter;
+                  }
+                  return nameMatch && dateMatch;
+                });
+
+                const groups = groupByEmployee(filteredItems);
+                
+                if (groups.length === 0) {
+                  return <Card><CardContent className="p-6 text-center text-muted-foreground">No attendance report history</CardContent></Card>;
+                }
+
+                return (
+                  <div className="space-y-2">
+                    {groups.map(([employeeName, items]) => {
+                      const totalHours = calculateTotalHours(items);
+                      const daysPresent = items.filter((att: any) => att.clock_in_time).length;
+                      const userId = items[0]?.user_id;
+                      
+                      return (
+                        <details key={employeeName} className="rounded-lg border">
+                          <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex items-center justify-between">
+                            <span>{employeeName} &mdash; {items.length} record{items.length !== 1 ? 's' : ''}</span>
+                            <ChevronDown className="h-4 w-4" />
+                          </summary>
+                          <div className="border-t p-4 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <Card>
+                                <CardContent className="p-4">
+                                  <p className="text-sm text-muted-foreground">Total Hours</p>
+                                  <p className="text-2xl font-bold">{totalHours}h</p>
+                                </CardContent>
+                              </Card>
+                              <Card>
+                                <CardContent className="p-4">
+                                  <p className="text-sm text-muted-foreground">Days Present</p>
+                                  <p className="text-2xl font-bold">{daysPresent}</p>
+                                </CardContent>
+                              </Card>
+                            </div>
+                            <div className="border rounded-lg">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Clock In</TableHead>
+                                    <TableHead>Clock Out</TableHead>
+                                    <TableHead>Hours</TableHead>
+                                    <TableHead>Tasks Complete</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {items.map((att: any) => (
+                                    <TableRow key={att.id}>
+                                      <TableCell>{format(new Date(att.date), "dd/MM/yyyy")}</TableCell>
+                                      <TableCell>{att.clock_in_time ? format(new Date(att.clock_in_time), "HH:mm") : "-"}</TableCell>
+                                      <TableCell>{att.clock_out_time ? format(new Date(att.clock_out_time), "HH:mm") : "-"}</TableCell>
+                                      <TableCell>{calculateHours(att.clock_in_time, att.clock_out_time)}</TableCell>
+                                      <TableCell>{getTasksCompleteForDate(userId, getAttendanceDay(att))}</TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        </details>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </TabsContent>
           </Tabs>
         </TabsContent>
@@ -1475,18 +1474,26 @@ export default function ManagerPage() {
 
         <TabsContent value="leaves" className="space-y-4">
           <Tabs defaultValue="current" className="space-y-4">
-            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
-              <TabsTrigger value="current">Current ({currentLeaveItems.length})</TabsTrigger>
-              <TabsTrigger value="history">History ({historyLeaveItems.length})</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="current" className="space-y-4">
+            <div className="flex gap-3 items-center flex-wrap">
               <Input
                 placeholder="Search by employee name..."
-                value={currentSearchTerm}
-                onChange={(e) => setCurrentSearchTerm(e.target.value)}
-                className="max-w-md"
+                value={leavesSearchTerm}
+                onChange={(e) => setLeavesSearchTerm(e.target.value)}
+                className="flex-1 min-w-[200px]"
               />
+              <Input
+                type="date"
+                value={leavesDateFilter}
+                onChange={(e) => setLeavesDateFilter(e.target.value)}
+                className="w-44"
+              />
+              <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
+                <TabsTrigger value="current">Current ({currentLeaveItems.length})</TabsTrigger>
+                <TabsTrigger value="history">History ({historyLeaveItems.length})</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="current" className="space-y-4">
               {currentLeaveItems.length > 0 ? (
                 <div className="border rounded-lg">
                   <Table>
@@ -1535,20 +1542,6 @@ export default function ManagerPage() {
             </TabsContent>
 
             <TabsContent value="history" className="space-y-4">
-              <div className="flex gap-3">
-                <Input
-                  placeholder="Search by employee name..."
-                  value={historySearchTerm}
-                  onChange={(e) => setHistorySearchTerm(e.target.value)}
-                  className="flex-1"
-                />
-                <Input
-                  type="date"
-                  value={historyDateFilter}
-                  onChange={(e) => setHistoryDateFilter(e.target.value)}
-                  className="w-44"
-                />
-              </div>
               {(() => {
                 const groups = groupByDay(historyLeaveItems, getLeaveDay);
                 if (groups.length === 0) {
@@ -1597,8 +1590,14 @@ export default function ManagerPage() {
         </TabsContent>
 
         <TabsContent value="team" className="space-y-4">
+          <Input
+            placeholder="Search by employee name..."
+            value={teamSearchTerm}
+            onChange={(e) => setTeamSearchTerm(e.target.value)}
+            className="max-w-md"
+          />
           {teamMembers.filter(member =>
-            member.full_name.toLowerCase().includes(currentSearchTerm.toLowerCase())
+            member.full_name.toLowerCase().includes(teamSearchTerm.toLowerCase())
           ).length > 0 ? (
             <div className="border rounded-lg">
               <Table>
@@ -1611,7 +1610,7 @@ export default function ManagerPage() {
                 </TableHeader>
                 <TableBody>
                   {teamMembers
-                    .filter(member => member.full_name.toLowerCase().includes(currentSearchTerm.toLowerCase()))
+                    .filter(member => member.full_name.toLowerCase().includes(teamSearchTerm.toLowerCase()))
                     .map((member) => (
                       <TableRow key={member.id}>
                         <TableCell>{member.full_name}</TableCell>

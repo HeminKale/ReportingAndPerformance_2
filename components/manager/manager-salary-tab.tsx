@@ -43,14 +43,24 @@ export function ManagerSalaryTab({
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
   const teamIds = useMemo(() => teamMembers.map((member) => member.id), [teamMembers]);
-  const yearOptions = useMemo(() => {
-    const y = new Date().getFullYear();
-    return [y - 2, y - 1, y, y + 1].map(String);
+  const monthOptions = useMemo(() => {
+    const options: { value: string; label: string }[] = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleString("en-US", { month: "long", year: "numeric" });
+      options.push({ value, label });
+    }
+    return options;
   }, []);
 
   const fetchData = async () => {
@@ -85,11 +95,8 @@ export function ManagerSalaryTab({
     );
   }, [teamMembers, searchTerm]);
 
-  const monthStartForYear = (year: string) => `${year}-01-01`;
-
   const findRecord = (userId: string) => {
-    const prefix = `${selectedYear}-`;
-    return salaryRecords.find((row) => row.user_id === userId && row.month.startsWith(prefix));
+    return salaryRecords.find((row) => row.user_id === userId && row.month === `${selectedMonth}-01`);
   };
 
   const upsertField = async (
@@ -104,7 +111,7 @@ export function ManagerSalaryTab({
     const payload: any = {
       organization_id: currentUser.organization_id,
       user_id: userId,
-      month: existing?.month || monthStartForYear(selectedYear),
+      month: `${selectedMonth}-01`,
       fixed_salary: existing?.fixed_salary ?? 0,
       incentive: existing?.incentive ?? 0,
       created_by: currentUser.id,
@@ -127,7 +134,7 @@ export function ManagerSalaryTab({
   const uploadStatement = async (userId: string, file: File | null) => {
     if (!currentUser || !file) return;
     const existing = findRecord(userId);
-    const month = existing?.month || monthStartForYear(selectedYear);
+    const month = `${selectedMonth}-01`;
     const filePath = `salary-statements/${userId}/${month}-${Date.now()}-${file.name}`;
     const { error: uploadError } = await supabase.storage.from("salary-statements").upload(filePath, file, {
       upsert: true,
@@ -166,21 +173,10 @@ export function ManagerSalaryTab({
 
   const selectedEmployee = teamMembers.find((member) => member.id === selectedEmployeeId) || null;
 
-  const selectedEmployeeRecords = useMemo(() => {
-    if (!selectedEmployeeId) return [] as SalaryRecord[];
-    const prefix = `${selectedYear}-`;
-    return salaryRecords
-      .filter((row) => row.user_id === selectedEmployeeId && row.month.startsWith(prefix))
-      .sort((a, b) => a.month.localeCompare(b.month));
-  }, [salaryRecords, selectedEmployeeId, selectedYear]);
-
-  const chartData = useMemo(() => {
-    return selectedEmployeeRecords.map((row) => ({
-      month: new Date(row.month).toLocaleString("en-US", { month: "short" }),
-      fixed: Number(row.fixed_salary || 0),
-      incentive: Number(row.incentive || 0),
-    }));
-  }, [selectedEmployeeRecords]);
+  const selectedEmployeeRecord = useMemo(() => {
+    if (!selectedEmployeeId) return null;
+    return salaryRecords.find((row) => row.user_id === selectedEmployeeId && row.month === `${selectedMonth}-01`);
+  }, [salaryRecords, selectedEmployeeId, selectedMonth]);
 
   return (
     <div className="space-y-4">
@@ -191,14 +187,14 @@ export function ManagerSalaryTab({
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-sm"
         />
-        <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-32">
+        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+          <SelectTrigger className="w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {yearOptions.map((year) => (
-              <SelectItem key={year} value={year}>
-                {year}
+            {monthOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -210,7 +206,7 @@ export function ManagerSalaryTab({
           <TableHeader>
             <TableRow>
               <TableHead>Employee</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead>Month</TableHead>
               <TableHead>Fixed Salary</TableHead>
               <TableHead>Incentive</TableHead>
               <TableHead>Salary Statement</TableHead>
@@ -234,6 +230,7 @@ export function ManagerSalaryTab({
                 const row = findRecord(member.id);
                 const fixed = Number(row?.fixed_salary || 0);
                 const incentive = Number(row?.incentive || 0);
+                const monthLabel = monthOptions.find(m => m.value === selectedMonth)?.label || selectedMonth;
                 return (
                   <TableRow key={member.id}>
                     <TableCell>
@@ -245,7 +242,7 @@ export function ManagerSalaryTab({
                         {member.full_name}
                       </button>
                     </TableCell>
-                    <TableCell>{row?.month || `${selectedYear}-01-01`}</TableCell>
+                    <TableCell>{monthLabel}</TableCell>
                     <TableCell>
                       <Input
                         type="number"
@@ -296,52 +293,45 @@ export function ManagerSalaryTab({
       </div>
 
       <Dialog open={Boolean(selectedEmployee)} onOpenChange={(open) => !open && setSelectedEmployeeId(null)}>
-        <DialogContent className="max-w-6xl">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{selectedEmployee?.full_name} Salary View</DialogTitle>
-            <DialogDescription>Two-section salary view for selected employee.</DialogDescription>
+            <DialogTitle>{selectedEmployee?.full_name} Salary Details</DialogTitle>
+            <DialogDescription>
+              Salary information for {monthOptions.find(m => m.value === selectedMonth)?.label}
+            </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 xl:grid-cols-2">
-            <section className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Monthly Salary Cards</p>
-              <div className="mt-3 space-y-2">
-                {selectedEmployeeRecords.length === 0 ? (
-                  <p className="text-sm text-slate-500">No salary records found for {selectedYear}.</p>
-                ) : (
-                  selectedEmployeeRecords.map((row) => (
-                    <div key={row.id} className="rounded-lg border border-slate-200 p-3">
-                      <p className="text-sm font-bold">
-                        {new Date(row.month).toLocaleString("en-US", { month: "short", year: "numeric" })}
-                      </p>
-                      <p className="text-sm text-slate-700">
-                        Total Fixed Salary earned:{" "}
-                        <span className="font-semibold text-slate-900">₹ {Number(row.fixed_salary || 0).toLocaleString()}</span>
-                      </p>
-                      <p className="text-sm text-slate-700">
-                        Incentive:{" "}
-                        <span className="font-semibold text-emerald-700">₹ {Number(row.incentive || 0).toLocaleString()}</span>
-                      </p>
-                    </div>
-                  ))
-                )}
+          <div className="space-y-4">
+            {selectedEmployeeRecord ? (
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+                  Salary Breakdown
+                </p>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center p-3 rounded-lg bg-slate-50">
+                    <span className="text-sm font-medium">Fixed Salary</span>
+                    <span className="text-lg font-bold text-slate-900">
+                      ₹ {Number(selectedEmployeeRecord.fixed_salary || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 rounded-lg bg-slate-50">
+                    <span className="text-sm font-medium">Incentive</span>
+                    <span className="text-lg font-bold text-emerald-700">
+                      ₹ {Number(selectedEmployeeRecord.incentive || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 rounded-lg bg-blue-50 border-t-2 border-blue-500">
+                    <span className="text-sm font-semibold">Total</span>
+                    <span className="text-xl font-bold text-blue-900">
+                      ₹ {(Number(selectedEmployeeRecord.fixed_salary || 0) + Number(selectedEmployeeRecord.incentive || 0)).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </section>
-            <section className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Salary Graph</p>
-              <div className="mt-3 h-[340px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="fixed" name="Fixed Salary" stackId="salary" fill="#2563eb" />
-                    <Bar dataKey="incentive" name="Incentive" stackId="salary" fill="#10b981" />
-                  </BarChart>
-                </ResponsiveContainer>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No salary record found for {monthOptions.find(m => m.value === selectedMonth)?.label}
               </div>
-            </section>
+            )}
           </div>
         </DialogContent>
       </Dialog>
