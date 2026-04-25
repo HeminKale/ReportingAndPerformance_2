@@ -119,7 +119,7 @@ export function TopNav({ orgSlug, userRole, userId, userName }: TopNavProps) {
                 <span className="app-avatar-dot inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
                   {displayName.charAt(0).toUpperCase()}
                 </span>
-                <span className="ml-2 hidden max-w-24 truncate text-sm font-semibold text-slate-700 md:block">{displayName}</span>
+                <span className="app-nav-link ml-2 hidden max-w-24 truncate text-sm font-semibold text-slate-700 md:block">{displayName}</span>
                 <ChevronDown className="ml-1 h-4 w-4 text-slate-500" />
               </Button>
             </PopoverTrigger>

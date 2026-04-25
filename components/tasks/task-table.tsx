@@ -114,7 +114,7 @@ export function TaskTable({ tasks, onSubmit, onView }: TaskTableProps) {
                       <ChevronDown className="h-4 w-4" />
                     </Button>
                     {isMenuOpen && (
-                      <div className="absolute right-0 z-10 mt-2 w-48 rounded-md border bg-background p-1 shadow-md">
+                      <div className="option-panel absolute right-0 z-10 mt-2 w-48 rounded-md border bg-background p-1 shadow-md">
                         {/* For numeric tasks: "Enter Number" opens the submit dialog when submittable */}
                         {task.is_numeric_task && canSubmit ? (
                           <>
