@@ -25,6 +25,9 @@ const navItems = [
   { title: "Notifications", path: "notifications" },
   { title: "Calendar", path: "calendar" },
   { title: "Leaderboard", path: "leaderboard" },
+  { title: "Documents", path: "documents" },
+  { title: "Enquiries", path: "enquiries" },
+  { title: "Trainings", path: "trainings" },
   { title: "Mistakes", path: "mistakes" },
   { title: "Announcements", path: "announcements" },
 ];

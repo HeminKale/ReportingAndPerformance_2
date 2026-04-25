@@ -7,6 +7,21 @@ export type LeaveDayType = 'full_day' | 'half_day';
 export type LeaveCategory = 'vacation' | 'sick' | 'personal';
 export type NotificationType = 'task_verification' | 'leave_approval' | 'late_request' | 'task_rejected' | 'general';
 export type MistakeSeverity = 'low' | 'medium' | 'high';
+export type DocumentType =
+  | 'resume'
+  | 'aadhar'
+  | 'pan'
+  | 'photo'
+  | 'salary_slip'
+  | 'resignation_letter'
+  | 'full_final_settlement'
+  | 'offer_letter'
+  | 'job_description'
+  | 'training_certificate'
+  | 'salary_statement';
+export type TrainingStatus = 'not_started' | 'in_progress' | 'completed';
+export type EnquiryType = 'new' | 'renewal';
+export type EnquiryStatus = 'prospecting' | 'analyzing' | 'closed_won' | 'closed_lost';
 
 /** Stored in DB enum `daily_performance_rating` */
 export type DailyPerformanceRating =
@@ -57,6 +72,87 @@ export interface User {
   avatar_url: string | null;
   /** Set when employee is marked resigned (employee portal / manager documents). */
   is_resigned?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeDetails {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  full_name: string | null;
+  gender: string | null;
+  address: string | null;
+  salary_bank_account: string | null;
+  ifsc_code: string | null;
+  emergency_contact: string | null;
+  uan_number: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmployeeDocument {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  doc_type: DocumentType;
+  file_name: string;
+  file_url: string;
+  uploaded_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AlumniDetails {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  last_working_date: string | null;
+  resignation_letter_url: string | null;
+  settlement_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SalaryRecord {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  month: string;
+  fixed_salary: number | null;
+  incentive: number | null;
+  salary_statement_url: string | null;
+  salary_statement_name: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Training {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  name: string;
+  date_completed: string | null;
+  status: TrainingStatus;
+  certificate_url: string | null;
+  certificate_name: string | null;
+  assigned_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Enquiry {
+  id: string;
+  organization_id: string;
+  owner_id: string;
+  type: EnquiryType;
+  name: string;
+  status: EnquiryStatus;
+  reason: string | null;
+  iso_standard: string | null;
+  date: string;
+  certification_body: string | null;
   created_at: string;
   updated_at: string;
 }

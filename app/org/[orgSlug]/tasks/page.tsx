@@ -9,9 +9,6 @@ import { TaskLogDialog } from "@/components/tasks/task-log-dialog";
 import { TaskTable } from "@/components/tasks/task-table";
 import { MonthlyNumericSummary } from "@/components/tasks/monthly-numeric-summary";
 import { TaskAssignmentPanel } from "@/components/shared/task-assignment-panel";
-import { DocumentsTab } from "@/components/tasks/documents-tab";
-import { EnquiriesTab } from "@/components/tasks/enquiries-tab";
-import { TrainingsTab } from "@/components/tasks/trainings-tab";
 import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -29,6 +26,7 @@ export default function TasksPage() {
   const [addTaskPanelOpen, setAddTaskPanelOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [taskViewMode, setTaskViewMode] = useState<"list" | "board">("list");
+  const [taskPeriod, setTaskPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
   const [historyFilters, setHistoryFilters] = useState({
     daily: { date: '', taskName: '' },
     weekly: { date: '', taskName: '' },
@@ -299,64 +297,61 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="option-surface space-y-6 p-6 md:p-8">
-      <div className="option-panel rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-          Manage your daily, weekly, and monthly tasks
-        </p>
-      </div>
-
-      <Tabs defaultValue="daily" className="space-y-6">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
-            <TabsList className="h-auto w-full justify-start gap-5 rounded-none bg-transparent p-0">
-              <TabsTrigger
-                value="daily"
-                className="rounded-none border-b-2 border-transparent px-0 pb-2 pt-1 text-sm font-semibold text-slate-600 data-[state=active]:border-slate-900 data-[state=active]:text-slate-900"
-              >
-                Daily ({dailyCurrentTodayCount})
-              </TabsTrigger>
-              <TabsTrigger
-                value="weekly"
-                className="rounded-none border-b-2 border-transparent px-0 pb-2 pt-1 text-sm font-semibold text-slate-600 data-[state=active]:border-slate-900 data-[state=active]:text-slate-900"
-              >
-                Weekly ({weeklyCurrentTodayCount})
-              </TabsTrigger>
-              <TabsTrigger
-                value="monthly"
-                className="rounded-none border-b-2 border-transparent px-0 pb-2 pt-1 text-sm font-semibold text-slate-600 data-[state=active]:border-slate-900 data-[state=active]:text-slate-900"
-              >
-                Monthly ({monthlyCurrentTodayCount})
-              </TabsTrigger>
-              <TabsTrigger
-                value="documents"
-                className="rounded-none border-b-2 border-transparent px-0 pb-2 pt-1 text-sm font-semibold text-slate-600 data-[state=active]:border-slate-900 data-[state=active]:text-slate-900"
-              >
-                Documents
-              </TabsTrigger>
-              <TabsTrigger
-                value="enquiries"
-                className="rounded-none border-b-2 border-transparent px-0 pb-2 pt-1 text-sm font-semibold text-slate-600 data-[state=active]:border-slate-900 data-[state=active]:text-slate-900"
-              >
-                Enquiries
-              </TabsTrigger>
-              <TabsTrigger
-                value="trainings"
-                className="rounded-none border-b-2 border-transparent px-0 pb-2 pt-1 text-sm font-semibold text-slate-600 data-[state=active]:border-slate-900 data-[state=active]:text-slate-900"
-              >
-                Trainings
-              </TabsTrigger>
-            </TabsList>
-            <Button
-              className="rounded-xl bg-slate-900 text-white hover:bg-slate-800"
-              onClick={() => setAddTaskPanelOpen(true)}
+    <div className="option-surface flex min-h-0 flex-1 flex-col gap-6 p-6 md:p-8">
+      <Tabs
+        value={taskPeriod}
+        onValueChange={(v) => setTaskPeriod(v as "daily" | "weekly" | "monthly")}
+        className="flex min-h-0 flex-1 flex-col gap-6 md:flex-row md:items-stretch"
+      >
+        <aside className="flex w-full shrink-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:w-[240px]">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Tasks</p>
+          <p className="mt-1 text-sm text-slate-600">Daily, weekly, and monthly work.</p>
+          <TabsList className="mt-4 flex w-full flex-col gap-2 bg-transparent p-0">
+            <TabsTrigger
+              value="daily"
+              className="flex h-auto w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:[&>span:last-child]:bg-white/20 data-[state=active]:[&>span:last-child]:text-white"
             >
-              + Add Task
-            </Button>
-          </div>
+              <span>Daily</span>
+              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-800">
+                {dailyTasks.length}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="weekly"
+              className="flex h-auto w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:[&>span:last-child]:bg-white/20 data-[state=active]:[&>span:last-child]:text-white"
+            >
+              <span>Weekly</span>
+              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-800">
+                {weeklyTasks.length}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="monthly"
+              className="flex h-auto w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 data-[state=active]:border-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:[&>span:last-child]:bg-white/20 data-[state=active]:[&>span:last-child]:text-white"
+            >
+              <span>Monthly</span>
+              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-800">
+                {monthlyTasks.length}
+              </span>
+            </TabsTrigger>
+          </TabsList>
+          <Button
+            type="button"
+            className="mt-6 w-full rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+            onClick={() => setAddTaskPanelOpen(true)}
+          >
+            + Add Task
+          </Button>
+        </aside>
 
-          <section className="option-panel min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <section className="option-panel flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <TabsContent value="daily" className="mt-0 flex min-h-0 flex-1 flex-col space-y-4">
+          <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
+                <TabsTrigger value="current">Current ({dailyCurrentTodayCount})</TabsTrigger>
+                <TabsTrigger value="history">History ({dailyHistoryTasks.length})</TabsTrigger>
+              </TabsList>
               <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1">
                 <button
                   type="button"
@@ -379,13 +374,6 @@ export default function TasksPage() {
                 </button>
               </div>
             </div>
-
-        <TabsContent value="daily" className="space-y-6">
-          <Tabs defaultValue="current" className="space-y-4">
-            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
-              <TabsTrigger value="current">Current ({dailyCurrentTodayCount})</TabsTrigger>
-              <TabsTrigger value="history">History ({dailyHistoryTasks.length})</TabsTrigger>
-            </TabsList>
 
             <TabsContent value="current" className="space-y-6">
               {dailyFreshTasks.some(t => t.is_numeric_task && t.linked_monthly_task_id) && user && (
@@ -502,12 +490,35 @@ export default function TasksPage() {
           </Tabs>
         </TabsContent>
 
-        <TabsContent value="weekly">
-          <Tabs defaultValue="current" className="space-y-4">
-            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
-              <TabsTrigger value="current">Current ({weeklyCurrentTodayCount})</TabsTrigger>
-              <TabsTrigger value="history">History ({weeklyHistoryTasks.length})</TabsTrigger>
-            </TabsList>
+        <TabsContent value="weekly" className="mt-0 flex min-h-0 flex-1 flex-col space-y-4">
+          <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
+                <TabsTrigger value="current">Current ({weeklyCurrentTodayCount})</TabsTrigger>
+                <TabsTrigger value="history">History ({weeklyHistoryTasks.length})</TabsTrigger>
+              </TabsList>
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1">
+                <button
+                  type="button"
+                  onClick={() => setTaskViewMode("list")}
+                  className={`rounded-md p-1.5 ${taskViewMode === "list" ? "bg-slate-100 text-slate-900" : "text-slate-500"}`}
+                  aria-label="List view"
+                >
+                  <List className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTaskViewMode("board")}
+                  className={`rounded-md p-1.5 ${taskViewMode === "board" ? "bg-slate-100 text-slate-900" : "text-slate-500"}`}
+                  aria-label="Board view"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+                <button type="button" className="rounded-md p-1.5 text-slate-500" aria-label="Filters">
+                  <Filter className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
 
             <TabsContent value="current">
               <TaskTable 
@@ -585,12 +596,35 @@ export default function TasksPage() {
           </Tabs>
         </TabsContent>
 
-        <TabsContent value="monthly">
-          <Tabs defaultValue="current" className="space-y-4">
-            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
-              <TabsTrigger value="current">Current ({monthlyCurrentTodayCount})</TabsTrigger>
-              <TabsTrigger value="history">History ({monthlyHistoryTasks.length})</TabsTrigger>
-            </TabsList>
+        <TabsContent value="monthly" className="mt-0 flex min-h-0 flex-1 flex-col space-y-4">
+          <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
+                <TabsTrigger value="current">Current ({monthlyCurrentTodayCount})</TabsTrigger>
+                <TabsTrigger value="history">History ({monthlyHistoryTasks.length})</TabsTrigger>
+              </TabsList>
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1">
+                <button
+                  type="button"
+                  onClick={() => setTaskViewMode("list")}
+                  className={`rounded-md p-1.5 ${taskViewMode === "list" ? "bg-slate-100 text-slate-900" : "text-slate-500"}`}
+                  aria-label="List view"
+                >
+                  <List className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTaskViewMode("board")}
+                  className={`rounded-md p-1.5 ${taskViewMode === "board" ? "bg-slate-100 text-slate-900" : "text-slate-500"}`}
+                  aria-label="Board view"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+                <button type="button" className="rounded-md p-1.5 text-slate-500" aria-label="Filters">
+                  <Filter className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
 
             <TabsContent value="current">
               <TaskTable 
@@ -692,17 +726,7 @@ export default function TasksPage() {
             </TabsContent>
           </Tabs>
         </TabsContent>
-        <TabsContent value="documents" className="space-y-4">
-          <DocumentsTab isResigned={Boolean(user?.is_resigned)} />
-        </TabsContent>
-        <TabsContent value="enquiries" className="space-y-4">
-          <EnquiriesTab user={user} />
-        </TabsContent>
-        <TabsContent value="trainings" className="space-y-4">
-          <TrainingsTab user={user} />
-        </TabsContent>
-          </section>
-        </div>
+        </section>
       </Tabs>
 
       {selectedTask && (
