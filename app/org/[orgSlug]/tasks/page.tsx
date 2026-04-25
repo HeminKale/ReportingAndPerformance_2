@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 import { TaskLogDialog } from "@/components/tasks/task-log-dialog";
 import { TaskTable } from "@/components/tasks/task-table";
 import { MonthlyNumericSummary } from "@/components/tasks/monthly-numeric-summary";
+import { TaskAssignmentPanel } from "@/components/shared/task-assignment-panel";
+import { DocumentsTab } from "@/components/tasks/documents-tab";
+import { EnquiriesTab } from "@/components/tasks/enquiries-tab";
+import { TrainingsTab } from "@/components/tasks/trainings-tab";
 import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -22,6 +26,7 @@ export default function TasksPage() {
   const [selectedTaskLog, setSelectedTaskLog] = useState<TaskLog | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [addTaskPanelOpen, setAddTaskPanelOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [taskViewMode, setTaskViewMode] = useState<"list" | "board">("list");
   const [historyFilters, setHistoryFilters] = useState({
@@ -146,6 +151,11 @@ export default function TasksPage() {
       };
     });
   }, [tasks, taskLogsByTaskId]);
+
+  const selfCreatedTasks = useMemo(() => {
+    if (!user) return [] as Task[];
+    return tasks.filter((task) => task.assigned_by === user.id);
+  }, [tasks, user]);
 
   // Phase 1 data split:
   // - currentTasks: active/incomplete and pending/rejected states
@@ -297,27 +307,55 @@ export default function TasksPage() {
       </div>
 
       <Tabs defaultValue="daily" className="space-y-6">
-        <div className="flex flex-col gap-4 xl:flex-row">
-          <aside className="option-panel w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:w-60">
-            <p className="px-2 pb-3 text-2xl font-bold tracking-tight">Tasks</p>
-            <TabsList className="option-tablist h-auto w-full flex-col items-stretch gap-1 rounded-xl border border-slate-200 bg-slate-50 p-2">
-              <TabsTrigger value="daily" className="task-side-trigger justify-between rounded-lg px-3 py-2">
-                <span>Daily Tasks</span>
-                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{dailyCurrentTodayCount}</span>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-2">
+            <TabsList className="h-auto w-full justify-start gap-5 rounded-none bg-transparent p-0">
+              <TabsTrigger
+                value="daily"
+                className="rounded-none border-b-2 border-transparent px-0 pb-2 pt-1 text-sm font-semibold text-slate-600 data-[state=active]:border-slate-900 data-[state=active]:text-slate-900"
+              >
+                Daily ({dailyCurrentTodayCount})
               </TabsTrigger>
-              <TabsTrigger value="weekly" className="task-side-trigger justify-between rounded-lg px-3 py-2">
-                <span>Weekly Tasks</span>
-                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{weeklyCurrentTodayCount}</span>
+              <TabsTrigger
+                value="weekly"
+                className="rounded-none border-b-2 border-transparent px-0 pb-2 pt-1 text-sm font-semibold text-slate-600 data-[state=active]:border-slate-900 data-[state=active]:text-slate-900"
+              >
+                Weekly ({weeklyCurrentTodayCount})
               </TabsTrigger>
-              <TabsTrigger value="monthly" className="task-side-trigger justify-between rounded-lg px-3 py-2">
-                <span>Monthly Tasks</span>
-                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{monthlyCurrentTodayCount}</span>
+              <TabsTrigger
+                value="monthly"
+                className="rounded-none border-b-2 border-transparent px-0 pb-2 pt-1 text-sm font-semibold text-slate-600 data-[state=active]:border-slate-900 data-[state=active]:text-slate-900"
+              >
+                Monthly ({monthlyCurrentTodayCount})
+              </TabsTrigger>
+              <TabsTrigger
+                value="documents"
+                className="rounded-none border-b-2 border-transparent px-0 pb-2 pt-1 text-sm font-semibold text-slate-600 data-[state=active]:border-slate-900 data-[state=active]:text-slate-900"
+              >
+                Documents
+              </TabsTrigger>
+              <TabsTrigger
+                value="enquiries"
+                className="rounded-none border-b-2 border-transparent px-0 pb-2 pt-1 text-sm font-semibold text-slate-600 data-[state=active]:border-slate-900 data-[state=active]:text-slate-900"
+              >
+                Enquiries
+              </TabsTrigger>
+              <TabsTrigger
+                value="trainings"
+                className="rounded-none border-b-2 border-transparent px-0 pb-2 pt-1 text-sm font-semibold text-slate-600 data-[state=active]:border-slate-900 data-[state=active]:text-slate-900"
+              >
+                Trainings
               </TabsTrigger>
             </TabsList>
-            <Button className="mt-4 w-full rounded-xl bg-slate-900 text-white hover:bg-slate-800">+ Add Task</Button>
-          </aside>
+            <Button
+              className="rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+              onClick={() => setAddTaskPanelOpen(true)}
+            >
+              + Add Task
+            </Button>
+          </div>
 
-          <section className="option-panel min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <section className="option-panel min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1">
                 <button
@@ -654,6 +692,15 @@ export default function TasksPage() {
             </TabsContent>
           </Tabs>
         </TabsContent>
+        <TabsContent value="documents" className="space-y-4">
+          <DocumentsTab isResigned={Boolean(user?.is_resigned)} />
+        </TabsContent>
+        <TabsContent value="enquiries" className="space-y-4">
+          <EnquiriesTab user={user} />
+        </TabsContent>
+        <TabsContent value="trainings" className="space-y-4">
+          <TrainingsTab user={user} />
+        </TabsContent>
           </section>
         </div>
       </Tabs>
@@ -760,6 +807,31 @@ export default function TasksPage() {
                 </>
               )}
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addTaskPanelOpen} onOpenChange={setAddTaskPanelOpen}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Add Task</DialogTitle>
+            <DialogDescription>
+              Create tasks using the same flow as Task Assignment.
+            </DialogDescription>
+          </DialogHeader>
+          {user && (
+            <TaskAssignmentPanel
+              mode="employee"
+              organizationId={user.organization_id}
+              currentUserId={user.id}
+              assignableUsers={[user]}
+              tasks={selfCreatedTasks}
+              monthlyNumericLinkOptions={tasks.filter(
+                (task) => task.type === "monthly" && task.is_numeric_task
+              )}
+              monthlyPeriodicLinkOptions={[]}
+              onTasksChanged={fetchData}
+            />
           )}
         </DialogContent>
       </Dialog>

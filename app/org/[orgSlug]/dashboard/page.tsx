@@ -50,6 +50,15 @@ export default async function DashboardPage({
 
   const completedTasks = taskLogs?.filter(log => log.status === 'completed').length || 0;
   const totalTasks = todayTasks?.length || 0;
+  const currentHour = new Date().getHours();
+  const greeting =
+    currentHour >= 5 && currentHour < 12
+      ? "Good morning"
+      : currentHour >= 12 && currentHour < 17
+      ? "Good afternoon"
+      : currentHour >= 17 && currentHour < 21
+      ? "Good evening"
+      : "Good night";
 
   const { data: pendingVerifications } = await supabase
     .from('task_logs')
@@ -64,7 +73,7 @@ export default async function DashboardPage({
           <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
           <div className="absolute -bottom-20 right-20 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
           <div className="relative">
-            <p className="text-sm font-semibold text-white/80">Welcome back, {userData?.full_name || "Hero"}!</p>
+            <p className="text-sm font-semibold text-white/80">{greeting}, {userData?.full_name || "Hero"}!</p>
             <h2 className="mt-2 text-3xl font-black tracking-tight">Ready to crush another day?</h2>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-3">

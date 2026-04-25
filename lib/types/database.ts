@@ -55,6 +55,8 @@ export interface User {
   manager_id: string | null;
   timezone: string;
   avatar_url: string | null;
+  /** Set when employee is marked resigned (employee portal / manager documents). */
+  is_resigned?: boolean;
   created_at: string;
   updated_at: string;
 }

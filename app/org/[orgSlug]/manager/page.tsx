@@ -20,6 +20,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import type { ManagerPeriodicTask, Task, TaskLog, Attendance, Leave, User } from "@/lib/types/database";
 import { SharedTasksView } from "@/components/manager/shared-tasks-view";
 import { SharedTasksHistoryView } from "@/components/manager/shared-tasks-history-view";
+import { ManagerDocumentsTab } from "@/components/manager/manager-documents-tab";
+import { ManagerSalaryTab } from "@/components/manager/manager-salary-tab";
 
 export default function ManagerPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -742,6 +744,8 @@ export default function ManagerPage() {
               <TabsTrigger value="mistakes" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Track Mistakes <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{allMistakes.length}</span></TabsTrigger>
               <TabsTrigger value="leaves" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Leaves <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentLeaveItems.length}</span></TabsTrigger>
               <TabsTrigger value="team" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Team Members <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
+              <TabsTrigger value="documents" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Documents <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
+              <TabsTrigger value="salary" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Salary <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
               <TabsTrigger value="task-assignment" className="manager-side-trigger justify-between rounded-lg px-3 py-2">
                 <span className="flex items-center"><ListTodo className="mr-2 h-4 w-4" />Task Assignment</span>
                 <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{managedTeamTasks.length}</span>
@@ -1621,6 +1625,14 @@ export default function ManagerPage() {
           ) : (
             <Card><CardContent className="p-6 text-center text-muted-foreground">No team members assigned</CardContent></Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="documents" className="space-y-4">
+          <ManagerDocumentsTab currentUser={user} teamMembers={teamMembers} onTeamRefresh={fetchData} />
+        </TabsContent>
+
+        <TabsContent value="salary" className="space-y-4">
+          <ManagerSalaryTab currentUser={user} teamMembers={teamMembers} />
         </TabsContent>
 
         <TabsContent value="task-assignment" className="space-y-4">
