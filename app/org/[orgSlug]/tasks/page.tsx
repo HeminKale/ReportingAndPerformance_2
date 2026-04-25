@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { TaskLogDialog } from "@/components/tasks/task-log-dialog";
 import { TaskTable } from "@/components/tasks/task-table";
 import { MonthlyNumericSummary } from "@/components/tasks/monthly-numeric-summary";
 import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Filter, LayoutGrid, List } from "lucide-react";
 import type { Task, TaskLog, User } from "@/lib/types/database";
 
 export default function TasksPage() {
@@ -21,6 +23,7 @@ export default function TasksPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [taskViewMode, setTaskViewMode] = useState<"list" | "board">("list");
   const [historyFilters, setHistoryFilters] = useState({
     daily: { date: '', taskName: '' },
     weekly: { date: '', taskName: '' },
@@ -293,12 +296,51 @@ export default function TasksPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="daily" className="option-panel space-y-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-        <TabsList className="option-tablist h-auto w-full justify-start gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
-          <TabsTrigger value="daily">Daily ({dailyCurrentTodayCount})</TabsTrigger>
-          <TabsTrigger value="weekly">Weekly ({weeklyCurrentTodayCount})</TabsTrigger>
-          <TabsTrigger value="monthly">Monthly ({monthlyCurrentTodayCount})</TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue="daily" className="space-y-6">
+        <div className="flex flex-col gap-4 xl:flex-row">
+          <aside className="option-panel w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:w-60">
+            <p className="px-2 pb-3 text-2xl font-bold tracking-tight">Tasks</p>
+            <TabsList className="option-tablist h-auto w-full flex-col items-stretch gap-1 rounded-xl border border-slate-200 bg-slate-50 p-2">
+              <TabsTrigger value="daily" className="task-side-trigger justify-between rounded-lg px-3 py-2">
+                <span>Daily Tasks</span>
+                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{dailyCurrentTodayCount}</span>
+              </TabsTrigger>
+              <TabsTrigger value="weekly" className="task-side-trigger justify-between rounded-lg px-3 py-2">
+                <span>Weekly Tasks</span>
+                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{weeklyCurrentTodayCount}</span>
+              </TabsTrigger>
+              <TabsTrigger value="monthly" className="task-side-trigger justify-between rounded-lg px-3 py-2">
+                <span>Monthly Tasks</span>
+                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{monthlyCurrentTodayCount}</span>
+              </TabsTrigger>
+            </TabsList>
+            <Button className="mt-4 w-full rounded-xl bg-slate-900 text-white hover:bg-slate-800">+ Add Task</Button>
+          </aside>
+
+          <section className="option-panel min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-1">
+                <button
+                  type="button"
+                  onClick={() => setTaskViewMode("list")}
+                  className={`rounded-md p-1.5 ${taskViewMode === "list" ? "bg-slate-100 text-slate-900" : "text-slate-500"}`}
+                  aria-label="List view"
+                >
+                  <List className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTaskViewMode("board")}
+                  className={`rounded-md p-1.5 ${taskViewMode === "board" ? "bg-slate-100 text-slate-900" : "text-slate-500"}`}
+                  aria-label="Board view"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+                <button type="button" className="rounded-md p-1.5 text-slate-500" aria-label="Filters">
+                  <Filter className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
 
         <TabsContent value="daily" className="space-y-6">
           <Tabs defaultValue="current" className="space-y-4">
@@ -612,6 +654,8 @@ export default function TasksPage() {
             </TabsContent>
           </Tabs>
         </TabsContent>
+          </section>
+        </div>
       </Tabs>
 
       {selectedTask && (

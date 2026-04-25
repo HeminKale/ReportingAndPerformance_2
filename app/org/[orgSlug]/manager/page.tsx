@@ -728,21 +728,28 @@ export default function ManagerPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="today" className="option-panel space-y-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-        <TabsList className="option-tablist h-auto w-full justify-start gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
-          <TabsTrigger value="today">Today's Task ({todayTaskRows.length})</TabsTrigger>
-          <TabsTrigger value="tasks">Task Verifications ({currentTaskLogs.length})</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance ({currentAttendanceItems.length})</TabsTrigger>
-          <TabsTrigger value="attendance-report">Attendance Report ({currentAttendanceReportItems.length})</TabsTrigger>
-          <TabsTrigger value="mistakes">Track Mistakes ({allMistakes.length})</TabsTrigger>
-          <TabsTrigger value="leaves">Leaves ({currentLeaveItems.length})</TabsTrigger>
-          <TabsTrigger value="team">Team Members ({teamMembers.length})</TabsTrigger>
-          <TabsTrigger value="task-assignment">
-            <ListTodo className="h-4 w-4 mr-2" />
-            Task Assignment ({managedTeamTasks.length})
-          </TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue="tasks" className="space-y-6">
+        <div className="flex flex-col gap-4 xl:flex-row">
+          <aside className="option-panel w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:w-72">
+            <p className="text-3xl font-bold tracking-tight">Manager Panel</p>
+            <p className="mt-1 text-sm text-muted-foreground">Control center overview</p>
 
+            <TabsList className="option-tablist mt-4 h-auto w-full flex-col items-stretch gap-1 rounded-xl border border-slate-200 bg-slate-50 p-2">
+              <TabsTrigger value="today" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Today's Tasks <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{todayTaskRows.length}</span></TabsTrigger>
+              <TabsTrigger value="tasks" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Task Verifications <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentTaskLogs.length}</span></TabsTrigger>
+              <TabsTrigger value="attendance" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Attendance <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentAttendanceItems.length}</span></TabsTrigger>
+              <TabsTrigger value="attendance-report" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Attendance Report <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentAttendanceReportItems.length}</span></TabsTrigger>
+              <TabsTrigger value="mistakes" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Track Mistakes <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{allMistakes.length}</span></TabsTrigger>
+              <TabsTrigger value="leaves" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Leaves <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentLeaveItems.length}</span></TabsTrigger>
+              <TabsTrigger value="team" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Team Members <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
+              <TabsTrigger value="task-assignment" className="manager-side-trigger justify-between rounded-lg px-3 py-2">
+                <span className="flex items-center"><ListTodo className="mr-2 h-4 w-4" />Task Assignment</span>
+                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{managedTeamTasks.length}</span>
+              </TabsTrigger>
+            </TabsList>
+          </aside>
+
+          <section className="option-panel min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <TabsContent value="today" className="space-y-4">
           <Tabs defaultValue="regular" className="space-y-4">
             <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
@@ -1632,6 +1639,8 @@ export default function ManagerPage() {
             />
           )}
         </TabsContent>
+          </section>
+        </div>
       </Tabs>
 
       <Dialog open={mistakeDialog.open} onOpenChange={(open) => {

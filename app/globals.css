@@ -321,6 +321,26 @@
   background-color: hsl(217 33% 18%) !important;
 }
 
+.task-side-trigger[data-state="active"],
+.manager-side-trigger[data-state="active"] {
+  background-color: hsl(222.2 47.4% 11.2%);
+  color: hsl(210 40% 98%);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25);
+}
+
+.task-side-trigger[data-state="active"] span:last-child,
+.manager-side-trigger[data-state="active"] span:last-child {
+  background-color: rgba(255, 255, 255, 0.22);
+  color: inherit;
+}
+
+[data-theme="midnight"] .task-side-trigger[data-state="active"],
+[data-theme="midnight"] .manager-side-trigger[data-state="active"] {
+  background-color: hsl(191 91% 45% / 0.2);
+  color: hsl(190 90% 74%);
+  box-shadow: none;
+}
+
 @layer base {
   * {
     @apply border-border;
