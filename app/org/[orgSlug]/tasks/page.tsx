@@ -267,6 +267,8 @@ export default function TasksPage() {
   const weeklyTasks = currentTasks.filter(t => t.type === 'weekly');
   const monthlyTasks = currentTasks.filter(t => t.type === 'monthly');
 
+  const isAssignedToday = (task: Task) => getAssignedDay(task.created_at) === today;
+
   const pieChartTasks = useMemo(() => {
     const currentDayOfWeek = new Date().getDay();
     return currentTasks.filter((task) => {
@@ -302,7 +304,6 @@ export default function TasksPage() {
   const weeklyFreshTasks = weeklyTasks.filter((t) => !isPendingApprovalTask(t));
   const monthlyFreshTasks = monthlyTasks.filter((t) => !isPendingApprovalTask(t));
 
-  const isAssignedToday = (task: Task) => getAssignedDay(task.created_at) === today;
   const dailyCurrentTodayCount = dailyTasks.filter(isAssignedToday).length;
   const weeklyCurrentTodayCount = weeklyTasks.filter(isAssignedToday).length;
   const monthlyCurrentTodayCount = monthlyTasks.filter(isAssignedToday).length;

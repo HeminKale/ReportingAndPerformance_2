@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import type { Task, TaskLog } from "@/lib/types/database";
+import { Celebration } from "../shared/celebration";
 
 interface TaskWithLog extends Task {
   taskLog?: TaskLog;
@@ -12,6 +13,8 @@ interface TaskProgressRingsProps {
 }
 
 export function TaskProgressRings({ tasks }: TaskProgressRingsProps) {
+  const [showCelebration, setShowCelebration] = useState(false);
+
   const stats = useMemo(() => {
     const total = tasks.length;
     let completed = 0;
@@ -33,6 +36,17 @@ export function TaskProgressRings({ tasks }: TaskProgressRingsProps) {
 
   const completionPercent = stats.total > 0 ? (stats.completed / stats.total) * 100 : 0;
   const approvalPercent = stats.submitted > 0 ? (stats.approved / stats.submitted) * 100 : 0;
+
+  useEffect(() => {
+    if (completionPercent === 100 && stats.total > 0) {
+      const todayDate = new Date().toISOString().split('T')[0];
+      const celebKey = `task-celeb-${todayDate}`;
+      if (!sessionStorage.getItem(celebKey)) {
+        setShowCelebration(true);
+        sessionStorage.setItem(celebKey, 'true');
+      }
+    }
+  }, [completionPercent, stats.total]);
 
   const getColor = (percent: number) => {
     if (percent < 33.34) return "#ef4444"; // red-500
@@ -84,17 +98,20 @@ export function TaskProgressRings({ tasks }: TaskProgressRingsProps) {
   };
 
   return (
-    <div className="flex w-full flex-wrap items-center justify-center gap-12 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <Ring
-        percent={completionPercent}
-        fraction={`${stats.completed}/${stats.total}`}
-        label="Completed / Total Tasks"
-      />
-      <Ring
-        percent={approvalPercent}
-        fraction={`${stats.approved}/${stats.submitted}`}
-        label="Approved / Submitted Tasks"
-      />
-    </div>
+    <>
+      <Celebration active={showCelebration} onComplete={() => setShowCelebration(false)} />
+      <div className="flex w-full flex-wrap items-center justify-center gap-12 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <Ring
+          percent={completionPercent}
+          fraction={`${stats.completed}/${stats.total}`}
+          label="Completed / Total Tasks"
+        />
+        <Ring
+          percent={approvalPercent}
+          fraction={`${stats.approved}/${stats.submitted}`}
+          label="Approved / Submitted Tasks"
+        />
+      </div>
+    </>
   );
 }
