@@ -25,7 +25,6 @@ import { ManagerDocumentsTab } from "@/components/manager/manager-documents-tab"
 import { ManagerSalaryTab } from "@/components/manager/manager-salary-tab";
 import { ManagerCalendarTab } from "@/components/manager/manager-calendar-tab";
 import { markResourceNotificationsRead } from "@/lib/notifications/mark-resource-read";
-import { requestNotificationsBellRefresh } from "@/lib/notifications/refresh-bell";
 
 export default function ManagerPage() {
   const { orgSlug } = useParams() as { orgSlug: string };
@@ -862,8 +861,6 @@ export default function ManagerPage() {
             message: `Your leave request has been ${actionDialog.action === 'approve' ? 'approved' : 'rejected'}${comment ? `: ${comment}` : ''}`,
           });
       }
-
-      requestNotificationsBellRefresh();
 
       toast({
         title: "Success",
