@@ -333,11 +333,11 @@ export default function TasksPage() {
         className="flex flex-col gap-5 md:flex-row md:items-start"
       >
         {/* ─── Left Sidebar ─── */}
-        <aside className="flex w-full shrink-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm md:w-56">
-          <div className="border-b border-slate-100 px-4 py-4">
-            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Tasks</p>
+        <aside className="h-fit flex w-full shrink-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm md:w-64">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h2 className="text-sm font-bold tracking-tight text-slate-800">Tasks</h2>
           </div>
-          <TabsList className="flex flex-col gap-0.5 bg-transparent p-2">
+          <TabsList className="flex flex-col gap-1 bg-transparent p-3">
             {(
               [
                 { value: "daily", label: "Daily", count: dailyTasks.length },
@@ -429,7 +429,7 @@ export default function TasksPage() {
               <TabsContent value="current" className="mt-0 data-[state=inactive]:hidden">
                 <div className="flex flex-col gap-4 p-5">
                   {/* Active Tasks Table */}
-                  <TaskTable tasks={dailyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
+                  <TaskTable tasks={dailyFreshTasks} onSubmit={handleSubmit} onView={handleView} hideDueColumn />
 
                   {/* Monthly Numeric Summary cards */}
                   {dailyFreshTasks.some((t) => t.is_numeric_task && t.linked_monthly_task_id) && user && (
@@ -460,7 +460,7 @@ export default function TasksPage() {
                         <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180" aria-hidden />
                       </summary>
                       <div className="border-t border-slate-200 p-4">
-                        <TaskTable tasks={dailyPendingApprovalTasks} onSubmit={handleSubmit} onView={handleView} />
+                        <TaskTable tasks={dailyPendingApprovalTasks} onSubmit={handleSubmit} onView={handleView} hideDueColumn />
                       </div>
                     </details>
                   )}
@@ -501,7 +501,7 @@ export default function TasksPage() {
                 {(() => {
                   const filtered = applyHistoryFilters(dailyHistoryTasks, "daily");
                   const groups = groupByAssignedDate(filtered);
-                  if (groups.length === 0) return <TaskTable tasks={[]} onSubmit={handleSubmit} onView={handleView} emptyMessage="No history matches these filters." />;
+                  if (groups.length === 0) return <TaskTable tasks={[]} onSubmit={handleSubmit} onView={handleView} emptyMessage="No history matches these filters." hideDueColumn />;
                   return (
                     <div className="space-y-2">
                       {groups.map(([date, tasks]) => (
@@ -511,7 +511,7 @@ export default function TasksPage() {
                             <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180" aria-hidden />
                           </summary>
                           <div className="border-t border-slate-200 p-4">
-                            <TaskTable tasks={tasks} onSubmit={handleSubmit} onView={handleView} />
+                            <TaskTable tasks={tasks} onSubmit={handleSubmit} onView={handleView} hideDueColumn />
                           </div>
                         </details>
                       ))}
@@ -723,82 +723,82 @@ export default function TasksPage() {
           </DialogHeader>
 
           {selectedTask && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Task Name</p>
-                <p className="text-sm">{selectedTask.title}</p>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div className="col-span-1 sm:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Task Name</p>
+                <p className="mt-1 font-medium text-slate-900">{selectedTask.title}</p>
               </div>
 
               {selectedTask.description && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Description</p>
-                  <p className="text-sm">{selectedTask.description}</p>
+                <div className="col-span-1 sm:col-span-2">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</p>
+                  <p className="mt-1 text-sm text-slate-700">{selectedTask.description}</p>
                 </div>
               )}
 
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Type</p>
-                <p className="text-sm capitalize">{selectedTask.type}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</p>
+                <p className="mt-1 text-sm capitalize text-slate-700">{selectedTask.type}</p>
               </div>
 
               {selectedTask.is_numeric_task && (
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Unit</p>
-                  <p className="text-sm">{selectedTask.numeric_unit || 'units'}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Unit</p>
+                  <p className="mt-1 text-sm text-slate-700">{selectedTask.numeric_unit || 'units'}</p>
                 </div>
               )}
 
               {selectedTaskLog && (
-                <>
-                  <div className="border-t pt-4">
-                    <p className="text-sm font-semibold mb-2">Submission Details</p>
-                    
+                <div className="col-span-1 sm:col-span-2 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                  <h4 className="mb-4 text-sm font-bold text-slate-900">Submission Details</h4>
+                  
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     {selectedTask.is_numeric_task ? (
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground">Value</p>
-                        <p className="text-sm">{selectedTaskLog.numeric_value} {selectedTask.numeric_unit || 'units'}</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Value</p>
+                        <p className="mt-1 text-sm text-slate-700">{selectedTaskLog.numeric_value} {selectedTask.numeric_unit || 'units'}</p>
                       </div>
                     ) : (
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground">Status</p>
-                        <p className="text-sm capitalize">{selectedTaskLog.status}</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</p>
+                        <p className="mt-1 text-sm capitalize text-slate-700">{selectedTaskLog.status}</p>
                       </div>
                     )}
 
                     {selectedTaskLog.submitted_at && (
-                      <div className="mt-2">
-                        <p className="text-sm font-medium text-muted-foreground">Submitted At</p>
-                        <p className="text-sm">{format(new Date(selectedTaskLog.submitted_at), 'HH:mm dd/MM/yyyy')}</p>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Submitted At</p>
+                        <p className="mt-1 text-sm text-slate-700">{format(new Date(selectedTaskLog.submitted_at), 'HH:mm dd/MM/yyyy')}</p>
                       </div>
                     )}
 
                     {selectedTaskLog.comment && (
-                      <div className="mt-2">
-                        <p className="text-sm font-medium text-muted-foreground">Comment</p>
-                        <p className="text-sm">{selectedTaskLog.comment}</p>
+                      <div className="col-span-1 sm:col-span-2">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Comment</p>
+                        <p className="mt-1 text-sm text-slate-700">{selectedTaskLog.comment}</p>
                       </div>
                     )}
 
                     {selectedTaskLog.reason && (
-                      <div className="mt-2">
-                        <p className="text-sm font-medium text-muted-foreground">Reason</p>
-                        <p className="text-sm">{selectedTaskLog.reason}</p>
+                      <div className="col-span-1 sm:col-span-2">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Reason</p>
+                        <p className="mt-1 text-sm text-slate-700">{selectedTaskLog.reason}</p>
                       </div>
                     )}
 
-                    <div className="mt-2">
-                      <p className="text-sm font-medium text-muted-foreground">Manager Approval</p>
-                      <p className="text-sm capitalize">{selectedTaskLog.verification_status}</p>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Manager Approval</p>
+                      <p className="mt-1 text-sm capitalize text-slate-700">{selectedTaskLog.verification_status}</p>
                     </div>
 
                     {selectedTaskLog.manager_review_comment && (
-                      <div className="mt-2">
-                        <p className="text-sm font-medium text-muted-foreground">Manager Review</p>
-                        <p className="text-sm">{selectedTaskLog.manager_review_comment}</p>
+                      <div className="col-span-1 sm:col-span-2">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Manager Review</p>
+                        <p className="mt-1 text-sm text-slate-700">{selectedTaskLog.manager_review_comment}</p>
                       </div>
                     )}
                   </div>
-                </>
+                </div>
               )}
             </div>
           )}

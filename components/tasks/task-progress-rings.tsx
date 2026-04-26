@@ -23,8 +23,10 @@ export function TaskProgressRings({ tasks }: TaskProgressRingsProps) {
 
     for (const task of tasks) {
       if (task.taskLog?.status === "completed") {
-        completed++;
-        submitted++; // If it's completed by employee, it is submitted
+        if (task.taskLog.verification_status !== "recalled" && task.taskLog.verification_status !== "rejected") {
+          completed++;
+          submitted++; // If it's completed by employee and not recalled/rejected, it is submitted
+        }
         if (task.taskLog?.verification_status === "approved") {
           approved++;
         }
