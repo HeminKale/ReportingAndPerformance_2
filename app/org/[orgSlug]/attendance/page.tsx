@@ -274,25 +274,23 @@ export default function AttendancePage() {
 
       const { data: todayTaskLogs } = await supabase
         .from('task_logs')
-        .select('task_id,status,verification_status')
+        .select('task_id,status')
         .eq('user_id', user.id)
         .eq('date', today)
         .in('task_id', dailyTaskIds);
 
-      const submittedTaskIds = new Set(
-        (todayTaskLogs || []).map(log => log.task_id)
+      const totalTaskCount = (allDailyTasks || []).length;
+      const completedTaskIds = new Set(
+        (todayTaskLogs || [])
+          .filter(log => log.status === 'completed')
+          .map(log => log.task_id)
       );
+      const completedCount = completedTaskIds.size;
 
-      const unsubmittedTasks = (allDailyTasks || []).filter(task => !submittedTaskIds.has(task.id));
-      const pendingTasks = (todayTaskLogs || []).filter(log => log.status !== 'completed');
-      const rejectedTasks = (todayTaskLogs || []).filter(log => log.verification_status === 'rejected');
-
-      if (unsubmittedTasks.length > 0 || pendingTasks.length > 0 || rejectedTasks.length > 0) {
+      if (completedCount < totalTaskCount) {
         toast({
           title: "Cannot clock out",
-          description: rejectedTasks.length > 0
-            ? "Please resubmit rejected daily tasks before clocking out"
-            : "Please complete or mark all daily tasks before clocking out",
+          description: `Please complete all daily tasks before clocking out (${completedCount}/${totalTaskCount} completed)`,
           variant: "destructive",
         });
         setActionLoading(false);
