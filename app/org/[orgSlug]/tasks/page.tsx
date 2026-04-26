@@ -337,7 +337,7 @@ export default function TasksPage() {
           <div className="px-4 py-3">
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">View By</h2>
           </div>
-          <TabsList className="flex flex-col gap-1.5 bg-transparent">
+          <TabsList className="flex h-auto flex-col gap-1.5 bg-transparent p-0">
             {(
               [
                 { value: "daily", label: "Daily", count: dailyTasks.length },
