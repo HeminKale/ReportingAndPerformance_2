@@ -155,14 +155,24 @@ export function EnquiriesTab({ user }: { user: User | null }) {
       certification_body: formState.certificationBody.trim() || null,
     };
 
-    const { error } = isEditing
-      ? await supabase.from("enquiries").update(payload).eq("id", editingId)
-      : await supabase.from("enquiries").insert(payload);
+    const { data: savedRow, error } = isEditing
+      ? await supabase.from("enquiries").update(payload).eq("id", editingId!).select("id").single()
+      : await supabase.from("enquiries").insert(payload).select("id").single();
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       setSaving(false);
       return;
+    }
+
+    const enquiryId = savedRow?.id ?? editingId;
+    if (formState.status === "closed_won" && enquiryId) {
+      void fetch("/api/gamification/xp-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ kind: "enquiry_closed_won", resourceId: enquiryId }),
+      }).catch(() => {});
     }
 
     toast({ title: "Success", description: `Enquiry ${isEditing ? "updated" : "saved"} successfully` });

@@ -1,4 +1,5 @@
 export type UserRole = 'admin' | 'manager' | 'employee';
+export type TaskPriority = 'low' | 'medium' | 'high';
 export type TaskType = 'daily' | 'weekly' | 'monthly';
 export type TaskStatus = 'completed' | 'pending';
 export type VerificationStatus = 'pending' | 'approved' | 'rejected' | 'recalled';
@@ -183,6 +184,9 @@ export interface Task {
   is_numeric_task: boolean;
   numeric_unit: string | null;
   linked_monthly_task_id: string | null;
+  priority?: TaskPriority;
+  /** null = use priority-based XP; number = override (0 means no per-task XP from assignment). */
+  assignment_xp_override?: number | null;
   /** Set when this row was materialized from a manager_periodic_tasks template (cron). */
   source_manager_periodic_task_id?: string | null;
   created_at: string;
@@ -202,6 +206,8 @@ export interface ManagerPeriodicTask {
   is_numeric_task: boolean;
   numeric_unit: string | null;
   linked_monthly_task_id: string | null;
+  priority?: TaskPriority;
+  assignment_xp_override?: number | null;
   /** Daily numeric only: link rollup to a monthly periodic template (resolved at cron). */
   linked_monthly_periodic_id?: string | null;
   /** Array of user IDs to assign to. NULL or empty = all direct reports. */
@@ -209,6 +215,31 @@ export interface ManagerPeriodicTask {
   is_enabled: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface UserGamification {
+  user_id: string;
+  organization_id: string;
+  total_xp: number;
+  current_streak: number;
+  longest_streak: number;
+  last_streak_qualifying_date: string | null;
+  last_streak_eval_date: string | null;
+  earned_badges: { id: string; badgeName: string; minXp: number; earnedAt: string }[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface XpLedgerRow {
+  id: string;
+  user_id: string;
+  organization_id: string;
+  delta: number;
+  reason: string;
+  source_type: string;
+  source_id: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface TaskLog {

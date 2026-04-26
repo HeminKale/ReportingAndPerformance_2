@@ -28,7 +28,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { Pencil, Trash2 } from "lucide-react";
-import type { ManagerPeriodicTask, Task } from "@/lib/types/database";
+import type { ManagerPeriodicTask, Task, TaskPriority } from "@/lib/types/database";
+import { PriorityBadge } from "@/components/gamification/priority-badge";
 
 const NO_LINKED_MONTHLY_VALUE = "__no_linked_monthly__";
 
@@ -59,6 +60,8 @@ type PeriodicForm = {
   linkedMonthlyPeriodicId: string;
   isEnabled: boolean;
   assignedUserIds: string[];
+  priority: TaskPriority;
+  bonusXp: string;
 };
 
 function linkedMonthlySelectValue(form: PeriodicForm): string {
@@ -79,6 +82,8 @@ const emptyForm = (type: "daily" | "weekly" | "monthly"): PeriodicForm => ({
   linkedMonthlyPeriodicId: "",
   isEnabled: true,
   assignedUserIds: [],
+  priority: "medium",
+  bonusXp: "",
 });
 
 export function ManagerPeriodicTasksTab({
@@ -126,6 +131,11 @@ export function ManagerPeriodicTasksTab({
         : (row.linked_monthly_periodic_id ?? ""),
       isEnabled: row.is_enabled,
       assignedUserIds: row.assigned_user_ids ?? [],
+      priority: (row.priority ?? "medium") as TaskPriority,
+      bonusXp:
+        row.assignment_xp_override !== null && row.assignment_xp_override !== undefined
+          ? String(row.assignment_xp_override)
+          : "",
     });
     setDialog({ open: true, mode: "edit", row });
   };
@@ -143,6 +153,13 @@ export function ManagerPeriodicTasksTab({
     if (form.type === "weekly" && form.dayOfWeek === "") {
       toast({ title: "Error", description: "Select a day of week", variant: "destructive" });
       return false;
+    }
+    if (form.bonusXp.trim() !== "") {
+      const n = parseInt(form.bonusXp.trim(), 10);
+      if (Number.isNaN(n)) {
+        toast({ title: "Error", description: "Bonus XP must be a whole number", variant: "destructive" });
+        return false;
+      }
     }
     if (form.type === "monthly") {
       const d = parseInt(form.monthlyDay, 10);
@@ -171,6 +188,10 @@ export function ManagerPeriodicTasksTab({
         ? form.linkedMonthlyPeriodicId
         : null;
 
+    const rawBonus = form.bonusXp.trim();
+    const assignment_xp_override: number | null =
+      rawBonus === "" ? null : parseInt(rawBonus, 10);
+
     const payload: Record<string, unknown> = {
       organization_id: organizationId,
       manager_id: managerId,
@@ -185,6 +206,8 @@ export function ManagerPeriodicTasksTab({
       linked_monthly_task_id,
       is_enabled: form.isEnabled,
       assigned_user_ids: form.assignedUserIds.length > 0 ? form.assignedUserIds : null,
+      priority: form.priority,
+      assignment_xp_override,
     };
 
     // PostgREST rejects unknown columns: omit null `linked_monthly_periodic_id` on create so DBs
@@ -349,6 +372,7 @@ export function ManagerPeriodicTasksTab({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
+                      <TableHead>Priority</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Assigned to</TableHead>
                       <TableHead>Schedule detail</TableHead>
@@ -368,6 +392,9 @@ export function ManagerPeriodicTasksTab({
                         return (
                           <TableRow key={row.id}>
                             <TableCell className="font-medium">{row.title}</TableCell>
+                            <TableCell>
+                              <PriorityBadge priority={row.priority ?? "medium"} size="sm" />
+                            </TableCell>
                             <TableCell className="max-w-[200px] truncate text-muted-foreground text-sm">
                               {row.description || "—"}
                             </TableCell>
@@ -476,6 +503,35 @@ export function ManagerPeriodicTasksTab({
                   <SelectItem value="monthly">Monthly</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Priority</Label>
+                <Select
+                  value={form.priority}
+                  onValueChange={(v: TaskPriority) => setForm({ ...form, priority: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pt-bonus-xp">Bonus XP (optional)</Label>
+                <Input
+                  id="pt-bonus-xp"
+                  inputMode="numeric"
+                  placeholder="Empty = priority-based (2 / 5 / 8)"
+                  value={form.bonusXp}
+                  onChange={(e) => setForm({ ...form, bonusXp: e.target.value })}
+                />
+              </div>
             </div>
 
             {form.type === "weekly" && (

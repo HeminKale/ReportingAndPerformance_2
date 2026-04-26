@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AlertCircle, CheckSquare, Clock, Flame, Sparkles, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { getCurrentTimeInTimezone } from '@/lib/utils/timezone';
+import { rankForTotalXp, RANK_TIERS } from '@/lib/gamification/xp-rules';
 
 export default async function DashboardPage({
   params,
@@ -69,6 +70,22 @@ export default async function DashboardPage({
     .eq('user_id', user.id)
     .eq('verification_status', 'pending');
 
+  const { data: gamification } = await supabase
+    .from('user_gamification')
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  const totalXp = gamification?.total_xp ?? 0;
+  const { rankName, nextTier } = rankForTotalXp(totalXp);
+  const streakDays = gamification?.current_streak ?? 0;
+  const longestStreak = gamification?.longest_streak ?? 0;
+  const earnedBadges = Array.isArray(gamification?.earned_badges) ? gamification!.earned_badges : [];
+  const recentBadges = earnedBadges.slice(-3).reverse();
+  const nextGoalXp = nextTier?.minXp ?? RANK_TIERS[RANK_TIERS.length - 1]!.minXp;
+  const xpProgressPct =
+    nextTier && nextGoalXp > 0 ? Math.min(100, Math.round((totalXp / nextGoalXp) * 100)) : 100;
+
   return (
     <div className="option-surface space-y-6 p-6 md:p-8">
       <section className="grid gap-6 xl:grid-cols-[2fr_1fr]">
@@ -82,13 +99,16 @@ export default async function DashboardPage({
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
                 <p className="text-xs font-bold uppercase tracking-wider text-white/70">Current Rank</p>
-                <p className="mt-1 text-2xl font-extrabold">Focus Master</p>
-                <p className="text-sm text-white/80">Level 4</p>
+                <p className="mt-1 text-2xl font-extrabold">{rankName}</p>
+                <p className="text-sm text-white/80">{totalXp} XP</p>
               </div>
               <div className="rounded-2xl bg-white/10 p-4 text-center backdrop-blur">
                 <Flame className="mx-auto h-4 w-4 text-orange-300" />
-                <p className="mt-1 text-xl font-extrabold">5</p>
-                <p className="text-xs text-white/75">Day Streak</p>
+                <p className="mt-1 text-xl font-extrabold">{streakDays}</p>
+                <p className="text-xs text-white/75">Day streak</p>
+                {longestStreak > 0 ? (
+                  <p className="text-[11px] text-white/60">Best: {longestStreak}</p>
+                ) : null}
               </div>
               <div className="rounded-2xl bg-white/10 p-4 text-center backdrop-blur">
                 <TrendingUp className="mx-auto h-4 w-4 text-cyan-200" />
@@ -97,13 +117,34 @@ export default async function DashboardPage({
               </div>
             </div>
 
+            {recentBadges.length > 0 ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {recentBadges.map((b: { id: string; badgeName: string }) => (
+                  <span
+                    key={b.id}
+                    className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold text-white/90"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-amber-200" />
+                    {b.badgeName}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
             <div className="mt-6">
               <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="font-semibold text-white/80">XP Progress to Level 5</span>
-                <span className="font-semibold">850 / 1000 XP</span>
+                <span className="font-semibold text-white/80">
+                  {nextTier ? `Progress toward ${nextTier.rankName}` : "Max tier reached"}
+                </span>
+                <span className="font-semibold">
+                  {totalXp} / {nextTier ? nextGoalXp : totalXp} XP
+                </span>
               </div>
               <div className="h-3 overflow-hidden rounded-full bg-white/20">
-                <div className="h-full w-[85%] animate-pulse-glow rounded-full bg-gradient-to-r from-sky-300 via-indigo-300 to-fuchsia-300" />
+                <div
+                  className="h-full animate-pulse-glow rounded-full bg-gradient-to-r from-sky-300 via-indigo-300 to-fuchsia-300 motion-reduce:animate-none"
+                  style={{ width: `${xpProgressPct}%` }}
+                />
               </div>
             </div>
           </div>

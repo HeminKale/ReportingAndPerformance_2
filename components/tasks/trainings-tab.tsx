@@ -94,12 +94,21 @@ export function TrainingsTab({ user }: { user: User | null }) {
   };
 
   const updateTraining = async (id: string, updates: Partial<TrainingRow>) => {
+    const prevRow = rows.find((r) => r.id === id);
     const { error } = await supabase.from("trainings").update(updates).eq("id", id);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
     setRows((prev) => prev.map((row) => (row.id === id ? { ...row, ...updates } : row)));
+    if (updates.status === "completed" && prevRow?.status !== "completed") {
+      void fetch("/api/gamification/xp-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ kind: "training_completed", resourceId: id }),
+      }).catch(() => {});
+    }
   };
 
   const uploadCertificate = async (trainingId: string, file: File | null) => {

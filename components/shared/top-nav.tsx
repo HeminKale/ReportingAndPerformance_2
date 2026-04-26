@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, Flame, LogOut, Settings, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { NotificationBell } from "@/components/shared/notification-bell";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { APP_THEMES, AppTheme, useTheme } from "@/lib/hooks/use-theme";
+import { rankForTotalXp } from "@/lib/gamification/xp-rules";
 
 interface TopNavProps {
   orgSlug: string;
@@ -52,6 +53,11 @@ export function TopNav({ orgSlug, userRole, userId, userName }: TopNavProps) {
   const supabase = createClient();
   const { theme, setTheme } = useTheme();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [gamificationHud, setGamificationHud] = useState<{
+    streak: number;
+    xp: number;
+    rank: string;
+  } | null>(null);
   const canAccessAdminTools = userRole === "admin" || userRole === "manager";
   const displayName = userName || "Hero";
   const appTitle = theme === "bloom" ? "Bloom" : theme === "midnight" ? "Midnight" : "TaskOS";
@@ -65,6 +71,31 @@ export function TopNav({ orgSlug, userRole, userId, userName }: TopNavProps) {
   const overflowHasActive = overflowNavItems.some(
     (item) => pathname === `/org/${orgSlug}/${item.path}`
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("user_gamification")
+        .select("total_xp, current_streak")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (!data) {
+        setGamificationHud({ streak: 0, xp: 0, rank: rankForTotalXp(0).rankName });
+        return;
+      }
+      const xp = data.total_xp ?? 0;
+      setGamificationHud({
+        streak: data.current_streak ?? 0,
+        xp,
+        rank: rankForTotalXp(xp).rankName,
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -193,11 +224,13 @@ export function TopNav({ orgSlug, userRole, userId, userName }: TopNavProps) {
                 <div className="mt-3 space-y-1.5 text-sm">
                   <p className="flex items-center gap-2 text-slate-700">
                     <Flame className="h-4 w-4 text-orange-500" />
-                    <span>5 Day Streak</span>
+                    <span>{gamificationHud?.streak ?? 0} day streak</span>
                   </p>
                   <p className="flex items-center gap-2 text-slate-700">
                     <Sparkles className="h-4 w-4 text-fuchsia-500" />
-                    <span>850 XP</span>
+                    <span>
+                      {gamificationHud?.xp ?? 0} XP · {gamificationHud?.rank ?? "Rookie"}
+                    </span>
                   </p>
                 </div>
               </div>

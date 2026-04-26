@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Task, TaskLog } from "@/lib/types/database";
+import { PriorityBadge } from "@/components/gamification/priority-badge";
 
 interface TaskWithLog extends Task {
   taskLog?: TaskLog;
@@ -71,6 +72,7 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
         <TableHeader>
           <TableRow className="bg-slate-50/80">
             <TableHead>Task Name</TableHead>
+            <TableHead>Priority</TableHead>
             {!hideDueColumn && <TableHead>Due</TableHead>}
             <TableHead>Status</TableHead>
             <TableHead>Assigned At</TableHead>
@@ -81,7 +83,7 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
         <TableBody>
           {tasks.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={hideDueColumn ? 5 : 6} className="py-12 text-center text-sm text-muted-foreground">
+              <TableCell colSpan={hideDueColumn ? 6 : 7} className="py-12 text-center text-sm text-muted-foreground">
                 {emptyMessage}
               </TableCell>
             </TableRow>
@@ -100,6 +102,9 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
                       ({taskLog!.numeric_value} {task.numeric_unit || "units"})
                     </span>
                   )}
+                </TableCell>
+                <TableCell>
+                  <PriorityBadge priority={task.priority ?? "medium"} size="sm" />
                 </TableCell>
                 {!hideDueColumn && (
                   <TableCell className="whitespace-nowrap text-sm text-muted-foreground">

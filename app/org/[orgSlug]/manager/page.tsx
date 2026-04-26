@@ -29,6 +29,7 @@ import { ManagerCalendarTab } from "@/components/manager/manager-calendar-tab";
 import { ManagerEmployeeRatingsTab } from "@/components/manager/manager-employee-ratings-tab";
 import { markResourceNotificationsRead } from "@/lib/notifications/mark-resource-read";
 import { requestNotificationsBellRefresh } from "@/lib/notifications/refresh-bell";
+import { PriorityBadge } from "@/components/gamification/priority-badge";
 
 export default function ManagerPage() {
   const { orgSlug } = useParams() as { orgSlug: string };
@@ -565,7 +566,7 @@ export default function ManagerPage() {
 
     setActionLoading(true);
     try {
-      const { error } = await supabase
+      const { data: newMistake, error } = await supabase
         .from('mistakes')
         .insert({
           organization_id: user.organization_id,
@@ -577,8 +578,19 @@ export default function ManagerPage() {
           date: new Date().toISOString().split('T')[0],
           status: 'open',
           closure_request_pending: false,
-        });
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+
+      if (newMistake?.id) {
+        void fetch("/api/gamification/xp-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ kind: "mistake", resourceId: newMistake.id }),
+        }).catch(() => {});
+      }
 
       const tasksLink = `/org/${orgSlug}/tasks`;
       const { error: nErr } = await supabase.from("notifications").insert({
@@ -1219,6 +1231,7 @@ export default function ManagerPage() {
                             <TableRow>
                               <TableHead>Employee</TableHead>
                               <TableHead>Task Name</TableHead>
+                              <TableHead>Priority</TableHead>
                               <TableHead>Description</TableHead>
                               <TableHead>Type</TableHead>
                               <TableHead>Frequency</TableHead>
@@ -1258,6 +1271,9 @@ export default function ManagerPage() {
                                   <TableRow>
                                     <TableCell>{row.member.full_name}</TableCell>
                                     <TableCell className="font-medium">{row.task.title}</TableCell>
+                                    <TableCell>
+                                      <PriorityBadge priority={row.task.priority ?? "medium"} size="sm" />
+                                    </TableCell>
                                     <TableCell className="max-w-md">
                                       <p className="text-sm text-muted-foreground line-clamp-2">
                                         {row.task.description || "-"}
@@ -1347,7 +1363,7 @@ export default function ManagerPage() {
                                   </TableRow>
                                   {isPending && expanded && (
                                     <TableRow>
-                                      <TableCell colSpan={8} className="bg-muted/40">
+                                      <TableCell colSpan={9} className="bg-muted/40">
                                         <div className="space-y-3 py-2">
                                           {hasEmployeeNote ? (
                                             <div className="rounded-md border border-slate-200 bg-background px-3 py-2 text-sm space-y-1">

@@ -22,7 +22,8 @@ import { format } from "date-fns";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { ListTodo, ChevronDown, ChevronUp, Pencil, Trash2, Plus } from "lucide-react";
-import type { ManagerPeriodicTask, Task, User } from "@/lib/types/database";
+import type { ManagerPeriodicTask, Task, TaskPriority, User } from "@/lib/types/database";
+import { PriorityBadge } from "@/components/gamification/priority-badge";
 import { ManagerPeriodicTasksTab } from "@/components/shared/manager-periodic-tasks-tab";
 
 const NO_LINKED_MONTHLY_VALUE = "__no_linked_monthly__";
@@ -88,6 +89,8 @@ export function TaskAssignmentPanel({
     isNumericTask: false,
     numericUnit: "",
     linkedMonthlyTaskId: "",
+    priority: "medium" as TaskPriority,
+    assignmentXpOverride: "",
   }));
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
@@ -116,6 +119,8 @@ export function TaskAssignmentPanel({
       isNumericTask: false,
       numericUnit: "",
       linkedMonthlyTaskId: "",
+      priority: "medium",
+      assignmentXpOverride: "",
     });
   };
 
@@ -135,6 +140,11 @@ export function TaskAssignmentPanel({
       isNumericTask: Boolean(taskToEdit.is_numeric_task),
       numericUnit: taskToEdit.numeric_unit ?? "",
       linkedMonthlyTaskId: taskToEdit.linked_monthly_task_id ?? "",
+      priority: (taskToEdit.priority ?? "medium") as TaskPriority,
+      assignmentXpOverride:
+        taskToEdit.assignment_xp_override !== null && taskToEdit.assignment_xp_override !== undefined
+          ? String(taskToEdit.assignment_xp_override)
+          : "",
     });
     setTaskDialog({ open: true, mode: "edit", task: taskToEdit });
   };
@@ -185,6 +195,16 @@ export function TaskAssignmentPanel({
       toast({ title: "Error", description: "Task title is required", variant: "destructive" });
       return;
     }
+    const rawXp = taskForm.assignmentXpOverride.trim();
+    let assignment_xp_override: number | null = null;
+    if (rawXp !== "") {
+      const n = parseInt(rawXp, 10);
+      if (Number.isNaN(n)) {
+        toast({ title: "Error", description: "Bonus XP must be a whole number", variant: "destructive" });
+        return;
+      }
+      assignment_xp_override = n;
+    }
     if (!validateBeforeSave()) return;
 
     setSubmitting(true);
@@ -228,6 +248,8 @@ export function TaskAssignmentPanel({
         is_numeric_task: taskForm.isNumericTask,
         numeric_unit: taskForm.isNumericTask ? taskForm.numericUnit : null,
         linked_monthly_task_id: taskForm.linkedMonthlyTaskId || null,
+        priority: taskForm.priority,
+        assignment_xp_override,
       };
 
       if (taskForm.type === "weekly" && taskForm.dayOfWeek) {
@@ -289,6 +311,16 @@ export function TaskAssignmentPanel({
       toast({ title: "Error", description: "Task title is required", variant: "destructive" });
       return;
     }
+    const rawXpUp = taskForm.assignmentXpOverride.trim();
+    let assignment_xp_override_up: number | null = null;
+    if (rawXpUp !== "") {
+      const n = parseInt(rawXpUp, 10);
+      if (Number.isNaN(n)) {
+        toast({ title: "Error", description: "Bonus XP must be a whole number", variant: "destructive" });
+        return;
+      }
+      assignment_xp_override_up = n;
+    }
     if (!validateBeforeSave()) return;
 
     setSubmitting(true);
@@ -304,6 +336,8 @@ export function TaskAssignmentPanel({
         is_numeric_task: taskForm.isNumericTask,
         numeric_unit: taskForm.isNumericTask ? taskForm.numericUnit : null,
         linked_monthly_task_id: taskForm.linkedMonthlyTaskId || null,
+        priority: taskForm.priority,
+        assignment_xp_override: assignment_xp_override_up,
       };
 
       if (taskForm.type === "weekly" && taskForm.dayOfWeek) {
@@ -440,7 +474,7 @@ export function TaskAssignmentPanel({
     t.type === "daily" ? "—" : t.due_date || "—";
 
   const renderTaskDataRows = (list: Task[], showEmployeeColumn: boolean) => {
-    const colSpan = showEmployeeColumn ? 8 : 7;
+    const colSpan = showEmployeeColumn ? 9 : 8;
     return list.map((t) => {
       const isExpanded = expandedTaskRows.has(t.id);
       const employee = userName(t.assigned_to);
@@ -459,6 +493,9 @@ export function TaskAssignmentPanel({
             </TableCell>
             {showEmployeeColumn && <TableCell>{employee}</TableCell>}
             <TableCell className="font-medium">{t.title}</TableCell>
+            <TableCell>
+              <PriorityBadge priority={t.priority ?? "medium"} size="sm" />
+            </TableCell>
             <TableCell>
               <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
                 {t.type.charAt(0).toUpperCase() + t.type.slice(1)}
@@ -558,6 +595,7 @@ export function TaskAssignmentPanel({
                         <TableHead className="w-[40px]" />
                         <TableHead>Employee</TableHead>
                         <TableHead>Task Name</TableHead>
+                        <TableHead>Priority</TableHead>
                         <TableHead>Task Type</TableHead>
                         <TableHead>Task Description</TableHead>
                         <TableHead>Due</TableHead>
@@ -615,6 +653,7 @@ export function TaskAssignmentPanel({
                             <TableRow>
                               <TableHead className="w-[40px]" />
                               <TableHead>Task Name</TableHead>
+                              <TableHead>Priority</TableHead>
                               <TableHead>Task Type</TableHead>
                               <TableHead>Task Description</TableHead>
                               <TableHead>Due</TableHead>
@@ -721,6 +760,7 @@ export function TaskAssignmentPanel({
                             <TableRow>
                               <TableHead className="w-[40px]"></TableHead>
                               <TableHead>Task Name</TableHead>
+                              <TableHead>Priority</TableHead>
                               <TableHead>Task Type</TableHead>
                               <TableHead>Task Description</TableHead>
                               <TableHead>Due</TableHead>
@@ -748,6 +788,9 @@ export function TaskAssignmentPanel({
                                     </TableCell>
                                     <TableCell className="font-medium">{t.title}</TableCell>
                                     <TableCell>
+                                      <PriorityBadge priority={t.priority ?? "medium"} size="sm" />
+                                    </TableCell>
+                                    <TableCell>
                                       <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
                                         {t.type.charAt(0).toUpperCase() + t.type.slice(1)}
                                       </span>
@@ -763,7 +806,7 @@ export function TaskAssignmentPanel({
                                   </TableRow>
                                   {isExpanded && (
                                     <TableRow>
-                                      <TableCell colSpan={5} className="bg-muted/30">
+                                      <TableCell colSpan={6} className="bg-muted/30">
                                         {renderExpandedTaskPanel(t)}
                                       </TableCell>
                                     </TableRow>
@@ -851,6 +894,38 @@ export function TaskAssignmentPanel({
                   <SelectItem value="monthly">Monthly</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Priority</Label>
+                <Select
+                  value={taskForm.priority}
+                  onValueChange={(value: TaskPriority) => setTaskForm({ ...taskForm, priority: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bonusXp">Bonus XP (optional)</Label>
+                <Input
+                  id="bonusXp"
+                  inputMode="numeric"
+                  placeholder="Empty = use priority (2 / 5 / 8)"
+                  value={taskForm.assignmentXpOverride}
+                  onChange={(e) => setTaskForm({ ...taskForm, assignmentXpOverride: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Override priority-based XP for this task; use 0 for no assignment bonus.
+                </p>
+              </div>
             </div>
 
             <div className="space-y-2">

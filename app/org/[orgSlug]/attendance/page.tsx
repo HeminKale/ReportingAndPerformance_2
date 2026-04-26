@@ -10,10 +10,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
-import { format, parse, startOfMonth } from "date-fns";
+import { format, parse, parseISO, startOfMonth } from "date-fns";
 import { getCurrentTimeInTimezone, isAfterCutoff, formatInUserTimezone } from "@/lib/utils/timezone";
 import { AlertTriangle, CheckCircle, Clock } from "lucide-react";
-import type { Attendance, User } from "@/lib/types/database";
+import type { Attendance, TaskLog, User } from "@/lib/types/database";
+import {
+  getLogForTaskDate,
+  getTasksDueForUserOnDate,
+  isApprovedCompletedBefore,
+} from "@/lib/gamification/due-tasks";
 
 function sumAttendanceHours(rows: Attendance[]): number {
   let sum = 0;
@@ -53,6 +58,7 @@ export default function AttendancePage() {
   const [earlyClockOutDialogOpen, setEarlyClockOutDialogOpen] = useState(false);
   const [earlyClockOutReason, setEarlyClockOutReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [clockInCutoff, setClockInCutoff] = useState("09:15");
   const { toast } = useToast();
   const supabase = createClient();
   const [today, setToday] = useState(format(getCurrentTimeInTimezone('Asia/Kolkata'), 'yyyy-MM-dd'));
@@ -125,6 +131,20 @@ export default function AttendancePage() {
       .eq('id', authUser.id)
       .single();
 
+    if (userData?.organization_id) {
+      const { data: orgRow } = await supabase
+        .from("organizations")
+        .select("settings")
+        .eq("id", userData.organization_id)
+        .maybeSingle();
+      const raw = orgRow?.settings?.clock_in_cutoff;
+      if (typeof raw === "string" && /^\d{2}:\d{2}$/.test(raw)) {
+        setClockInCutoff(raw);
+      } else {
+        setClockInCutoff("09:15");
+      }
+    }
+
     const userTimezone = userData?.timezone || 'Asia/Kolkata';
     const currentToday = format(getCurrentTimeInTimezone(userTimezone), 'yyyy-MM-dd');
     setToday(currentToday);
@@ -145,13 +165,37 @@ export default function AttendancePage() {
     }
   };
 
+  const runDailyCloseEvaluation = async (attendanceId: string) => {
+    try {
+      const res = await fetch("/api/gamification/daily-close", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ attendanceId }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        duplicate?: boolean;
+        xpDelta?: number;
+        streakOk?: boolean;
+      };
+      if (!json.ok || json.duplicate || typeof json.xpDelta !== "number") return "";
+      const bits: string[] = [];
+      if (json.streakOk) bits.push("Streak day secured");
+      if (json.xpDelta !== 0) bits.push(`${json.xpDelta > 0 ? "+" : ""}${json.xpDelta} XP`);
+      return bits.length ? ` ${bits.join(" · ")}.` : "";
+    } catch {
+      return "";
+    }
+  };
+
   const handleClockIn = async () => {
     if (!user) return;
 
     setActionLoading(true);
 
     try {
-      const isLate = isAfterCutoff(user.timezone, '09:15');
+      const isLate = isAfterCutoff(user.timezone, clockInCutoff);
 
       if (isLate) {
         setLateDialogOpen(true);
@@ -266,35 +310,35 @@ export default function AttendancePage() {
     setActionLoading(true);
 
     try {
-      const { data: allDailyTasks } = await supabase
-        .from('tasks')
-        .select('id')
-        .eq('organization_id', user.organization_id)
+      const weekday = parseISO(`${today}T12:00:00`).getDay();
+      const { data: allActiveTasks } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("organization_id", user.organization_id)
         .or(`assigned_to.eq.${user.id},is_common_task.eq.true`)
-        .eq('is_active', true)
-        .eq('type', 'daily');
+        .eq("is_active", true);
 
-      const dailyTaskIds = (allDailyTasks || []).map((task) => task.id);
+      const dueToday = getTasksDueForUserOnDate(allActiveTasks || [], user.id, today, weekday);
+      const dueIds = dueToday.map((t) => t.id);
+      const { data: todayTaskLogs } =
+        dueIds.length > 0
+          ? await supabase.from("task_logs").select("*").eq("user_id", user.id).eq("date", today).in("task_id", dueIds)
+          : { data: [] as TaskLog[] };
 
-      const { data: todayTaskLogs } = await supabase
-        .from('task_logs')
-        .select('task_id,status')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .in('task_id', dailyTaskIds);
+      const logs = (todayTaskLogs || []) as TaskLog[];
+      let approvedDone = 0;
+      const nowIso = new Date().toISOString();
+      for (const task of dueToday) {
+        const log = getLogForTaskDate(logs, task.id, user.id, today);
+        if (isApprovedCompletedBefore(log, nowIso)) {
+          approvedDone++;
+        }
+      }
 
-      const totalTaskCount = (allDailyTasks || []).length;
-      const completedTaskIds = new Set(
-        (todayTaskLogs || [])
-          .filter(log => log.status === 'completed')
-          .map(log => log.task_id)
-      );
-      const completedCount = completedTaskIds.size;
-
-      if (completedCount < totalTaskCount) {
+      if (dueToday.length > 0 && approvedDone < dueToday.length) {
         toast({
           title: "Cannot clock out",
-          description: `Please complete all daily tasks before clocking out (${completedCount}/${totalTaskCount} completed)`,
+          description: `Complete all tasks due today before clocking out (${approvedDone}/${dueToday.length} completed).`,
           variant: "destructive",
         });
         setActionLoading(false);
@@ -318,9 +362,11 @@ export default function AttendancePage() {
 
       if (error) throw error;
 
+      const extra = await runDailyCloseEvaluation(attendance.id);
+
       toast({
         title: "Clocked out successfully",
-        description: "Have a great day!",
+        description: `Have a great day!${extra}`,
       });
 
       await fetchData({ refreshHistory: true });
@@ -358,6 +404,8 @@ export default function AttendancePage() {
 
       if (error) throw error;
 
+      const extra = await runDailyCloseEvaluation(attendance.id);
+
       if (user.manager_id) {
         await supabase
           .from('notifications')
@@ -381,7 +429,7 @@ export default function AttendancePage() {
 
       toast({
         title: "Early clock-out request submitted",
-        description: "Waiting for manager approval",
+        description: `Waiting for manager approval.${extra}`,
       });
 
       setEarlyClockOutDialogOpen(false);
@@ -545,10 +593,10 @@ export default function AttendancePage() {
               </Button>
             )}
 
-            {user && isAfterCutoff(user.timezone, '09:15') && !attendance && (
+            {user && isAfterCutoff(user.timezone, clockInCutoff) && !attendance && (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-800">
-                  It's past 9:15 AM. You'll need to provide a reason for late clock-in.
+                  It's past {clockInCutoff}. You'll need to provide a reason for late clock-in.
                 </p>
               </div>
             )}
@@ -657,7 +705,7 @@ export default function AttendancePage() {
           <DialogHeader>
             <DialogTitle>Late Clock-In Request</DialogTitle>
             <DialogDescription>
-              Please provide a reason for clocking in after 9:15 AM
+              Please provide a reason for clocking in after {clockInCutoff}
             </DialogDescription>
           </DialogHeader>
 

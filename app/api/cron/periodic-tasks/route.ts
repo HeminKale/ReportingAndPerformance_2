@@ -24,6 +24,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { materializePeriodicTemplates, type PeriodicTaskTemplate } from "@/lib/cron/periodic-tasks-materialize";
+import { reconcileMissingDailyCloses } from "@/lib/gamification/reconcile";
 
 export const dynamic = "force-dynamic";
 
@@ -75,11 +76,24 @@ async function handle(request: Request) {
     now,
   });
 
+  let gamification: { processed: number; applied: number; streakResets: number; errors: string[] } | null = null;
+  try {
+    gamification = await reconcileMissingDailyCloses(supabase, { lookbackDays: 3 });
+  } catch (e) {
+    gamification = {
+      processed: 0,
+      applied: 0,
+      streakResets: 0,
+      errors: [e instanceof Error ? e.message : String(e)],
+    };
+  }
+
   return NextResponse.json({
     ok: true,
     templatesProcessed,
     taskRowsCreated,
     skipped,
+    gamification,
     at: now.toISOString(),
   });
 }
