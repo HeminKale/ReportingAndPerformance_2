@@ -9,6 +9,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Bell, CheckCheck, Trash2 } from "lucide-react";
 import type { Notification, User } from "@/lib/types/database";
 import { markResourceNotificationsRead } from "@/lib/notifications/mark-resource-read";
+import { requestNotificationsBellRefresh } from "@/lib/notifications/refresh-bell";
 import Link from "next/link";
 
 export default function NotificationsPage() {
@@ -150,6 +151,7 @@ export default function NotificationsPage() {
         title: "Success",
         description: `Request ${action === "approve" ? "approved" : "rejected"} successfully.`,
       });
+      requestNotificationsBellRefresh();
       fetchNotifications();
     } catch (error: any) {
       toast({
@@ -175,6 +177,7 @@ export default function NotificationsPage() {
         variant: "destructive",
       });
     } else {
+      requestNotificationsBellRefresh();
       fetchNotifications();
     }
   };
@@ -201,6 +204,7 @@ export default function NotificationsPage() {
         title: "Success",
         description: "All notifications marked as read",
       });
+      requestNotificationsBellRefresh();
       fetchNotifications();
     }
   };
@@ -218,6 +222,7 @@ export default function NotificationsPage() {
         variant: "destructive",
       });
     } else {
+      requestNotificationsBellRefresh();
       fetchNotifications();
     }
   };

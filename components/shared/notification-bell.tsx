@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
-import type { Notification } from "@/lib/types/database";
+import {
+  NOTIFICATIONS_BELL_REFRESH_EVENT,
+} from "@/lib/notifications/refresh-bell";
 
 interface NotificationBellProps {
   userId: string;
@@ -16,41 +18,47 @@ interface NotificationBellProps {
 export function NotificationBell({ userId, orgSlug }: NotificationBellProps) {
   const [unreadCount, setUnreadCount] = useState(0);
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+
+  const fetchUnreadCount = useCallback(async () => {
+    const { count } = await supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("is_read", false);
+
+    setUnreadCount(count ?? 0);
+  }, [supabase, userId]);
 
   useEffect(() => {
-    fetchUnreadCount();
+    void fetchUnreadCount();
+
+    const onAppRefresh = () => {
+      void fetchUnreadCount();
+    };
+    window.addEventListener(NOTIFICATIONS_BELL_REFRESH_EVENT, onAppRefresh);
 
     const channel = supabase
-      .channel('notifications')
+      .channel(`notification-bell-${userId}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
+          event: "*",
+          schema: "public",
+          table: "notifications",
           filter: `user_id=eq.${userId}`,
         },
         () => {
-          fetchUnreadCount();
+          void fetchUnreadCount();
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      window.removeEventListener(NOTIFICATIONS_BELL_REFRESH_EVENT, onAppRefresh);
+      void supabase.removeChannel(channel);
     };
-  }, [userId]);
-
-  const fetchUnreadCount = async () => {
-    const { count } = await supabase
-      .from('notifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('is_read', false);
-
-    setUnreadCount(count || 0);
-  };
+  }, [userId, supabase, fetchUnreadCount]);
 
   return (
     <Button

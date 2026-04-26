@@ -25,6 +25,7 @@ import { ManagerDocumentsTab } from "@/components/manager/manager-documents-tab"
 import { ManagerSalaryTab } from "@/components/manager/manager-salary-tab";
 import { ManagerCalendarTab } from "@/components/manager/manager-calendar-tab";
 import { markResourceNotificationsRead } from "@/lib/notifications/mark-resource-read";
+import { requestNotificationsBellRefresh } from "@/lib/notifications/refresh-bell";
 
 export default function ManagerPage() {
   const { orgSlug } = useParams() as { orgSlug: string };
@@ -230,6 +231,13 @@ export default function ManagerPage() {
       return;
     }
 
+    const { data: teamProfiles, error: teamProfilesError } = await supabase
+      .from("users")
+      .select("*")
+      .in("id", teamIds)
+      .order("full_name", { ascending: true });
+    if (teamProfilesError) console.error("[Manager] team profiles fetch error:", teamProfilesError);
+
     const { data: logs, error: logsError } = await supabase
       .from('task_logs')
       .select('*, tasks(*), users!user_id(*)')
@@ -299,7 +307,7 @@ export default function ManagerPage() {
     ]);
 
     setUser(userData);
-    setTeamMembers(team || []);
+    setTeamMembers((teamProfiles as User[]) || []);
     setTaskLogs(logs || []);
     setAttendanceItems(attendance || []);
     setAttendanceReportItems(attendanceReport || []);
@@ -855,6 +863,8 @@ export default function ManagerPage() {
           });
       }
 
+      requestNotificationsBellRefresh();
+
       toast({
         title: "Success",
         description: `Request ${actionDialog.action === 'approve' ? 'approved' : 'rejected'} successfully`,
@@ -1020,9 +1030,15 @@ export default function ManagerPage() {
               ) : (
                 <div className="space-y-2">
                   {sortedTodayGroupsFiltered.map(([employeeName, rows]) => (
-                    <details key={employeeName} className="rounded-lg border">
-                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                        {employeeName} &mdash; {rows.length} task{rows.length !== 1 ? 's' : ''}
+                    <details key={employeeName} className="group rounded-lg border">
+                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2">
+                        <span className="min-w-0">
+                          {employeeName} &mdash; {rows.length} task{rows.length !== 1 ? "s" : ""}
+                        </span>
+                        <ChevronDown
+                          className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                          aria-hidden
+                        />
                       </summary>
                       <div className="border-t">
                         <Table>
@@ -1145,9 +1161,13 @@ export default function ManagerPage() {
                 </div>
               )}
 
-              <details className="rounded-lg border">
-                <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                  Number of certificates
+              <details className="group rounded-lg border">
+                <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2">
+                  <span className="min-w-0">Number of certificates</span>
+                  <ChevronDown
+                    className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                    aria-hidden
+                  />
                 </summary>
             <div className="border-t p-4 space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -1348,10 +1368,16 @@ export default function ManagerPage() {
                 return (
                   <div className="space-y-2">
                     {groups.map(([date, logs]) => (
-                      <details key={date} className="rounded-lg border">
-                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                          {format(new Date(date), "dd MMM yyyy")} &mdash; {logs.length} submission
-                          {logs.length !== 1 ? "s" : ""}
+                      <details key={date} className="group rounded-lg border">
+                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2">
+                          <span className="min-w-0">
+                            {format(new Date(date), "dd MMM yyyy")} &mdash; {logs.length} submission
+                            {logs.length !== 1 ? "s" : ""}
+                          </span>
+                          <ChevronDown
+                            className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                            aria-hidden
+                          />
                         </summary>
                         <div className="border-t">
                           <Table>
@@ -1519,10 +1545,15 @@ export default function ManagerPage() {
                       const userId = items[0]?.user_id;
                       
                       return (
-                        <details key={employeeName} className="rounded-lg border">
-                          <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex items-center justify-between">
-                            <span>{employeeName} &mdash; {items.length} record{items.length !== 1 ? 's' : ''}</span>
-                            <ChevronDown className="h-4 w-4" />
+                        <details key={employeeName} className="group rounded-lg border">
+                          <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2">
+                            <span className="min-w-0">
+                              {employeeName} &mdash; {items.length} record{items.length !== 1 ? "s" : ""}
+                            </span>
+                            <ChevronDown
+                              className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                              aria-hidden
+                            />
                           </summary>
                           <div className="border-t p-4 space-y-4">
                             <div className="grid grid-cols-2 gap-4">
@@ -1861,9 +1892,16 @@ export default function ManagerPage() {
                 return (
                   <div className="space-y-2">
                     {groups.map(([date, items]) => (
-                      <details key={date} className="rounded-lg border">
-                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                          {format(new Date(date), 'dd MMM yyyy')} &mdash; {items.length} request{items.length !== 1 ? 's' : ''}
+                      <details key={date} className="group rounded-lg border">
+                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2">
+                          <span className="min-w-0">
+                            {format(new Date(date), "dd MMM yyyy")} &mdash; {items.length} request
+                            {items.length !== 1 ? "s" : ""}
+                          </span>
+                          <ChevronDown
+                            className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                            aria-hidden
+                          />
                         </summary>
                         <div className="border-t">
                           <Table>
@@ -1906,31 +1944,57 @@ export default function ManagerPage() {
 
         <TabsContent value="team" className="space-y-4">
           <Input
-            placeholder="Search by employee name..."
+            placeholder="Search by name or email..."
             value={teamSearchTerm}
             onChange={(e) => setTeamSearchTerm(e.target.value)}
             className="max-w-md"
           />
-          {teamMembers.filter(member =>
-            member.full_name.toLowerCase().includes(teamSearchTerm.toLowerCase())
-          ).length > 0 ? (
-            <div className="border rounded-lg">
+          {teamMembers.filter((member) => {
+            const q = teamSearchTerm.toLowerCase();
+            return (
+              member.full_name.toLowerCase().includes(q) ||
+              (member.email || "").toLowerCase().includes(q)
+            );
+          }).length > 0 ? (
+            <div className="border rounded-lg overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Timezone</TableHead>
+                    <TableHead>Member since</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {teamMembers
-                    .filter(member => member.full_name.toLowerCase().includes(teamSearchTerm.toLowerCase()))
+                    .filter((member) => {
+                      const q = teamSearchTerm.toLowerCase();
+                      return (
+                        member.full_name.toLowerCase().includes(q) ||
+                        (member.email || "").toLowerCase().includes(q)
+                      );
+                    })
                     .map((member) => (
                       <TableRow key={member.id}>
-                        <TableCell>{member.full_name}</TableCell>
-                        <TableCell>{member.email}</TableCell>
+                        <TableCell className="font-medium">{member.full_name}</TableCell>
+                        <TableCell className="text-muted-foreground">{member.email}</TableCell>
                         <TableCell className="capitalize">{member.role}</TableCell>
+                        <TableCell className="text-sm">{member.timezone || "—"}</TableCell>
+                        <TableCell className="text-sm whitespace-nowrap">
+                          {member.created_at
+                            ? format(new Date(member.created_at), "dd MMM yyyy")
+                            : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {member.is_resigned ? (
+                            <Badge variant="secondary">Resigned</Badge>
+                          ) : (
+                            <Badge className="bg-emerald-100 text-emerald-900 hover:bg-emerald-100">Active</Badge>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                 </TableBody>

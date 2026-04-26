@@ -5,7 +5,7 @@ This document describes how in-app notifications work for employees and managers
 ## Overview
 
 - **Storage:** `public.notifications` (Supabase/Postgres). Unread items use `is_read = false`.
-- **Badge:** `components/shared/notification-bell.tsx` shows a count of **unread** rows for the signed-in `user_id`, scoped by realtime `postgres_changes` on the `notifications` table.
+- **Badge:** `components/shared/notification-bell.tsx` shows a count of **unread** rows for the signed-in `user_id`. It refetches when `postgres_changes` fires and when other code calls **`requestNotificationsBellRefresh()`** from `lib/notifications/refresh-bell.ts` (a `window` event). The explicit refresh is important because **UPDATE** on `is_read` may not always trigger Realtime if the `notifications` table is not in the `supabase_realtime` publication (enable in **Database → Publications** for best results; the in-app event keeps the badge correct either way after approves, mark read, etc.).
 - **Inbox:** `app/org/[orgSlug]/notifications/page.tsx` lists recent notifications; actionable rows support Approve/Reject; non-actionable rows use a double-check control to mark read.
 - **Deep links:** `link` and optional `metadata` (including `actionable` and a resource key) support navigation and manager in-app approvals.
 
@@ -112,6 +112,7 @@ RLS and policies for `notifications` are defined in Supabase migrations (e.g. us
 | Bell UI + count | `components/shared/notification-bell.tsx` |
 | Inbox | `app/org/[orgSlug]/notifications/page.tsx` |
 | Mark resource read | `lib/notifications/mark-resource-read.ts` |
+| Bell badge refetch (same tab) | `lib/notifications/refresh-bell.ts` |
 | Task assignment → `task_assigned` | `components/shared/task-assignment-panel.tsx` |
 | Manager: mistakes, panel actions, inserts | `app/org/[orgSlug]/manager/page.tsx` |
 | Task submit → manager review | `components/tasks/task-log-dialog.tsx` |

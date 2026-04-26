@@ -565,10 +565,16 @@ export function TaskAssignmentPanel({
               {historyGroups.length > 0 ? (
                 <div className="space-y-2">
                   {historyGroups.map(([employeeName, groupTasks]) => (
-                    <details key={employeeName} className="rounded-lg border">
-                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                        {employeeName} &mdash; {groupTasks.length} task
-                        {groupTasks.length !== 1 ? "s" : ""}
+                    <details key={employeeName} className="group rounded-lg border">
+                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2">
+                        <span className="min-w-0">
+                          {employeeName} &mdash; {groupTasks.length} task
+                          {groupTasks.length !== 1 ? "s" : ""}
+                        </span>
+                        <ChevronDown
+                          className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                          aria-hidden
+                        />
                       </summary>
                       <div className="border-t">
                         <Table>
@@ -664,10 +670,16 @@ export function TaskAssignmentPanel({
               return (
                 <div className="space-y-2">
                   {sortedGroups.map(([employeeName, groupTasks]) => (
-                    <details key={employeeName} className="rounded-lg border">
-                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                        {employeeName} &mdash; {groupTasks.length} task
-                        {groupTasks.length !== 1 ? "s" : ""}
+                    <details key={employeeName} className="group rounded-lg border">
+                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2">
+                        <span className="min-w-0">
+                          {employeeName} &mdash; {groupTasks.length} task
+                          {groupTasks.length !== 1 ? "s" : ""}
+                        </span>
+                        <ChevronDown
+                          className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                          aria-hidden
+                        />
                       </summary>
                       <div className="border-t">
                         <Table>
