@@ -9,10 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Plus } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, Edit2 } from "lucide-react";
 import type { Leave, User } from "@/lib/types/database";
 
 export default function LeavesPage() {
@@ -21,6 +23,7 @@ export default function LeavesPage() {
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingLeaveId, setEditingLeaveId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     startDate: '',
     endDate: '',
@@ -80,22 +83,39 @@ export default function LeavesPage() {
     setSubmitting(true);
 
     try {
-      const { data: createdLeave, error } = await supabase
-        .from('leaves')
-        .insert({
-          user_id: user.id,
-          organization_id: user.organization_id,
-          start_date: formData.startDate,
-          end_date: formData.endDate,
-          type: formData.type,
-          leave_type: formData.leaveType,
-          reason: formData.reason,
-          status: 'pending',
-        })
-        .select("id")
-        .single();
+      let leaveId = editingLeaveId;
 
-      if (error) throw error;
+      const leavePayload = {
+        start_date: formData.startDate,
+        end_date: formData.endDate,
+        type: formData.type,
+        leave_type: formData.leaveType,
+        reason: formData.reason,
+        status: 'pending',
+        manager_comment: null, // Reset manager comment on re-submission
+      };
+
+      if (editingLeaveId) {
+        const { error } = await supabase
+          .from('leaves')
+          .update(leavePayload)
+          .eq('id', editingLeaveId);
+
+        if (error) throw error;
+      } else {
+        const { data: createdLeave, error } = await supabase
+          .from('leaves')
+          .insert({
+            user_id: user.id,
+            organization_id: user.organization_id,
+            ...leavePayload,
+          })
+          .select("id")
+          .single();
+
+        if (error) throw error;
+        leaveId = createdLeave?.id;
+      }
 
       if (user.manager_id) {
         await supabase
@@ -104,13 +124,13 @@ export default function LeavesPage() {
             organization_id: user.organization_id,
             user_id: user.manager_id,
             type: 'leave_approval',
-            title: 'Leave Request',
+            title: editingLeaveId ? 'Leave Request Updated' : 'Leave Request',
             message: `${user.full_name} has requested leave from ${format(new Date(formData.startDate), 'MMM d')} to ${format(new Date(formData.endDate), 'MMM d')}`,
             link: `/org/${String(params.orgSlug)}/manager`,
             metadata: {
               actionable: true,
               resource_type: "leave",
-              resource_id: createdLeave?.id ?? null,
+              resource_id: leaveId ?? null,
               employee_id: user.id,
               employee_comment: formData.reason.trim(),
               employee_comment_label: "Reason",
@@ -119,18 +139,11 @@ export default function LeavesPage() {
       }
 
       toast({
-        title: "Leave request submitted",
+        title: editingLeaveId ? "Leave request updated" : "Leave request submitted",
         description: "Your manager will review your request",
       });
 
-      setDialogOpen(false);
-      setFormData({
-        startDate: '',
-        endDate: '',
-        type: 'full_day',
-        leaveType: 'vacation',
-        reason: '',
-      });
+      handleCloseDialog();
       fetchData();
     } catch (error: any) {
       toast({
@@ -141,6 +154,30 @@ export default function LeavesPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEdit = (leave: Leave) => {
+    setEditingLeaveId(leave.id);
+    setFormData({
+      startDate: leave.start_date,
+      endDate: leave.end_date,
+      type: leave.type,
+      leaveType: leave.leave_type,
+      reason: leave.reason,
+    });
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setEditingLeaveId(null);
+    setFormData({
+      startDate: '',
+      endDate: '',
+      type: 'full_day',
+      leaveType: 'vacation',
+      reason: '',
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -181,61 +218,76 @@ export default function LeavesPage() {
       </div>
 
       <div className="grid gap-6">
-        {leaves.length > 0 ? (
-          leaves.map((leave) => (
-            <Card key={leave.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">
-                      {format(new Date(leave.start_date), 'MMM d, yyyy')} - {format(new Date(leave.end_date), 'MMM d, yyyy')}
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      {leave.leave_type.charAt(0).toUpperCase() + leave.leave_type.slice(1)} Leave ({leave.type.replace('_', ' ')})
-                    </CardDescription>
-                  </div>
-                  <span className={`text-xs px-3 py-1 rounded-full ${getStatusColor(leave.status)}`}>
-                    {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm font-medium mb-1">Reason:</p>
-                    <p className="text-sm text-muted-foreground">{leave.reason}</p>
-                  </div>
-                  {leave.manager_comment && (
-                    <div className="p-3 bg-muted rounded-md">
-                      <p className="text-sm font-medium mb-1">Manager Comment:</p>
-                      <p className="text-sm text-muted-foreground">{leave.manager_comment}</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <CalendarIcon className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">No leave requests</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                You haven't requested any leaves yet
-              </p>
-              <Button onClick={() => setDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Request Leave
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Dates</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Manager Comment</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {leaves.length > 0 ? (
+                  leaves.map((leave) => (
+                    <TableRow key={leave.id}>
+                      <TableCell className="font-medium whitespace-nowrap">
+                        {format(new Date(leave.start_date), 'MMM d, yyyy')} - {format(new Date(leave.end_date), 'MMM d, yyyy')}
+                      </TableCell>
+                      <TableCell className="capitalize whitespace-nowrap">
+                        {leave.type.replace('_', ' ')}
+                      </TableCell>
+                      <TableCell className="capitalize whitespace-nowrap">
+                        {leave.leave_type}
+                      </TableCell>
+                      <TableCell>
+                        <div className="max-w-[200px] lg:max-w-[300px] truncate" title={leave.reason}>
+                          {leave.reason}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className={getStatusColor(leave.status)}>
+                          {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="max-w-[200px] lg:max-w-[300px] truncate text-sm text-muted-foreground" title={leave.manager_comment || ""}>
+                          {leave.manager_comment || "-"}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(leave)}>
+                          <Edit2 className="h-4 w-4" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-32 text-center">
+                      <div className="flex flex-col items-center justify-center text-muted-foreground">
+                        <CalendarIcon className="h-10 w-10 mb-2 opacity-20" />
+                        <p>No leave requests</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Request Leave</DialogTitle>
+            <DialogTitle>{editingLeaveId ? 'Edit Leave Request' : 'Request Leave'}</DialogTitle>
             <DialogDescription>
               Submit a leave request for manager approval
             </DialogDescription>
@@ -313,14 +365,14 @@ export default function LeavesPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button variant="outline" onClick={handleCloseDialog}>
               Cancel
             </Button>
             <Button 
               onClick={handleSubmit} 
               disabled={submitting || !formData.startDate || !formData.endDate || !formData.reason.trim()}
             >
-              {submitting ? "Submitting..." : "Submit Request"}
+              {submitting ? "Submitting..." : editingLeaveId ? "Update Request" : "Submit Request"}
             </Button>
           </DialogFooter>
         </DialogContent>
