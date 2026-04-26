@@ -22,12 +22,19 @@ export function TaskProgressRings({ tasks }: TaskProgressRingsProps) {
     let approved = 0;
 
     for (const task of tasks) {
-      if (task.taskLog?.status === "completed") {
-        if (task.taskLog.verification_status !== "recalled" && task.taskLog.verification_status !== "rejected") {
+      const log = task.taskLog;
+      if (log?.status === "completed") {
+        // A task is only "Completed" (Ring 1) if it is NOT recalled or rejected
+        if (log.verification_status !== "recalled" && log.verification_status !== "rejected") {
           completed++;
-          submitted++; // If it's completed by employee and not recalled/rejected, it is submitted
         }
-        if (task.taskLog?.verification_status === "approved") {
+        
+        // A task is "Submitted" (Ring 2 denominator) if it was ever completed/sent for verification,
+        // even if it was subsequently rejected or recalled.
+        submitted++;
+
+        // A task is "Approved" (Ring 2 numerator) only if the manager approved it.
+        if (log.verification_status === "approved") {
           approved++;
         }
       }
