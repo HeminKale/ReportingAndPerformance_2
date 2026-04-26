@@ -108,12 +108,12 @@ function SharedNumericTaskPanel({
 
   return (
     <details className="group rounded-lg border bg-card">
-      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2">
-        <span className="min-w-0 block truncate" title={group.title}>
+      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+        <span className="min-w-0 flex-1 truncate text-left" title={group.title}>
           {group.title}
         </span>
         <ChevronDown
-          className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+          className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
           aria-hidden
         />
       </summary>

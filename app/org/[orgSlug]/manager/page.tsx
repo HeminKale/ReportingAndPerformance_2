@@ -1028,12 +1028,12 @@ export default function ManagerPage() {
                 <div className="space-y-2">
                   {sortedTodayGroupsFiltered.map(([employeeName, rows]) => (
                     <details key={employeeName} className="group rounded-lg border">
-                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2">
-                        <span className="min-w-0">
+                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                        <span className="min-w-0 flex-1 text-left">
                           {employeeName} &mdash; {rows.length} task{rows.length !== 1 ? "s" : ""}
                         </span>
                         <ChevronDown
-                          className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                          className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
                           aria-hidden
                         />
                       </summary>
@@ -1041,7 +1041,6 @@ export default function ManagerPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-10" />
                               <TableHead>Employee</TableHead>
                               <TableHead>Task Name</TableHead>
                               <TableHead>Description</TableHead>
@@ -1049,6 +1048,9 @@ export default function ManagerPage() {
                               <TableHead>Frequency</TableHead>
                               <TableHead>Number</TableHead>
                               <TableHead>Status</TableHead>
+                              <TableHead className="w-12 text-right">
+                                <span className="sr-only">Expand review</span>
+                              </TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1056,6 +1058,9 @@ export default function ManagerPage() {
                               const rowKey = `${row.member.id}-${row.task.id}`;
                               const isPending = row.log?.verification_status === "pending";
                               const expanded = expandedRegularRowKeys.has(rowKey);
+                              const employeeComment = (row.log?.comment && String(row.log.comment).trim()) || "";
+                              const employeeReason = (row.log?.reason && String(row.log.reason).trim()) || "";
+                              const hasEmployeeNote = Boolean(employeeComment || employeeReason);
                               const statusClass =
                                 row.status === "Approved"
                                   ? "bg-green-100 text-green-800"
@@ -1069,26 +1074,6 @@ export default function ManagerPage() {
                               return (
                                 <Fragment key={rowKey}>
                                   <TableRow>
-                                    <TableCell className="align-middle">
-                                      {isPending ? (
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8"
-                                          aria-expanded={expanded}
-                                          onClick={() => toggleRegularTaskRow(rowKey)}
-                                        >
-                                          {expanded ? (
-                                            <ChevronUp className="h-4 w-4" />
-                                          ) : (
-                                            <ChevronDown className="h-4 w-4" />
-                                          )}
-                                        </Button>
-                                      ) : (
-                                        <span className="inline-block w-8" />
-                                      )}
-                                    </TableCell>
                                     <TableCell>{row.member.full_name}</TableCell>
                                     <TableCell className="font-medium">{row.task.title}</TableCell>
                                     <TableCell className="max-w-md">
@@ -1120,29 +1105,71 @@ export default function ManagerPage() {
                                     <TableCell>
                                       <Badge className={statusClass}>{row.status}</Badge>
                                     </TableCell>
+                                    <TableCell className="text-right align-middle">
+                                      {isPending ? (
+                                        <div className="flex justify-end">
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                            aria-expanded={expanded}
+                                            aria-label={expanded ? "Collapse review" : "Expand review"}
+                                            onClick={() => toggleRegularTaskRow(rowKey)}
+                                          >
+                                            {expanded ? (
+                                              <ChevronUp className="h-4 w-4" />
+                                            ) : (
+                                              <ChevronDown className="h-4 w-4" />
+                                            )}
+                                          </Button>
+                                        </div>
+                                      ) : null}
+                                    </TableCell>
                                   </TableRow>
                                   {isPending && expanded && (
                                     <TableRow>
                                       <TableCell colSpan={8} className="bg-muted/40">
-                                        <div className="flex flex-wrap items-center gap-2 py-2">
-                                          <span className="text-sm text-muted-foreground mr-2">Review submission</span>
-                                          <Button
-                                            size="sm"
-                                            onClick={() =>
-                                              setActionDialog({ open: true, type: "task", item: row.log, action: "approve" })
-                                            }
-                                          >
-                                            Approve
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="destructive"
-                                            onClick={() =>
-                                              setActionDialog({ open: true, type: "task", item: row.log, action: "reject" })
-                                            }
-                                          >
-                                            Reject
-                                          </Button>
+                                        <div className="space-y-3 py-2">
+                                          {hasEmployeeNote ? (
+                                            <div className="rounded-md border border-slate-200 bg-background px-3 py-2 text-sm">
+                                              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                                Employee submission
+                                              </p>
+                                              {employeeComment ? (
+                                                <p className="mt-1 whitespace-pre-wrap text-foreground">
+                                                  <span className="text-muted-foreground">Comment: </span>
+                                                  {employeeComment}
+                                                </p>
+                                              ) : null}
+                                              {employeeReason ? (
+                                                <p className="mt-1 whitespace-pre-wrap text-foreground">
+                                                  <span className="text-muted-foreground">Incomplete / note: </span>
+                                                  {employeeReason}
+                                                </p>
+                                              ) : null}
+                                            </div>
+                                          ) : null}
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            <span className="text-sm text-muted-foreground mr-2">Review submission</span>
+                                            <Button
+                                              size="sm"
+                                              onClick={() =>
+                                                setActionDialog({ open: true, type: "task", item: row.log, action: "approve" })
+                                              }
+                                            >
+                                              Approve
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="destructive"
+                                              onClick={() =>
+                                                setActionDialog({ open: true, type: "task", item: row.log, action: "reject" })
+                                              }
+                                            >
+                                              Reject
+                                            </Button>
+                                          </div>
                                         </div>
                                       </TableCell>
                                     </TableRow>
@@ -1159,10 +1186,10 @@ export default function ManagerPage() {
               )}
 
               <details className="group rounded-lg border">
-                <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2">
-                  <span className="min-w-0">Number of certificates</span>
+                <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                  <span className="min-w-0 flex-1 text-left">Number of certificates</span>
                   <ChevronDown
-                    className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                    className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
                     aria-hidden
                   />
                 </summary>
@@ -1366,13 +1393,13 @@ export default function ManagerPage() {
                   <div className="space-y-2">
                     {groups.map(([date, logs]) => (
                       <details key={date} className="group rounded-lg border">
-                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2">
-                          <span className="min-w-0">
+                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                          <span className="min-w-0 flex-1 text-left">
                             {format(new Date(date), "dd MMM yyyy")} &mdash; {logs.length} submission
                             {logs.length !== 1 ? "s" : ""}
                           </span>
                           <ChevronDown
-                            className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                            className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
                             aria-hidden
                           />
                         </summary>
@@ -1543,12 +1570,12 @@ export default function ManagerPage() {
                       
                       return (
                         <details key={employeeName} className="group rounded-lg border">
-                          <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2">
-                            <span className="min-w-0">
+                          <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                            <span className="min-w-0 flex-1 text-left">
                               {employeeName} &mdash; {items.length} record{items.length !== 1 ? "s" : ""}
                             </span>
                             <ChevronDown
-                              className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                              className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
                               aria-hidden
                             />
                           </summary>
@@ -1890,13 +1917,13 @@ export default function ManagerPage() {
                   <div className="space-y-2">
                     {groups.map(([date, items]) => (
                       <details key={date} className="group rounded-lg border">
-                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2">
-                          <span className="min-w-0">
+                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                          <span className="min-w-0 flex-1 text-left">
                             {format(new Date(date), "dd MMM yyyy")} &mdash; {items.length} request
                             {items.length !== 1 ? "s" : ""}
                           </span>
                           <ChevronDown
-                            className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                            className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
                             aria-hidden
                           />
                         </summary>
@@ -2135,16 +2162,48 @@ export default function ManagerPage() {
               {actionDialog.action === 'approve' ? 'Approve' : 'Reject'} Request
             </DialogTitle>
             <DialogDescription>
-              {actionDialog.action === 'reject' 
-                ? 'Please provide a reason for rejection' 
-                : 'Add an optional comment'}
+              {actionDialog.type === "task"
+                ? actionDialog.action === "reject"
+                  ? "Review the employee’s note below, then add your rejection reason."
+                  : "Review the employee’s submission below. You can add an optional note for them."
+                : actionDialog.action === "reject"
+                  ? "Please provide a reason for rejection"
+                  : "Add an optional comment"}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
+            {actionDialog.type === "task" && actionDialog.item
+              ? (() => {
+                  const item = actionDialog.item;
+                  const empC = (item.comment && String(item.comment).trim()) || "";
+                  const empR = (item.reason && String(item.reason).trim()) || "";
+                  if (!empC && !empR) return null;
+                  return (
+                    <div className="rounded-md border border-slate-200 bg-muted/40 p-3 text-sm space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Employee submission
+                      </p>
+                      {empC ? (
+                        <p className="whitespace-pre-wrap text-foreground">
+                          <span className="text-muted-foreground">Comment: </span>
+                          {empC}
+                        </p>
+                      ) : null}
+                      {empR ? (
+                        <p className="whitespace-pre-wrap text-foreground">
+                          <span className="text-muted-foreground">Incomplete / note: </span>
+                          {empR}
+                        </p>
+                      ) : null}
+                    </div>
+                  );
+                })()
+              : null}
             <div className="space-y-2">
               <Label htmlFor="comment">
-                Comment {actionDialog.action === 'reject' ? '(required)' : '(optional)'}
+                {actionDialog.type === "task" ? "Your review comment " : "Comment "}
+                {actionDialog.action === "reject" ? "(required)" : "(optional)"}
               </Label>
               <Textarea
                 id="comment"

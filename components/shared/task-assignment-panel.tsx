@@ -566,13 +566,13 @@ export function TaskAssignmentPanel({
                 <div className="space-y-2">
                   {historyGroups.map(([employeeName, groupTasks]) => (
                     <details key={employeeName} className="group rounded-lg border">
-                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2">
-                        <span className="min-w-0">
+                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                        <span className="min-w-0 flex-1 text-left">
                           {employeeName} &mdash; {groupTasks.length} task
                           {groupTasks.length !== 1 ? "s" : ""}
                         </span>
                         <ChevronDown
-                          className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                          className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
                           aria-hidden
                         />
                       </summary>
@@ -671,13 +671,13 @@ export function TaskAssignmentPanel({
                 <div className="space-y-2">
                   {sortedGroups.map(([employeeName, groupTasks]) => (
                     <details key={employeeName} className="group rounded-lg border">
-                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2">
-                        <span className="min-w-0">
+                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                        <span className="min-w-0 flex-1 text-left">
                           {employeeName} &mdash; {groupTasks.length} task
                           {groupTasks.length !== 1 ? "s" : ""}
                         </span>
                         <ChevronDown
-                          className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                          className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
                           aria-hidden
                         />
                       </summary>
