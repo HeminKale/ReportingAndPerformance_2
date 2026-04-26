@@ -333,11 +333,11 @@ export default function TasksPage() {
         className="flex flex-col gap-5 md:flex-row md:items-start"
       >
         {/* ─── Left Sidebar ─── */}
-        <aside className="h-fit flex w-full shrink-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm md:w-64">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="text-sm font-bold tracking-tight text-slate-800">Tasks</h2>
+        <aside className="h-fit flex w-full shrink-0 flex-col rounded-2xl border border-slate-200 bg-slate-50/50 p-2 shadow-sm md:w-64">
+          <div className="px-4 py-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">View By</h2>
           </div>
-          <TabsList className="flex flex-col gap-1 bg-transparent p-3">
+          <TabsList className="flex flex-col gap-1.5 bg-transparent">
             {(
               [
                 { value: "daily", label: "Daily", count: dailyTasks.length },
@@ -349,25 +349,27 @@ export default function TasksPage() {
                 key={value}
                 value={value}
                 className={cn(
-                  "group flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-600 shadow-none transition-all duration-150",
-                  "hover:bg-slate-100 hover:text-slate-900",
-                  "data-[state=active]:bg-primary/10 data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none",
-                  "data-[state=inactive]:bg-transparent"
+                  "group flex w-full items-center justify-between gap-2 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200",
+                  "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                  "data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-[0_2px_8px_rgba(0,0,0,0.08)] data-[state=active]:ring-1 data-[state=active]:ring-slate-200/50"
                 )}
               >
-                <span className="flex items-center gap-2.5">
+                <span className="flex items-center gap-3">
                   <span
                     className={cn(
-                      "flex h-2 w-2 shrink-0 rounded-full",
+                      "flex h-2 w-2 shrink-0 rounded-full transition-transform duration-200 group-data-[state=active]:scale-125",
                       value === "daily" && "bg-sky-400",
                       value === "weekly" && "bg-violet-400",
-                      value === "monthly" && "bg-amber-400",
-                      "data-[state=active]:opacity-100 opacity-60 group-hover:opacity-100"
+                      value === "monthly" && "bg-amber-400"
                     )}
                   />
                   {label}
                 </span>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-500 transition-colors group-hover:bg-slate-200 group-data-[state=active]:bg-primary/20 group-data-[state=active]:text-primary">
+                <span className={cn(
+                  "rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums transition-colors",
+                  "bg-slate-200/50 text-slate-500 group-hover:bg-slate-200",
+                  "group-data-[state=active]:bg-primary/10 group-data-[state=active]:text-primary"
+                )}>
                   {count}
                 </span>
               </TabsTrigger>
