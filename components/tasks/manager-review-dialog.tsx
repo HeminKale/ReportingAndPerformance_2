@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
+import { markResourceNotificationsRead } from "@/lib/notifications/mark-resource-read";
 import type { Task, TaskLog, User } from "@/lib/types/database";
 
 interface ManagerReviewDialogProps {
@@ -46,6 +47,8 @@ export function ManagerReviewDialog({ task, taskLog, employee, open, onOpenChang
         .eq('id', taskLog.id);
 
       if (error) throw error;
+
+      await markResourceNotificationsRead(supabase, user.id, "task_log", String(taskLog.id));
 
       await supabase
         .from('notifications')

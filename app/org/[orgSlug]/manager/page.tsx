@@ -415,11 +415,6 @@ export default function ManagerPage() {
     });
   }, [teamTasks, teamMembers, taskLogs, today]);
 
-  const pendingVerificationCount = useMemo(
-    () => taskLogs.filter((log: any) => log.verification_status === "pending").length,
-    [taskLogs]
-  );
-
   const filteredTaskHistoryLogs = useMemo(() => {
     return taskLogs.filter((log: any) => {
       if (!matchesName(log.users?.full_name, taskHistoryEmployeeFilter)) return false;
@@ -942,17 +937,52 @@ export default function ManagerPage() {
             <p className="text-3xl font-bold tracking-tight">Manager Panel</p>
 
             <TabsList className="option-tablist mt-4 h-auto w-full flex-col items-stretch gap-1 rounded-xl border border-slate-200 bg-slate-50 p-2">
-              <TabsTrigger value="manager-tasks" className="manager-side-trigger justify-between rounded-lg px-3 py-2">
-                <span>Tasks</span>
-                <span className="flex items-center gap-1">
-                  {pendingVerificationCount > 0 ? (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900">
-                      {pendingVerificationCount}
-                    </span>
-                  ) : null}
+              <div className="flex w-full flex-col gap-1">
+                <TabsTrigger value="manager-tasks" className="manager-side-trigger justify-between rounded-lg px-3 py-2">
+                  <span>Tasks</span>
                   <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{todayTaskRows.length}</span>
-                </span>
-              </TabsTrigger>
+                </TabsTrigger>
+                {managerActiveTab === "manager-tasks" && (
+                  <div className="ml-2 flex flex-col gap-0.5 border-l-2 border-slate-200 pl-2 pb-1">
+                    <button
+                      type="button"
+                      className={cn(
+                        "w-full rounded-md px-2.5 py-2 text-left text-sm font-medium transition-colors border-l-2",
+                        tasksSubView === "regular"
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-transparent text-muted-foreground hover:bg-muted/70"
+                      )}
+                      onClick={() => setTasksSubView("regular")}
+                    >
+                      Regular
+                    </button>
+                    <button
+                      type="button"
+                      className={cn(
+                        "w-full rounded-md px-2.5 py-2 text-left text-sm font-medium transition-colors border-l-2",
+                        tasksSubView === "shared"
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-transparent text-muted-foreground hover:bg-muted/70"
+                      )}
+                      onClick={() => setTasksSubView("shared")}
+                    >
+                      Shared
+                    </button>
+                    <button
+                      type="button"
+                      className={cn(
+                        "w-full rounded-md px-2.5 py-2 text-left text-sm font-medium transition-colors border-l-2",
+                        tasksSubView === "history"
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-transparent text-muted-foreground hover:bg-muted/70"
+                      )}
+                      onClick={() => setTasksSubView("history")}
+                    >
+                      History
+                    </button>
+                  </div>
+                )}
+              </div>
               <TabsTrigger value="attendance-report" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Attendance Report <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentAttendanceReportItems.length}</span></TabsTrigger>
               <TabsTrigger value="mistakes" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Track Mistakes <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{allMistakes.length}</span></TabsTrigger>
               <TabsTrigger value="leaves" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Leaves <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentLeaveItems.length}</span></TabsTrigger>
@@ -965,46 +995,6 @@ export default function ManagerPage() {
                 <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{managedTeamTasks.length}</span>
               </TabsTrigger>
             </TabsList>
-            {managerActiveTab === "manager-tasks" && (
-              <div className="mt-2 ml-1 border-l-2 border-slate-200 pl-3 flex flex-col gap-1">
-                <button
-                  type="button"
-                  className={cn(
-                    "w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
-                    tasksSubView === "regular"
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100"
-                  )}
-                  onClick={() => setTasksSubView("regular")}
-                >
-                  Regular
-                </button>
-                <button
-                  type="button"
-                  className={cn(
-                    "w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
-                    tasksSubView === "shared"
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100"
-                  )}
-                  onClick={() => setTasksSubView("shared")}
-                >
-                  Shared
-                </button>
-                <button
-                  type="button"
-                  className={cn(
-                    "w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
-                    tasksSubView === "history"
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100"
-                  )}
-                  onClick={() => setTasksSubView("history")}
-                >
-                  History
-                </button>
-              </div>
-            )}
           </aside>
 
           <section className="option-panel min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

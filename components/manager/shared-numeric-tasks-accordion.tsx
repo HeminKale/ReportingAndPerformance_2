@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
+import { ChevronDown } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -106,18 +107,15 @@ function SharedNumericTaskPanel({
   ]);
 
   return (
-    <details className="rounded-lg border bg-card">
+    <details className="group rounded-lg border bg-card">
       <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex flex-wrap items-center justify-between gap-2">
-        <span className="min-w-0">
-          <span className="block truncate" title={group.title}>
-            {group.title}
-          </span>
-          <span className="text-xs font-normal text-muted-foreground capitalize">
-            {group.type}
-            {group.numericUnit ? ` · ${group.numericUnit}` : ""}
-          </span>
+        <span className="min-w-0 block truncate" title={group.title}>
+          {group.title}
         </span>
-        <span className="text-xs text-muted-foreground shrink-0">Expand</span>
+        <ChevronDown
+          className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+          aria-hidden
+        />
       </summary>
       <div className="border-t p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-end gap-2">

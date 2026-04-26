@@ -20,10 +20,15 @@ export async function markResourceNotificationsRead(
     console.warn("[markResourceNotificationsRead] select", selErr.message);
     return;
   }
+  const wantType = resourceType;
+  const wantId = String(resourceId);
   const ids = (rows || [])
     .filter((r) => {
       const m = r.metadata as Record<string, unknown> | null | undefined;
-      return m?.resource_type === resourceType && m?.resource_id === resourceId;
+      if (m?.resource_type !== wantType) return false;
+      const rid = m?.resource_id;
+      if (rid == null) return false;
+      return String(rid) === wantId;
     })
     .map((r) => r.id);
   if (ids.length === 0) return;

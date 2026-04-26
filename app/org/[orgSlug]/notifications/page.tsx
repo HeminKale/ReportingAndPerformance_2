@@ -8,6 +8,7 @@ import { useToast } from "@/lib/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { Bell, CheckCheck, Trash2 } from "lucide-react";
 import type { Notification, User } from "@/lib/types/database";
+import { markResourceNotificationsRead } from "@/lib/notifications/mark-resource-read";
 import Link from "next/link";
 
 export default function NotificationsPage() {
@@ -120,6 +121,13 @@ export default function NotificationsPage() {
           .eq("id", resourceId);
         if (error) throw error;
       }
+
+      await markResourceNotificationsRead(
+        supabase,
+        currentUser.id,
+        String(resourceType),
+        String(resourceId)
+      );
 
       // Mark actionable notification as actioned and read.
       // We avoid delete because some environments may not allow notification deletes via RLS.
