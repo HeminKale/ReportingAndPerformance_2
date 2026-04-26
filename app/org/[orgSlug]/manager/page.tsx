@@ -13,13 +13,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { format } from "date-fns";
-import { CheckCircle, XCircle, Clock, Users, AlertTriangle, Plus, Pencil, Trash2, ChevronDown, ChevronUp, ListTodo } from "lucide-react";
+import { Clock, Users, AlertTriangle, Plus, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { TaskAssignmentPanel } from "@/components/shared/task-assignment-panel";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { ManagerPeriodicTask, Task, TaskLog, Attendance, Leave, User } from "@/lib/types/database";
-import { SharedTasksView } from "@/components/manager/shared-tasks-view";
-import { SharedTasksHistoryView } from "@/components/manager/shared-tasks-history-view";
+import { SharedNumericTasksAccordion } from "@/components/manager/shared-numeric-tasks-accordion";
+import { cn } from "@/lib/utils/cn";
 import { ManagerDocumentsTab } from "@/components/manager/manager-documents-tab";
 import { ManagerSalaryTab } from "@/components/manager/manager-salary-tab";
 import { ManagerCalendarTab } from "@/components/manager/manager-calendar-tab";
@@ -45,6 +45,17 @@ export default function ManagerPage() {
   const [historySearchTerm, setHistorySearchTerm] = useState("");
   const [historyDateFilter, setHistoryDateFilter] = useState("");
   const [historyToDateFilter, setHistoryToDateFilter] = useState("");
+  const [managerActiveTab, setManagerActiveTab] = useState("manager-tasks");
+  const [tasksSubView, setTasksSubView] = useState<"regular" | "shared" | "history">("regular");
+  const [regularEmployeeFilter, setRegularEmployeeFilter] = useState("");
+  const [regularTaskFilter, setRegularTaskFilter] = useState("");
+  const [sharedEmployeeFilter, setSharedEmployeeFilter] = useState("");
+  const [sharedTaskFilter, setSharedTaskFilter] = useState("");
+  const [taskHistoryEmployeeFilter, setTaskHistoryEmployeeFilter] = useState("");
+  const [taskHistoryTaskFilter, setTaskHistoryTaskFilter] = useState("");
+  const [taskHistoryDateFrom, setTaskHistoryDateFrom] = useState("");
+  const [taskHistoryDateTo, setTaskHistoryDateTo] = useState("");
+  const [expandedRegularRowKeys, setExpandedRegularRowKeys] = useState<Set<string>>(new Set());
   const [leavesSearchTerm, setLeavesSearchTerm] = useState("");
   const [leavesDateFilter, setLeavesDateFilter] = useState("");
   const [teamSearchTerm, setTeamSearchTerm] = useState("");
@@ -309,8 +320,12 @@ export default function ManagerPage() {
 
   const matchesHistoryFilters = (fullName: string | undefined, dateValue?: string | null) => {
     const nameOk = matchesName(fullName, historySearchTerm);
-    if (!historyDateFilter) return nameOk;
-    return nameOk && toDayString(dateValue) === historyDateFilter;
+    const d = dateValue ? toDayString(dateValue) : "";
+    if (!historyDateFilter && !historyToDateFilter) return nameOk;
+    if (historyDateFilter && historyToDateFilter) return nameOk && d >= historyDateFilter && d <= historyToDateFilter;
+    if (historyDateFilter) return nameOk && d >= historyDateFilter;
+    if (historyToDateFilter) return nameOk && d <= historyToDateFilter;
+    return nameOk;
   };
 
   const getTaskDay = (log: any) => log.date || toDayString(log.created_at);
@@ -366,52 +381,84 @@ export default function ManagerPage() {
     return logsForDate.length > 0 ? `${completed}/${logsForDate.length}` : '0/0';
   };
 
-  // Today's Task: derive which tasks are due today per team member
-  const todayWeekday = new Date().getDay();
-  const dueTodayTasks = teamTasks.filter((task: any) => {
-    const createdToday = toDayString(task.created_at) === today;
-    if (!createdToday) return false;
-    if (task.type === 'daily') return true;
-    if (task.type === 'weekly') return task.day_of_week === todayWeekday;
-    if (task.type === 'monthly') return task.due_date === today;
-    return false;
-  });
-
-  const todayTaskRows = dueTodayTasks.flatMap((task: any) => {
-    const relevantMembers = task.is_common_task
-      ? teamMembers
-      : teamMembers.filter((m: User) => m.id === task.assigned_to);
-    return relevantMembers.map((member: User) => {
-      const log = taskLogs.find(
-        (l: any) => l.task_id === task.id && l.user_id === member.id && getTaskDay(l) === today
-      );
-      const status = !log
-        ? 'Not Submitted'
-        : log.verification_status === 'approved'
-        ? 'Approved'
-        : log.verification_status === 'rejected'
-        ? 'Rejected'
-        : 'Pending Approval';
-      return { member, task, log, status };
+  // Tasks → Regular: derive which tasks are due today per team member
+  const todayTaskRows = useMemo(() => {
+    const todayWeekday = new Date().getDay();
+    const dueTodayTasks = teamTasks.filter((task: any) => {
+      const createdToday = toDayString(task.created_at) === today;
+      if (!createdToday) return false;
+      if (task.type === "daily") return true;
+      if (task.type === "weekly") return task.day_of_week === todayWeekday;
+      if (task.type === "monthly") return task.due_date === today;
+      return false;
     });
-  });
+    return dueTodayTasks.flatMap((task: any) => {
+      const relevantMembers = task.is_common_task
+        ? teamMembers
+        : teamMembers.filter((m: User) => m.id === task.assigned_to);
+      return relevantMembers.map((member: User) => {
+        const log = taskLogs.find(
+          (l: any) => l.task_id === task.id && l.user_id === member.id && getTaskDay(l) === today
+        );
+        const status = !log
+          ? "Not Submitted"
+          : log.verification_status === "approved"
+            ? "Approved"
+            : log.verification_status === "rejected"
+              ? "Rejected"
+              : "Pending Approval";
+        return { member, task, log, status };
+      });
+    });
+  }, [teamTasks, teamMembers, taskLogs, today]);
 
-  const todayTasksByEmployee: Record<string, typeof todayTaskRows> = {};
-  for (const row of todayTaskRows) {
-    const key = row.member.full_name;
-    if (!todayTasksByEmployee[key]) todayTasksByEmployee[key] = [];
-    todayTasksByEmployee[key].push(row);
-  }
-  const sortedTodayGroups = Object.entries(todayTasksByEmployee).sort(([a], [b]) => a.localeCompare(b));
+  const pendingVerificationCount = useMemo(
+    () => taskLogs.filter((log: any) => log.verification_status === "pending").length,
+    [taskLogs]
+  );
 
-  const currentTaskLogs = taskLogs.filter((log) =>
-    getTaskDay(log) === today &&
-    matchesName(log.users?.full_name, currentSearchTerm)
-  );
-  const historyTaskLogs = taskLogs.filter((log) =>
-    getTaskDay(log) < today &&
-    matchesHistoryFilters(log.users?.full_name, getTaskDay(log))
-  );
+  const filteredTaskHistoryLogs = useMemo(() => {
+    return taskLogs.filter((log: any) => {
+      if (!matchesName(log.users?.full_name, taskHistoryEmployeeFilter)) return false;
+      const title = (log.tasks?.title || "") as string;
+      const tf = taskHistoryTaskFilter.trim().toLowerCase();
+      if (tf && !title.toLowerCase().includes(tf)) return false;
+      const day = getTaskDay(log);
+      if (day > today) return false;
+      const from = taskHistoryDateFrom;
+      const to = taskHistoryDateTo;
+      if (from && to) return day >= from && day <= to;
+      if (from) return day >= from;
+      if (to) return day <= to;
+      return day <= today;
+    });
+  }, [
+    taskLogs,
+    taskHistoryEmployeeFilter,
+    taskHistoryTaskFilter,
+    taskHistoryDateFrom,
+    taskHistoryDateTo,
+    today,
+  ]);
+
+  const filteredTodayTaskRows = useMemo(() => {
+    return todayTaskRows.filter(
+      (row) =>
+        matchesName(row.member.full_name, regularEmployeeFilter) &&
+        (!regularTaskFilter.trim() ||
+          (row.task.title || "").toLowerCase().includes(regularTaskFilter.trim().toLowerCase()))
+    );
+  }, [todayTaskRows, regularEmployeeFilter, regularTaskFilter]);
+
+  const sortedTodayGroupsFiltered = useMemo(() => {
+    const by: Record<string, (typeof todayTaskRows)[number][]> = {};
+    for (const row of filteredTodayTaskRows) {
+      const key = row.member.full_name;
+      if (!by[key]) by[key] = [];
+      by[key].push(row);
+    }
+    return Object.entries(by).sort(([a], [b]) => a.localeCompare(b));
+  }, [filteredTodayTaskRows]);
 
   const currentAttendanceItems = attendanceItems.filter((att) =>
     getAttendanceDay(att) === today &&
@@ -444,6 +491,15 @@ export default function ManagerPage() {
     if (newExpanded.has(mistakeId)) newExpanded.delete(mistakeId);
     else newExpanded.add(mistakeId);
     setExpandedMistakeRows(newExpanded);
+  };
+
+  const toggleRegularTaskRow = (rowKey: string) => {
+    setExpandedRegularRowKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowKey)) next.delete(rowKey);
+      else next.add(rowKey);
+      return next;
+    });
   };
 
   const openCreateMistakeDialog = () => {
@@ -688,6 +744,7 @@ export default function ManagerPage() {
             verification_status: actionDialog.action === 'approve' ? 'approved' : 'rejected',
             verified_by: user.id,
             verified_at: new Date().toISOString(),
+            manager_review_comment: comment.trim() || null,
           })
           .eq('id', actionDialog.item.id);
 
@@ -822,14 +879,23 @@ export default function ManagerPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="tasks" className="space-y-6">
+      <Tabs value={managerActiveTab} onValueChange={setManagerActiveTab} className="space-y-6">
         <div className="flex flex-col gap-4 xl:flex-row">
           <aside className="option-panel w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:w-72">
             <p className="text-3xl font-bold tracking-tight">Manager Panel</p>
 
             <TabsList className="option-tablist mt-4 h-auto w-full flex-col items-stretch gap-1 rounded-xl border border-slate-200 bg-slate-50 p-2">
-              <TabsTrigger value="today" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Today's Tasks <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{todayTaskRows.length}</span></TabsTrigger>
-              <TabsTrigger value="tasks" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Task Verifications <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentTaskLogs.length}</span></TabsTrigger>
+              <TabsTrigger value="manager-tasks" className="manager-side-trigger justify-between rounded-lg px-3 py-2">
+                <span>Tasks</span>
+                <span className="flex items-center gap-1">
+                  {pendingVerificationCount > 0 ? (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900">
+                      {pendingVerificationCount}
+                    </span>
+                  ) : null}
+                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{todayTaskRows.length}</span>
+                </span>
+              </TabsTrigger>
               <TabsTrigger value="attendance-report" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Attendance Report <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentAttendanceReportItems.length}</span></TabsTrigger>
               <TabsTrigger value="mistakes" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Track Mistakes <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{allMistakes.length}</span></TabsTrigger>
               <TabsTrigger value="leaves" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Leaves <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentLeaveItems.length}</span></TabsTrigger>
@@ -842,22 +908,71 @@ export default function ManagerPage() {
                 <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{managedTeamTasks.length}</span>
               </TabsTrigger>
             </TabsList>
+            {managerActiveTab === "manager-tasks" && (
+              <div className="mt-2 ml-1 border-l-2 border-slate-200 pl-3 flex flex-col gap-1">
+                <button
+                  type="button"
+                  className={cn(
+                    "w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
+                    tasksSubView === "regular"
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100"
+                  )}
+                  onClick={() => setTasksSubView("regular")}
+                >
+                  Regular
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
+                    tasksSubView === "shared"
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100"
+                  )}
+                  onClick={() => setTasksSubView("shared")}
+                >
+                  Shared
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "w-full rounded-md px-3 py-2 text-left text-sm font-medium transition-colors",
+                    tasksSubView === "history"
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100"
+                  )}
+                  onClick={() => setTasksSubView("history")}
+                >
+                  History
+                </button>
+              </div>
+            )}
           </aside>
 
           <section className="option-panel min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <TabsContent value="today" className="space-y-4">
-          <Tabs defaultValue="regular" className="space-y-4">
-            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
-              <TabsTrigger value="regular">Regular Tasks</TabsTrigger>
-              <TabsTrigger value="shared-tasks">Shared Tasks</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="regular" className="space-y-4">
-              {sortedTodayGroups.length === 0 ? (
+        <TabsContent value="manager-tasks" className="space-y-4">
+          {tasksSubView === "regular" && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-3">
+                <Input
+                  placeholder="Filter by employee name..."
+                  value={regularEmployeeFilter}
+                  onChange={(e) => setRegularEmployeeFilter(e.target.value)}
+                  className="max-w-xs flex-1 min-w-[160px]"
+                />
+                <Input
+                  placeholder="Filter by task name..."
+                  value={regularTaskFilter}
+                  onChange={(e) => setRegularTaskFilter(e.target.value)}
+                  className="max-w-xs flex-1 min-w-[160px]"
+                />
+              </div>
+              {sortedTodayGroupsFiltered.length === 0 ? (
                 <Card><CardContent className="p-6 text-center text-muted-foreground">No tasks due today for your team</CardContent></Card>
               ) : (
                 <div className="space-y-2">
-                  {sortedTodayGroups.map(([employeeName, rows]) => (
+                  {sortedTodayGroupsFiltered.map(([employeeName, rows]) => (
                     <details key={employeeName} className="rounded-lg border">
                       <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
                         {employeeName} &mdash; {rows.length} task{rows.length !== 1 ? 's' : ''}
@@ -866,51 +981,113 @@ export default function ManagerPage() {
                         <Table>
                           <TableHeader>
                             <TableRow>
+                              <TableHead className="w-10" />
                               <TableHead>Employee</TableHead>
                               <TableHead>Task Name</TableHead>
                               <TableHead>Description</TableHead>
                               <TableHead>Type</TableHead>
+                              <TableHead>Frequency</TableHead>
                               <TableHead>Number</TableHead>
                               <TableHead>Status</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {rows.map((row) => {
+                              const rowKey = `${row.member.id}-${row.task.id}`;
+                              const isPending = row.log?.verification_status === "pending";
+                              const expanded = expandedRegularRowKeys.has(rowKey);
                               const statusClass =
-                                row.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                                row.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                                row.status === 'Pending Approval' ? 'bg-yellow-100 text-yellow-800' : '';
+                                row.status === "Approved"
+                                  ? "bg-green-100 text-green-800"
+                                  : row.status === "Rejected"
+                                    ? "bg-red-100 text-red-800"
+                                    : row.status === "Pending Approval"
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : row.status === "Not Submitted"
+                                        ? "bg-red-100 text-red-800"
+                                        : "";
                               return (
-                                <TableRow key={`${row.member.id}-${row.task.id}`}>
-                                  <TableCell>{row.member.full_name}</TableCell>
-                                  <TableCell className="font-medium">{row.task.title}</TableCell>
-                                  <TableCell className="max-w-md">
-                                    <p className="text-sm text-muted-foreground line-clamp-2">
-                                      {row.task.description || '-'}
-                                    </p>
-                                  </TableCell>
-                                  <TableCell>
-                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs capitalize">
-                                      {row.task.type}
-                                    </span>
-                                  </TableCell>
-                                  <TableCell>
-                                    {row.task.is_numeric_task ? (
-                                      row.log?.numeric_value != null ? (
-                                        <span className="text-sm">
-                                          {row.log.numeric_value} {row.task.numeric_unit || "units"}
-                                        </span>
+                                <Fragment key={rowKey}>
+                                  <TableRow>
+                                    <TableCell className="align-middle">
+                                      {isPending ? (
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8"
+                                          aria-expanded={expanded}
+                                          onClick={() => toggleRegularTaskRow(rowKey)}
+                                        >
+                                          {expanded ? (
+                                            <ChevronUp className="h-4 w-4" />
+                                          ) : (
+                                            <ChevronDown className="h-4 w-4" />
+                                          )}
+                                        </Button>
+                                      ) : (
+                                        <span className="inline-block w-8" />
+                                      )}
+                                    </TableCell>
+                                    <TableCell>{row.member.full_name}</TableCell>
+                                    <TableCell className="font-medium">{row.task.title}</TableCell>
+                                    <TableCell className="max-w-md">
+                                      <p className="text-sm text-muted-foreground line-clamp-2">
+                                        {row.task.description || "-"}
+                                      </p>
+                                    </TableCell>
+                                    <TableCell>
+                                      <span className="rounded bg-blue-100 px-2 py-1 text-xs capitalize text-blue-800">
+                                        {row.task.type}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="text-sm">
+                                      {row.task.source_manager_periodic_task_id ? "Periodic" : "Once"}
+                                    </TableCell>
+                                    <TableCell>
+                                      {row.task.is_numeric_task ? (
+                                        row.log?.numeric_value != null ? (
+                                          <span className="text-sm">
+                                            {row.log.numeric_value} {row.task.numeric_unit || "units"}
+                                          </span>
+                                        ) : (
+                                          <span className="text-muted-foreground">-</span>
+                                        )
                                       ) : (
                                         <span className="text-muted-foreground">-</span>
-                                      )
-                                    ) : (
-                                      <span className="text-muted-foreground">-</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge className={statusClass}>{row.status}</Badge>
-                                  </TableCell>
-                                </TableRow>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge className={statusClass}>{row.status}</Badge>
+                                    </TableCell>
+                                  </TableRow>
+                                  {isPending && expanded && (
+                                    <TableRow>
+                                      <TableCell colSpan={8} className="bg-muted/40">
+                                        <div className="flex flex-wrap items-center gap-2 py-2">
+                                          <span className="text-sm text-muted-foreground mr-2">Review submission</span>
+                                          <Button
+                                            size="sm"
+                                            onClick={() =>
+                                              setActionDialog({ open: true, type: "task", item: row.log, action: "approve" })
+                                            }
+                                          >
+                                            Approve
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            onClick={() =>
+                                              setActionDialog({ open: true, type: "task", item: row.log, action: "reject" })
+                                            }
+                                          >
+                                            Reject
+                                          </Button>
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </Fragment>
                               );
                             })}
                           </TableBody>
@@ -1052,120 +1229,82 @@ export default function ManagerPage() {
               )}
             </div>
           </details>
-            </TabsContent>
-          </Tabs>
-        </TabsContent>
+            </div>
+          )}
 
-        <TabsContent value="tasks" className="space-y-4">
-          <Tabs defaultValue="current" className="space-y-4">
-            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
-              <TabsTrigger value="current">Current ({currentTaskLogs.length})</TabsTrigger>
-              <TabsTrigger value="history">History ({historyTaskLogs.length})</TabsTrigger>
-              <TabsTrigger value="shared-tasks">Shared Tasks</TabsTrigger>
-              <TabsTrigger value="shared-history">Shared History</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="current" className="space-y-4">
-              <Input
-                placeholder="Search by employee name..."
-                value={currentSearchTerm}
-                onChange={(e) => setCurrentSearchTerm(e.target.value)}
-                className="max-w-md"
-              />
-              {currentTaskLogs.length > 0 ? (
-                <div className="border rounded-lg">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Employee</TableHead>
-                        <TableHead>Task</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Number</TableHead>
-                        <TableHead>Verification</TableHead>
-                        <TableHead>Submitted At</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {currentTaskLogs.map((log) => (
-                        <TableRow key={log.id}>
-                          <TableCell>{log.users?.full_name}</TableCell>
-                          <TableCell>{log.tasks?.title}</TableCell>
-                          <TableCell className="capitalize">{log.status}</TableCell>
-                          <TableCell>
-                            {log.tasks?.is_numeric_task ? (
-                              log.numeric_value != null ? (
-                                <span className="text-sm">
-                                  {log.numeric_value} {log.tasks?.numeric_unit || "units"}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="capitalize">{log.verification_status}</TableCell>
-                          <TableCell>
-                            {log.submitted_at ? format(new Date(log.submitted_at), "HH:mm dd/MM/yyyy") : "-"}
-                          </TableCell>
-                          <TableCell>
-                            {log.verification_status === "pending" ? (
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  onClick={() => setActionDialog({ open: true, type: "task", item: log, action: "approve" })}
-                                >
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => setActionDialog({ open: true, type: "task", item: log, action: "reject" })}
-                                >
-                                  Reject
-                                </Button>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <Card><CardContent className="p-6 text-center text-muted-foreground">No current task requests</CardContent></Card>
-              )}
-            </TabsContent>
-
-            <TabsContent value="history" className="space-y-4">
-              <div className="flex gap-3">
+          {tasksSubView === "shared" && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-3">
                 <Input
-                  placeholder="Search by employee name..."
-                  value={historySearchTerm}
-                  onChange={(e) => setHistorySearchTerm(e.target.value)}
-                  className="flex-1"
+                  placeholder="Filter by employee name..."
+                  value={sharedEmployeeFilter}
+                  onChange={(e) => setSharedEmployeeFilter(e.target.value)}
+                  className="max-w-xs flex-1 min-w-[160px]"
+                />
+                <Input
+                  placeholder="Filter by task name..."
+                  value={sharedTaskFilter}
+                  onChange={(e) => setSharedTaskFilter(e.target.value)}
+                  className="max-w-xs flex-1 min-w-[160px]"
+                />
+              </div>
+              <SharedNumericTasksAccordion
+                tasks={managedTeamTasks}
+                taskLogs={taskLogs as TaskLog[]}
+                employees={teamMembers}
+                today={today}
+                employeeNameFilter={sharedEmployeeFilter}
+                taskNameFilter={sharedTaskFilter}
+              />
+            </div>
+          )}
+
+          {tasksSubView === "history" && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-3">
+                <Input
+                  placeholder="Employee name..."
+                  value={taskHistoryEmployeeFilter}
+                  onChange={(e) => setTaskHistoryEmployeeFilter(e.target.value)}
+                  className="min-w-[160px] flex-1 max-w-xs"
+                />
+                <Input
+                  placeholder="Task name..."
+                  value={taskHistoryTaskFilter}
+                  onChange={(e) => setTaskHistoryTaskFilter(e.target.value)}
+                  className="min-w-[160px] flex-1 max-w-xs"
                 />
                 <Input
                   type="date"
-                  value={historyDateFilter}
-                  onChange={(e) => setHistoryDateFilter(e.target.value)}
+                  placeholder="From"
+                  value={taskHistoryDateFrom}
+                  onChange={(e) => setTaskHistoryDateFrom(e.target.value)}
+                  className="w-44"
+                />
+                <Input
+                  type="date"
+                  placeholder="To"
+                  value={taskHistoryDateTo}
+                  onChange={(e) => setTaskHistoryDateTo(e.target.value)}
                   className="w-44"
                 />
               </div>
               {(() => {
-                const groups = groupByDay(historyTaskLogs, getTaskDay);
+                const groups = groupByDay(filteredTaskHistoryLogs, getTaskDay);
                 if (groups.length === 0) {
-                  return <Card><CardContent className="p-6 text-center text-muted-foreground">No task history</CardContent></Card>;
+                  return (
+                    <Card>
+                      <CardContent className="p-6 text-center text-muted-foreground">No task history for these filters</CardContent>
+                    </Card>
+                  );
                 }
                 return (
                   <div className="space-y-2">
                     {groups.map(([date, logs]) => (
                       <details key={date} className="rounded-lg border">
                         <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                          {format(new Date(date), 'dd MMM yyyy')} &mdash; {logs.length} submission{logs.length !== 1 ? 's' : ''}
+                          {format(new Date(date), "dd MMM yyyy")} &mdash; {logs.length} submission
+                          {logs.length !== 1 ? "s" : ""}
                         </summary>
                         <div className="border-t">
                           <Table>
@@ -1200,8 +1339,12 @@ export default function ManagerPage() {
                                     )}
                                   </TableCell>
                                   <TableCell className="capitalize">{log.verification_status}</TableCell>
-                                  <TableCell>{log.submitted_at ? format(new Date(log.submitted_at), "HH:mm dd/MM/yyyy") : "-"}</TableCell>
-                                  <TableCell>{log.verified_at ? format(new Date(log.verified_at), "HH:mm dd/MM/yyyy") : "-"}</TableCell>
+                                  <TableCell>
+                                    {log.submitted_at ? format(new Date(log.submitted_at), "HH:mm dd/MM/yyyy") : "-"}
+                                  </TableCell>
+                                  <TableCell>
+                                    {log.verified_at ? format(new Date(log.verified_at), "HH:mm dd/MM/yyyy") : "-"}
+                                  </TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>
@@ -1212,34 +1355,8 @@ export default function ManagerPage() {
                   </div>
                 );
               })()}
-            </TabsContent>
-
-            <TabsContent value="shared-tasks" className="space-y-4">
-              <SharedTasksView
-                tasks={managedTeamTasks}
-                taskLogs={taskLogs}
-                employees={teamMembers}
-                filterDate={today}
-              />
-            </TabsContent>
-
-            <TabsContent value="shared-history" className="space-y-4">
-              <SharedTasksHistoryView
-                tasks={managedTeamTasks}
-                taskLogs={taskLogs}
-                employees={teamMembers}
-              />
-            </TabsContent>
-
-            <TabsContent value="shared-tasks" className="space-y-4">
-              <SharedTasksView
-                tasks={teamTasks}
-                taskLogs={taskLogs}
-                employees={teamMembers}
-                filterDate={today}
-              />
-            </TabsContent>
-          </Tabs>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="attendance-report" className="space-y-4">

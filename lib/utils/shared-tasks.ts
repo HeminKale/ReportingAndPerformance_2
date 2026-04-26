@@ -187,3 +187,57 @@ export function getHistoricalNumericValue(
 
   return total.toString();
 }
+
+/** Resolve the concrete `tasks` row for an employee in a shared group (same rules as getCellValue). */
+export function findTaskRowForGroupMember(
+  group: SharedTaskGroup,
+  userId: string,
+  tasks: Task[]
+): Task | undefined {
+  if (!group.assignedUserIds.includes(userId)) return undefined;
+  return tasks.find(
+    (t) =>
+      t.title === group.title &&
+      t.type === group.type &&
+      t.assigned_to === userId &&
+      (group.periodicTaskId
+        ? t.source_manager_periodic_task_id === group.periodicTaskId
+        : new Date(t.created_at).toISOString().split("T")[0] ===
+          new Date(group.createdAt).toISOString().split("T")[0])
+  );
+}
+
+/** Sum numeric_value on logs for task+user between dates (inclusive, ISO yyyy-MM-dd). */
+export function sumNumericLogsBetween(
+  taskLogs: TaskLog[],
+  taskId: string,
+  userId: string,
+  fromInclusive: string,
+  toInclusive: string
+): number {
+  return taskLogs
+    .filter(
+      (l) =>
+        l.task_id === taskId &&
+        l.user_id === userId &&
+        l.date >= fromInclusive &&
+        l.date <= toInclusive &&
+        l.numeric_value != null
+    )
+    .reduce((sum, l) => sum + Number(l.numeric_value), 0);
+}
+
+/** Sum numeric_value for task+user in a calendar month (year 2000–9999, month 1–12). */
+export function sumNumericLogsInMonth(
+  taskLogs: TaskLog[],
+  taskId: string,
+  userId: string,
+  year: number,
+  monthIndex0: number
+): number {
+  const start = new Date(year, monthIndex0, 1);
+  const end = new Date(year, monthIndex0 + 1, 0);
+  const from = start.toISOString().split("T")[0];
+  const to = end.toISOString().split("T")[0];
+  return sumNumericLogsBetween(taskLogs, taskId, userId, from, to);
+}

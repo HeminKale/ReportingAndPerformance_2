@@ -760,6 +760,23 @@ export function TaskAssignmentPanel({
               </Select>
             </div>
 
+            <div className="space-y-2">
+              <Label>Frequency</Label>
+              <Input
+                readOnly
+                tabIndex={-1}
+                className="bg-muted/50 cursor-default"
+                value={
+                  taskDialog.mode === "edit" && taskDialog.task?.source_manager_periodic_task_id
+                    ? "Periodic"
+                    : "Once"
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Periodic applies to tasks materialized from a template; new tasks you create here are Once.
+              </p>
+            </div>
+
             {taskForm.type === "weekly" && (
               <div className="space-y-2">
                 <Label htmlFor="dayOfWeek">Day of Week</Label>
