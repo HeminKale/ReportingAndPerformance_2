@@ -4,6 +4,7 @@ import { AlertCircle, CheckSquare, Clock, Flame, Sparkles, TrendingUp } from 'lu
 import { format } from 'date-fns';
 import { getCurrentTimeInTimezone } from '@/lib/utils/timezone';
 import { rankForTotalXp, RANK_TIERS } from '@/lib/gamification/xp-rules';
+import { DashboardSkyBg } from '@/components/dashboard/dashboard-sky-bg';
 
 export default async function DashboardPage({
   params,
@@ -87,282 +88,268 @@ export default async function DashboardPage({
     nextTier && nextGoalXp > 0 ? Math.min(100, Math.round((totalXp / nextGoalXp) * 100)) : 100;
 
   return (
-    <div className="option-surface space-y-6 p-6 md:p-8">
-      <section className="grid gap-6 xl:grid-cols-[2fr_1fr]">
-        <div className="relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-[hsl(var(--hero-from))] to-[hsl(var(--hero-to))] p-8 text-white shadow-xl">
-          <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-          <div className="absolute -bottom-20 right-20 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-          <div className="relative">
-            <p className="text-sm font-semibold text-white/80">{greeting}, {userData?.full_name || "Hero"}!</p>
-            <h2 className="mt-2 text-3xl font-black tracking-tight">Ready to crush another day?</h2>
+    <div className="relative min-h-full pb-12">
+      <DashboardSkyBg currentHour={currentHour} />
+      
+      <div className="mx-auto flex w-full max-w-[1600px] flex-col md:flex-row relative z-10">
+        {/* Left Column (Standing Rectangle) */}
+        <div className="w-full md:w-[40%] px-4 md:pl-8 md:pr-4 pt-[25vh]">
+          <div className="sticky top-[2vh] flex flex-col rounded-t-[2.5rem] rounded-b-[1rem] bg-white/80 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.08)] p-8 pt-16 min-h-[calc(75vh-2rem)]">
+            
+            {/* Circular Placeholder */}
+            <div className="absolute top-0 left-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full border-[6px] border-white/90 bg-slate-100 shadow-xl backdrop-blur-sm">
+              <img 
+                src={`https://api.dicebear.com/7.x/notionists/svg?seed=${userData?.full_name || 'Hero'}&backgroundColor=e2e8f0`} 
+                alt="Profile" 
+                className="h-full w-full object-cover"
+              />
+            </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
-                <p className="text-xs font-bold uppercase tracking-wider text-white/70">Current Rank</p>
-                <p className="mt-1 text-2xl font-extrabold">{rankName}</p>
-                <p className="text-sm text-white/80">{totalXp} XP</p>
+            {/* Greeting & Profile Info */}
+            <div className="text-center mb-8">
+              <p className="text-sm font-bold uppercase tracking-wider text-slate-500/80">{greeting}</p>
+              <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900 bg-gradient-to-br from-slate-900 to-slate-600 bg-clip-text text-transparent">{userData?.full_name || "Hero"}</h2>
+              <p className="text-sm text-slate-600 mt-2 font-medium">Ready to crush another day?</p>
+            </div>
+
+            {/* Gamification Stats inside Card */}
+            <div className="grid gap-3 sm:grid-cols-2 mb-6">
+              <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 p-4 border border-blue-100/50 text-center shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wider text-blue-600/80">Rank</p>
+                <p className="mt-1 text-xl font-extrabold text-blue-950">{rankName}</p>
               </div>
-              <div className="rounded-2xl bg-white/10 p-4 text-center backdrop-blur">
-                <Flame className="mx-auto h-4 w-4 text-orange-300" />
-                <p className="mt-1 text-xl font-extrabold">{streakDays}</p>
-                <p className="text-xs text-white/75">Day streak</p>
-                {longestStreak > 0 ? (
-                  <p className="text-[11px] text-white/60">Best: {longestStreak}</p>
-                ) : null}
-              </div>
-              <div className="rounded-2xl bg-white/10 p-4 text-center backdrop-blur">
-                <TrendingUp className="mx-auto h-4 w-4 text-cyan-200" />
-                <p className="mt-1 text-xl font-extrabold">{totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}%</p>
-                <p className="text-xs text-white/75">Completion</p>
+              <div className="rounded-2xl bg-gradient-to-br from-orange-50 to-amber-50 p-4 border border-orange-100/50 text-center shadow-sm">
+                <Flame className="mx-auto h-4 w-4 text-orange-500 mb-1" />
+                <p className="text-xl font-extrabold text-orange-950">{streakDays}</p>
+                <p className="text-[10px] uppercase font-bold text-orange-700/70">Day Streak</p>
               </div>
             </div>
 
-            {recentBadges.length > 0 ? (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {recentBadges.map((b: { id: string; badgeName: string }) => (
-                  <span
-                    key={b.id}
-                    className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-semibold text-white/90"
-                  >
-                    <Sparkles className="h-3.5 w-3.5 text-amber-200" />
-                    {b.badgeName}
-                  </span>
-                ))}
+            {/* XP Progress */}
+            <div className="mb-6 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+              <div className="mb-2 flex items-center justify-between text-xs font-bold text-slate-600 uppercase tracking-wider">
+                <span>Progress to {nextTier?.rankName || 'Max'}</span>
+                <span className="text-blue-600">{totalXp} / {nextTier ? nextGoalXp : totalXp} XP</span>
               </div>
-            ) : null}
-
-            <div className="mt-6">
-              <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="font-semibold text-white/80">
-                  {nextTier ? `Progress toward ${nextTier.rankName}` : "Max tier reached"}
-                </span>
-                <span className="font-semibold">
-                  {totalXp} / {nextTier ? nextGoalXp : totalXp} XP
-                </span>
-              </div>
-              <div className="h-3 overflow-hidden rounded-full bg-white/20">
+              <div className="h-2.5 overflow-hidden rounded-full bg-slate-200/50 shadow-inner">
                 <div
-                  className="h-full animate-pulse-glow rounded-full bg-gradient-to-r from-sky-300 via-indigo-300 to-fuchsia-300 motion-reduce:animate-none"
+                  className="h-full rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 shadow-sm"
                   style={{ width: `${xpProgressPct}%` }}
                 />
               </div>
             </div>
+
+            {/* Badges */}
+            {recentBadges.length > 0 ? (
+              <div className="mt-auto pt-4 border-t border-slate-100">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3 text-center">Recent Achievements</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {recentBadges.map((b: { id: string; badgeName: string }) => (
+                    <span
+                      key={b.id}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/50 bg-amber-50/80 px-3 py-1.5 text-xs font-semibold text-amber-900 shadow-sm"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                      {b.badgeName}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
           </div>
         </div>
 
-        <Card className="option-panel rounded-3xl border-slate-200 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl tracking-tight">Attendance</CardTitle>
-            <CardDescription>{attendance?.clock_in_time ? "Clocked In" : "Not Clocked In"}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="option-soft-card rounded-2xl bg-slate-50 p-4 text-center">
-              <p className="text-3xl font-black tracking-tight">{Math.max(totalTasks - completedTasks, 0)} / {totalTasks}</p>
-              <p className="mt-1 text-sm text-muted-foreground">Essential tasks remaining today</p>
-            </div>
-            <a
-              href={`/org/${orgSlug}/attendance`}
-              className="option-cta block rounded-2xl bg-slate-900 px-4 py-3 text-center text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-800"
-            >
-              {attendance?.clock_in_time ? "Manage Attendance" : "Clock In to Start"}
-            </a>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-amber-500" />
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Daily Quests</p>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="option-quest-card rounded-2xl border-emerald-200 bg-emerald-50/70">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <p className="font-semibold text-emerald-900">Approve 5 documents</p>
-                <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-emerald-600">+50 XP</span>
-              </div>
-              <p className="mt-4 text-xs font-bold uppercase tracking-wider text-emerald-700/80">Pending</p>
-            </CardContent>
-          </Card>
-          <Card className="option-quest-card rounded-2xl border-blue-200 bg-blue-50/70">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <p className="font-semibold text-blue-900">Clock in before 9 AM</p>
-                <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-blue-600">+20 XP</span>
-              </div>
-              <p className="mt-4 text-xs font-bold uppercase tracking-wider text-blue-700/80">Pending</p>
-            </CardContent>
-          </Card>
-          <Card className="option-quest-card rounded-2xl border-fuchsia-200 bg-fuchsia-50/70">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <p className="font-semibold text-fuchsia-900">Zero mistakes today</p>
-                <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-fuchsia-600">+100 XP</span>
-              </div>
-              <p className="mt-4 text-xs font-bold uppercase tracking-wider text-fuchsia-700/80">Pending</p>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Tasks Today
-            </CardTitle>
-            <CheckSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {completedTasks} / {totalTasks}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}% completed
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Attendance Status
-            </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {attendance?.clock_in_time ? 'Clocked In' : 'Not Clocked In'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {attendance?.clock_in_time 
-                ? `Since ${format(new Date(attendance.clock_in_time), 'h:mm a')}`
-                : 'Clock in to start your day'
-              }
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Pending Verifications
-            </CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {pendingVerifications?.length || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Awaiting manager approval
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              This Month
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              --
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Performance score
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Today's Tasks</CardTitle>
-            <CardDescription>
-              Your tasks for {format(new Date(), 'MMMM d, yyyy')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {todayTasks && todayTasks.length > 0 ? (
-              <div className="space-y-4">
-                {todayTasks.slice(0, 5).map((task) => {
-                  const log = taskLogs?.find(l => l.task_id === task.id);
-                  return (
-                    <div key={task.id} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`h-2 w-2 rounded-full ${
-                          log?.status === 'completed' ? 'bg-green-500' : 'bg-gray-300'
-                        }`} />
-                        <div>
-                          <p className="font-medium">{task.title}</p>
-                          <p className="text-sm text-muted-foreground">{task.type}</p>
-                        </div>
+        {/* Right Column (Rest of Content) */}
+        <div className="w-full md:w-[60%] px-4 md:pl-4 md:pr-8 pt-[32vh] space-y-8">
+           {/* Attendance Row */}
+           <section className="grid gap-6 xl:grid-cols-2">
+              <Card className="option-panel rounded-3xl border-white/40 shadow-xl bg-white/60 backdrop-blur-md">
+                <CardHeader>
+                  <CardTitle className="text-xl tracking-tight">Attendance</CardTitle>
+                  <CardDescription>{attendance?.clock_in_time ? "Clocked In" : "Not Clocked In"}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="option-soft-card rounded-2xl bg-white p-4 text-center shadow-sm">
+                    <p className="text-3xl font-black tracking-tight text-slate-800">{Math.max(totalTasks - completedTasks, 0)} / {totalTasks}</p>
+                    <p className="mt-1 text-sm text-slate-500 font-medium">Essential tasks remaining today</p>
+                  </div>
+                  <a
+                    href={`/org/${orgSlug}/attendance`}
+                    className="option-cta block rounded-2xl bg-slate-900 px-4 py-3 text-center text-sm font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:bg-slate-800"
+                  >
+                    {attendance?.clock_in_time ? "Manage Attendance" : "Clock In to Start"}
+                  </a>
+                </CardContent>
+              </Card>
+              
+              <div className="grid grid-rows-2 gap-4">
+                <Card className="rounded-2xl border-white/40 bg-white/60 backdrop-blur-md shadow-lg transition-transform hover:-translate-y-1">
+                  <CardContent className="flex h-full items-center justify-between p-5">
+                    <div>
+                      <p className="text-sm font-bold uppercase tracking-wider text-slate-500">Tasks Today</p>
+                      <div className="mt-1 flex items-baseline gap-2">
+                        <span className="text-3xl font-black text-slate-800">{completedTasks}</span>
+                        <span className="text-sm font-medium text-slate-500">/ {totalTasks} done</span>
                       </div>
-                      {log && (
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          log.verification_status === 'approved' 
-                            ? 'bg-green-100 text-green-800'
-                            : log.verification_status === 'rejected'
-                            ? 'bg-red-100 text-red-800'
-                            : log.verification_status === 'recalled'
-                            ? 'bg-amber-100 text-amber-900'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {log.verification_status}
-                        </span>
-                      )}
                     </div>
-                  );
-                })}
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100/80 shadow-inner">
+                      <CheckSquare className="h-6 w-6 text-blue-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="rounded-2xl border-white/40 bg-white/60 backdrop-blur-md shadow-lg transition-transform hover:-translate-y-1">
+                  <CardContent className="flex h-full items-center justify-between p-5">
+                    <div>
+                      <p className="text-sm font-bold uppercase tracking-wider text-slate-500">Approvals</p>
+                      <div className="mt-1 flex items-baseline gap-2">
+                        <span className="text-3xl font-black text-slate-800">{pendingVerifications?.length || 0}</span>
+                        <span className="text-sm font-medium text-slate-500">pending</span>
+                      </div>
+                    </div>
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100/80 shadow-inner">
+                      <AlertCircle className="h-6 w-6 text-amber-600" />
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No tasks for today</p>
-            )}
-          </CardContent>
-        </Card>
+           </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>
-              Common actions you might need
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <a
-              href={`/org/${orgSlug}/attendance`}
-              className="block p-3 rounded-lg border hover:bg-accent transition-colors"
-            >
-              <p className="font-medium">Clock In/Out</p>
-              <p className="text-sm text-muted-foreground">
-                Manage your attendance
-              </p>
-            </a>
-            <a
-              href={`/org/${orgSlug}/tasks`}
-              className="block p-3 rounded-lg border hover:bg-accent transition-colors"
-            >
-              <p className="font-medium">Submit Tasks</p>
-              <p className="text-sm text-muted-foreground">
-                Mark tasks as complete
-              </p>
-            </a>
-            <a
-              href={`/org/${orgSlug}/leaves`}
-              className="block p-3 rounded-lg border hover:bg-accent transition-colors"
-            >
-              <p className="font-medium">Request Leave</p>
-              <p className="text-sm text-muted-foreground">
-                Submit a leave request
-              </p>
-            </a>
-          </CardContent>
-        </Card>
+           {/* Daily Quests */}
+           <section className="space-y-4 relative z-10">
+              <div className="flex items-center gap-2 px-2">
+                <Sparkles className="h-5 w-5 text-amber-500" />
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">Daily Quests</h3>
+              </div>
+              <div className="grid gap-4 lg:grid-cols-3">
+                <Card className="option-quest-card rounded-2xl border-emerald-200/50 bg-emerald-50/80 backdrop-blur-sm shadow-md">
+                  <CardContent className="p-5">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex justify-between items-start">
+                        <p className="font-semibold text-emerald-900">Approve 5 documents</p>
+                        <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-emerald-600 shadow-sm">+50 XP</span>
+                      </div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700/60 mt-2">Pending</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="option-quest-card rounded-2xl border-blue-200/50 bg-blue-50/80 backdrop-blur-sm shadow-md">
+                  <CardContent className="p-5">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex justify-between items-start">
+                        <p className="font-semibold text-blue-900">Clock in before 9 AM</p>
+                        <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-blue-600 shadow-sm">+20 XP</span>
+                      </div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700/60 mt-2">Pending</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="option-quest-card rounded-2xl border-fuchsia-200/50 bg-fuchsia-50/80 backdrop-blur-sm shadow-md">
+                  <CardContent className="p-5">
+                    <div className="flex flex-col gap-3">
+                      <div className="flex justify-between items-start">
+                        <p className="font-semibold text-fuchsia-900">Zero mistakes today</p>
+                        <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-fuchsia-600 shadow-sm">+100 XP</span>
+                      </div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-fuchsia-700/60 mt-2">Pending</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </section>
+
+            {/* Tasks List and Quick Actions */}
+            <div className="grid gap-6 md:grid-cols-2 pb-12">
+              <Card className="rounded-3xl border-white/40 shadow-xl bg-white/70 backdrop-blur-md">
+                <CardHeader>
+                  <CardTitle>Today's Tasks</CardTitle>
+                  <CardDescription>
+                    Your tasks for {format(new Date(), 'MMMM d, yyyy')}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {todayTasks && todayTasks.length > 0 ? (
+                    <div className="space-y-4">
+                      {todayTasks.slice(0, 5).map((task) => {
+                        const log = taskLogs?.find(l => l.task_id === task.id);
+                        return (
+                          <div key={task.id} className="flex items-center justify-between rounded-xl bg-white/50 p-3 shadow-sm border border-slate-100">
+                            <div className="flex items-center gap-3">
+                              <div className={`h-2.5 w-2.5 rounded-full ${
+                                log?.status === 'completed' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-300'
+                              }`} />
+                              <div>
+                                <p className="font-semibold text-slate-800">{task.title}</p>
+                                <p className="text-xs font-medium text-slate-500 capitalize">{task.type}</p>
+                              </div>
+                            </div>
+                            {log && (
+                              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ${
+                                log.verification_status === 'approved' 
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : log.verification_status === 'rejected'
+                                  ? 'bg-red-100 text-red-800'
+                                  : log.verification_status === 'recalled'
+                                  ? 'bg-amber-100 text-amber-900'
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {log.verification_status}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
+                      <p className="text-sm font-medium text-slate-500">No tasks for today</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="rounded-3xl border-white/40 shadow-xl bg-white/70 backdrop-blur-md">
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                  <CardDescription>
+                    Common actions you might need
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <a
+                    href={`/org/${orgSlug}/attendance`}
+                    className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
+                  >
+                    <div>
+                      <p className="font-semibold text-slate-800">Clock In/Out</p>
+                      <p className="text-xs font-medium text-slate-500">Manage your attendance</p>
+                    </div>
+                    <Clock className="h-5 w-5 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                  </a>
+                  <a
+                    href={`/org/${orgSlug}/tasks`}
+                    className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
+                  >
+                    <div>
+                      <p className="font-semibold text-slate-800">Submit Tasks</p>
+                      <p className="text-xs font-medium text-slate-500">Mark tasks as complete</p>
+                    </div>
+                    <CheckSquare className="h-5 w-5 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                  </a>
+                  <a
+                    href={`/org/${orgSlug}/leaves`}
+                    className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
+                  >
+                    <div>
+                      <p className="font-semibold text-slate-800">Request Leave</p>
+                      <p className="text-xs font-medium text-slate-500">Submit a leave request</p>
+                    </div>
+                    <TrendingUp className="h-5 w-5 text-slate-400 group-hover:text-fuchsia-500 transition-colors" />
+                  </a>
+                </CardContent>
+              </Card>
+            </div>
+        </div>
       </div>
     </div>
   );
