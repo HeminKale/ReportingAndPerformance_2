@@ -6,6 +6,8 @@ import { getCurrentTimeInTimezone } from '@/lib/utils/timezone';
 import { rankForTotalXp, RANK_TIERS } from '@/lib/gamification/xp-rules';
 import { DashboardSkyBg } from '@/components/dashboard/dashboard-sky-bg';
 import { ScrollableCardList } from '@/components/dashboard/scrollable-card-list';
+import { XpProgressBar } from '@/components/dashboard/xp-progress-bar';
+import { TaskListItem } from '@/components/dashboard/task-list-item';
 
 const morningMessages = [
   "Let's make today incredibly productive.",
@@ -171,18 +173,12 @@ export default async function DashboardPage({
             </div>
 
             {/* XP Progress */}
-            <div className="mb-4">
-              <div className="mb-2 flex items-center justify-between text-xs font-bold text-slate-600 uppercase tracking-wider">
-                <span>{totalXp} XP</span>
-                <span className="text-blue-600">{nextTier ? nextGoalXp : totalXp} XP</span>
-              </div>
-              <div className="h-2.5 overflow-hidden rounded-full bg-slate-200/50 shadow-inner">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 shadow-sm"
-                  style={{ width: `${xpProgressPct}%` }}
-                />
-              </div>
-            </div>
+            <XpProgressBar 
+              totalXp={totalXp} 
+              nextGoalXp={nextGoalXp} 
+              xpProgressPct={xpProgressPct} 
+              nextTierExists={!!nextTier} 
+            />
             
             {/* Streak Split Card */}
             <div className="flex bg-slate-50 border border-slate-100 rounded-xl overflow-hidden shadow-sm">
@@ -312,28 +308,7 @@ export default async function DashboardPage({
                       else if (isSubmitted) dotColor = "bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.5)]";
 
                       return (
-                        <div key={task.id} className="flex items-center justify-between rounded-2xl bg-white/80 p-4 shadow-sm border border-slate-100 hover:border-blue-100 transition-colors">
-                          <div className="flex items-center gap-4">
-                            <div className={`h-3 w-3 rounded-full flex-shrink-0 ${dotColor}`} />
-                            <div>
-                              <p className="font-semibold text-slate-800 leading-tight">{task.title}</p>
-                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">{task.type} Task</p>
-                            </div>
-                          </div>
-                          {log && (
-                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ml-2 flex-shrink-0 ${
-                              isApproved 
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : log.verification_status === 'rejected'
-                                ? 'bg-red-100 text-red-800'
-                                : log.verification_status === 'recalled'
-                                ? 'bg-amber-100 text-amber-900'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {log.verification_status}
-                            </span>
-                          )}
-                        </div>
+                        <TaskListItem key={task.id} task={task} log={log} dotColor={dotColor} />
                       );
                     })}
                   </ScrollableCardList>
