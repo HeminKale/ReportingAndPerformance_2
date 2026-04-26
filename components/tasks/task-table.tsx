@@ -101,7 +101,6 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
                     </span>
                   )}
                 </TableCell>
-                </TableCell>
                 {!hideDueColumn && (
                   <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                     {dueDateLabel(task)}
