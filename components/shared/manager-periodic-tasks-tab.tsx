@@ -203,9 +203,45 @@ export function ManagerPeriodicTasksTab({
     try {
       const payload = buildPayload();
       if (dialog.mode === "create") {
-        const { error } = await supabase.from("manager_periodic_tasks").insert(payload);
+        const { data: inserted, error } = await supabase
+          .from("manager_periodic_tasks")
+          .insert(payload)
+          .select("id")
+          .single();
         if (error) throw error;
-        toast({ title: "Success", description: "Periodic task saved. Cron will assign it to your team on schedule." });
+        if (form.isEnabled && inserted?.id) {
+          try {
+            const res = await fetch("/api/manager/periodic-tasks/materialize", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ templateId: inserted.id }),
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              throw new Error(typeof json?.error === "string" ? json.error : res.statusText);
+            }
+            const created = typeof json?.taskRowsCreated === "number" ? json.taskRowsCreated : 0;
+            toast({
+              title: "Success",
+              description:
+                created > 0
+                  ? `Periodic task saved and assigned (${created} task row${created === 1 ? "" : "s"}). Future runs use the cron schedule.`
+                  : "Periodic task saved. Nothing to assign for the current period yet (e.g. wrong weekday / not the monthly day); cron will assign when due.",
+            });
+          } catch (bootErr) {
+            const msg = bootErr instanceof Error ? bootErr.message : "Materialize failed";
+            toast({
+              title: "Saved; instant assign failed",
+              description: `${msg} Cron will still assign on schedule.`,
+              variant: "destructive",
+            });
+          }
+        } else {
+          toast({
+            title: "Success",
+            description: "Periodic task saved. Enable it and use cron to assign on schedule.",
+          });
+        }
       } else if (dialog.row) {
         const {
           organization_id: _o,
