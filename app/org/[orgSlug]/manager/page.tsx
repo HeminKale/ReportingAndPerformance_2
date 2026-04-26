@@ -778,12 +778,6 @@ export default function ManagerPage() {
 
   return (
     <div className="option-surface space-y-6 p-6 md:p-8">
-      <div className="option-panel rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-          Manage your team and approve requests
-        </p>
-      </div>
-
       <div className="grid gap-6 md:grid-cols-3 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
