@@ -261,7 +261,36 @@ export default async function DashboardPage({
         {/* Right Column (Rest of Content) */}
         <div className="w-full md:w-[60%] px-4 md:pl-4 md:pr-8 pt-[32vh] pb-12 flex flex-col gap-6">
            
-           {/* Today's Tasks */}
+           {/* Trainings Completed (Top Right) */}
+           <Card className="rounded-[2.5rem] border-white/40 shadow-xl bg-white/70 backdrop-blur-md">
+             <CardHeader className="px-8 pt-8">
+               <CardTitle>Trainings Completed</CardTitle>
+               <CardDescription>
+                 Your continuous learning progress
+               </CardDescription>
+             </CardHeader>
+             <CardContent className="px-8 pb-8">
+                {trainings && trainings.length > 0 ? (
+                  <ScrollableCardList maxHeight="300px">
+                    {trainings.map((t) => (
+                      <div key={t.id} className="group flex items-center justify-between rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm transition-all hover:border-blue-100 hover:shadow-md">
+                        <div>
+                          <p className="font-semibold text-slate-800">{t.name}</p>
+                          <p className="text-xs font-medium text-slate-500">Completed on {t.date_completed ? format(new Date(t.date_completed), 'MMM d, yyyy') : 'N/A'}</p>
+                        </div>
+                        <TrendingUp className="h-5 w-5 flex-shrink-0 text-slate-300 group-hover:text-blue-500 transition-colors" />
+                      </div>
+                    ))}
+                  </ScrollableCardList>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+                    <p className="text-sm font-medium text-slate-500">No trainings completed yet.</p>
+                  </div>
+                )}
+             </CardContent>
+           </Card>
+
+           {/* Today's Tasks (Bottom Right) */}
            <Card className="rounded-[2.5rem] border-white/40 shadow-xl bg-white/70 backdrop-blur-md">
              <CardHeader className="px-8 pt-8">
                <CardTitle>Today's Tasks</CardTitle>
@@ -311,35 +340,6 @@ export default async function DashboardPage({
                 ) : (
                   <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
                     <p className="text-sm font-medium text-slate-500">No tasks for today. Enjoy the day!</p>
-                  </div>
-                )}
-             </CardContent>
-           </Card>
-
-           {/* Trainings Completed */}
-           <Card className="rounded-[2.5rem] border-white/40 shadow-xl bg-white/70 backdrop-blur-md">
-             <CardHeader className="px-8 pt-8">
-               <CardTitle>Trainings Completed</CardTitle>
-               <CardDescription>
-                 Your continuous learning progress
-               </CardDescription>
-             </CardHeader>
-             <CardContent className="px-8 pb-8">
-                {trainings && trainings.length > 0 ? (
-                  <ScrollableCardList maxHeight="300px">
-                    {trainings.map((t) => (
-                      <div key={t.id} className="group flex items-center justify-between rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm transition-all hover:border-blue-100 hover:shadow-md">
-                        <div>
-                          <p className="font-semibold text-slate-800">{t.name}</p>
-                          <p className="text-xs font-medium text-slate-500">Completed on {t.date_completed ? format(new Date(t.date_completed), 'MMM d, yyyy') : 'N/A'}</p>
-                        </div>
-                        <TrendingUp className="h-5 w-5 flex-shrink-0 text-slate-300 group-hover:text-blue-500 transition-colors" />
-                      </div>
-                    ))}
-                  </ScrollableCardList>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
-                    <p className="text-sm font-medium text-slate-500">No trainings completed yet.</p>
                   </div>
                 )}
              </CardContent>
