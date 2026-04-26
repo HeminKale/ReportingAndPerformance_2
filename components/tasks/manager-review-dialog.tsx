@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
+import { markResourceNotificationsRead } from "@/lib/notifications/mark-resource-read";
+import { requestNotificationsBellRefresh } from "@/lib/notifications/refresh-bell";
 import type { Task, TaskLog, User } from "@/lib/types/database";
 
 interface ManagerReviewDialogProps {
@@ -24,6 +26,8 @@ export function ManagerReviewDialog({ task, taskLog, employee, open, onOpenChang
   const [reviewComment, setReviewComment] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const params = useParams() as { orgSlug?: string };
+  const orgSlug = params.orgSlug ?? "";
   const { toast } = useToast();
   const supabase = createClient();
 
@@ -47,15 +51,28 @@ export function ManagerReviewDialog({ task, taskLog, employee, open, onOpenChang
 
       if (error) throw error;
 
-      await supabase
-        .from('notifications')
-        .insert({
-          organization_id: task.organization_id,
-          user_id: taskLog.user_id,
-          type: action === 'approve' ? 'task_verification' : 'task_rejected',
-          title: `Task ${action === 'approve' ? 'Approved' : 'Rejected'}`,
-          message: `Your task "${task.title}" has been ${action === 'approve' ? 'approved' : 'rejected'}${reviewComment ? `: ${reviewComment}` : ''}`,
-        });
+      await markResourceNotificationsRead(supabase, user.id, "task_log", String(taskLog.id));
+
+      requestNotificationsBellRefresh();
+
+      const mgr = reviewComment.trim();
+      await supabase.from("notifications").insert({
+        organization_id: task.organization_id,
+        user_id: taskLog.user_id,
+        type: action === "approve" ? "task_approved" : "task_rejected",
+        title: action === "approve" ? "Task approved" : "Task rejected",
+        message:
+          action === "approve"
+            ? `Your task "${task.title}" was approved.${mgr ? ` Manager comment: ${mgr}` : ""}`
+            : `Your task "${task.title}" was rejected.${mgr ? ` Manager comment: ${mgr}` : ""}`,
+        link: orgSlug ? `/org/${orgSlug}/tasks` : null,
+        metadata: {
+          actionable: false,
+          resource_type: "task_log",
+          resource_id: String(taskLog.id),
+          manager_comment: mgr || null,
+        },
+      });
 
       toast({
         title: "Success",

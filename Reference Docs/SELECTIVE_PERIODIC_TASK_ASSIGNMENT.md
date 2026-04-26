@@ -458,7 +458,7 @@ Potential improvements for future versions:
 - **[Periodic cron on VPS / Hostinger](PERIODIC_TASKS_CRON_HOSTINGER_VPS.md)**: Linux `cron` + `curl`, no `vercel.json`
 - **Normal Task Assignment**: Similar checkbox UI for immediate task creation
 - **Daily Periodic Monthly Rollup**: Numeric daily tasks can roll up to monthly
-- **Task Verification**: Managers verify completed tasks from team members
+- **Task verification (manager):** Managers approve or reject pending submissions under **Manager Panel → Tasks → Regular** (see [MANAGER_TASKS_TAB.md](MANAGER_TASKS_TAB.md))
 - **Common Tasks (Admin)**: Admin-level tasks for all employees (different from manager periodic tasks)
 
 ---

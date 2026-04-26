@@ -265,6 +265,8 @@ export default async function DashboardPage({
                             ? 'bg-green-100 text-green-800'
                             : log.verification_status === 'rejected'
                             ? 'bg-red-100 text-red-800'
+                            : log.verification_status === 'recalled'
+                            ? 'bg-amber-100 text-amber-900'
                             : 'bg-yellow-100 text-yellow-800'
                         }`}>
                           {log.verification_status}

@@ -12,7 +12,7 @@ import { TaskAssignmentPanel } from "@/components/shared/task-assignment-panel";
 import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Filter, LayoutGrid, List } from "lucide-react";
+import { ChevronDown, Filter, LayoutGrid, List } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import type { Task, TaskLog, User } from "@/lib/types/database";
 
@@ -198,6 +198,10 @@ export default function TasksPage() {
       return 'submitted_rejected';
     }
 
+    if (latestLog.verification_status === 'recalled') {
+      return 'submitted_rejected';
+    }
+
     return 'never_submitted';
   };
 
@@ -270,7 +274,7 @@ export default function TasksPage() {
   const isPendingApprovalTask = (task: (Task & { taskLog?: TaskLog })) => {
     const log = task.taskLog;
     if (!log) return false;
-    return log.status === 'completed' && log.verification_status !== 'approved';
+    return log.status === 'completed' && log.verification_status === 'pending';
   };
 
   const dailyPendingApprovalTasks = dailyTasks.filter(isPendingApprovalTask);
@@ -460,9 +464,13 @@ export default function TasksPage() {
                     </div>
                   )}
                   {dailyPendingApprovalTasks.length > 0 && (
-                    <details className="rounded-lg border">
-                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                        Pending approvals ({dailyPendingApprovalTasks.length})
+                    <details className="group rounded-lg border">
+                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                        <span className="min-w-0 flex-1 text-left">Pending approvals ({dailyPendingApprovalTasks.length})</span>
+                        <ChevronDown
+                          className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                          aria-hidden
+                        />
                       </summary>
                       <div className="border-t p-4">
                         <TaskTable
@@ -474,9 +482,13 @@ export default function TasksPage() {
                     </details>
                   )}
 
-                  <details className="rounded-lg border">
-                    <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                      Number of certificates-daily
+                  <details className="group rounded-lg border">
+                    <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                      <span className="min-w-0 flex-1 text-left">Number of certificates-daily</span>
+                      <ChevronDown
+                        className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                        aria-hidden
+                      />
                     </summary>
                     <div className="border-t p-4">
                       {dailyCertificatesChartData.length === 0 ? (
@@ -543,9 +555,16 @@ export default function TasksPage() {
                 return (
                   <div className="space-y-2">
                     {groups.map(([date, tasks]) => (
-                      <details key={date} className="rounded-lg border">
-                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                          Assigned {format(new Date(date), 'dd MMM yyyy')} &mdash; {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                      <details key={date} className="group rounded-lg border">
+                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                          <span className="min-w-0 flex-1 text-left">
+                            Assigned {format(new Date(date), "dd MMM yyyy")} &mdash; {tasks.length} task
+                            {tasks.length !== 1 ? "s" : ""}
+                          </span>
+                          <ChevronDown
+                            className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                            aria-hidden
+                          />
                         </summary>
                         <div className="border-t p-4">
                           <TaskTable tasks={tasks} onSubmit={handleSubmit} onView={handleView} />
@@ -584,9 +603,13 @@ export default function TasksPage() {
                 </div>
                 <div className="space-y-4 pt-4">
                   {weeklyPendingApprovalTasks.length > 0 && (
-                    <details className="rounded-lg border">
-                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                        Pending approvals ({weeklyPendingApprovalTasks.length})
+                    <details className="group rounded-lg border">
+                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                        <span className="min-w-0 flex-1 text-left">Pending approvals ({weeklyPendingApprovalTasks.length})</span>
+                        <ChevronDown
+                          className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                          aria-hidden
+                        />
                       </summary>
                       <div className="border-t p-4">
                         <TaskTable
@@ -642,9 +665,16 @@ export default function TasksPage() {
                 return (
                   <div className="space-y-2">
                     {groups.map(([date, tasks]) => (
-                      <details key={date} className="rounded-lg border">
-                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                          Assigned {format(new Date(date), 'dd MMM yyyy')} &mdash; {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                      <details key={date} className="group rounded-lg border">
+                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                          <span className="min-w-0 flex-1 text-left">
+                            Assigned {format(new Date(date), "dd MMM yyyy")} &mdash; {tasks.length} task
+                            {tasks.length !== 1 ? "s" : ""}
+                          </span>
+                          <ChevronDown
+                            className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                            aria-hidden
+                          />
                         </summary>
                         <div className="border-t p-4">
                           <TaskTable tasks={tasks} onSubmit={handleSubmit} onView={handleView} />
@@ -683,9 +713,13 @@ export default function TasksPage() {
                 </div>
                 <div className="space-y-4 pt-4">
                   {monthlyPendingApprovalTasks.length > 0 && (
-                    <details className="rounded-lg border">
-                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                        Pending approvals ({monthlyPendingApprovalTasks.length})
+                    <details className="group rounded-lg border">
+                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                        <span className="min-w-0 flex-1 text-left">Pending approvals ({monthlyPendingApprovalTasks.length})</span>
+                        <ChevronDown
+                          className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                          aria-hidden
+                        />
                       </summary>
                       <div className="border-t p-4">
                         <TaskTable
@@ -697,9 +731,13 @@ export default function TasksPage() {
                     </details>
                   )}
 
-                  <details className="rounded-lg border">
-                    <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                      Number of certificates-monthly
+                  <details className="group rounded-lg border">
+                    <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                      <span className="min-w-0 flex-1 text-left">Number of certificates-monthly</span>
+                      <ChevronDown
+                        className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                        aria-hidden
+                      />
                     </summary>
                     <div className="border-t p-4">
                       {monthlyCertificatesChartData.some((p) => p.value > 0) ? (
@@ -766,9 +804,16 @@ export default function TasksPage() {
                 return (
                   <div className="space-y-2">
                     {groups.map(([date, tasks]) => (
-                      <details key={date} className="rounded-lg border">
-                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                          Assigned {format(new Date(date), 'dd MMM yyyy')} &mdash; {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+                      <details key={date} className="group rounded-lg border">
+                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                          <span className="min-w-0 flex-1 text-left">
+                            Assigned {format(new Date(date), "dd MMM yyyy")} &mdash; {tasks.length} task
+                            {tasks.length !== 1 ? "s" : ""}
+                          </span>
+                          <ChevronDown
+                            className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                            aria-hidden
+                          />
                         </summary>
                         <div className="border-t p-4">
                           <TaskTable tasks={tasks} onSubmit={handleSubmit} onView={handleView} />

@@ -2,7 +2,7 @@ import { format, parseISO } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import type { Task, TaskLog } from "@/lib/types/database";
 
-export type IncompleteKind = "not_submitted" | "pending" | "pending_approval" | "rejected";
+export type IncompleteKind = "not_submitted" | "pending" | "pending_approval" | "rejected" | "recalled";
 
 export function dayKey(d: Date): string {
   return format(d, "yyyy-MM-dd");
@@ -32,6 +32,7 @@ export function isApprovedCompletedLog(log: TaskLog | undefined): boolean {
 export function getIncompleteKind(log: TaskLog | undefined): IncompleteKind {
   if (!log) return "not_submitted";
   if (log.verification_status === "rejected") return "rejected";
+  if (log.verification_status === "recalled") return "recalled";
   if (log.status === "pending") return "pending";
   // Caller excludes approved completions via isApprovedCompletedLog.
   if (log.status === "completed") return "pending_approval";
@@ -43,6 +44,7 @@ export const INCOMPLETE_LABELS: Record<IncompleteKind, string> = {
   pending: "Pending",
   pending_approval: "Pending approval",
   rejected: "Rejected",
+  recalled: "Recalled",
 };
 
 export function incompleteStripeLabel(kindPerTask: IncompleteKind[]): string {

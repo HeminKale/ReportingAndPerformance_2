@@ -41,8 +41,8 @@
 3. Access Manager Panel - should work
 4. Try to manually navigate to `/org/[orgSlug]/settings` - should show access denied
 5. Test search in Manager Panel:
-   - Go to Task Verifications tab
-   - Enter employee name in search
+   - Open **Tasks** in the sidebar, then **History**
+   - Use employee name, task name, and from/to date filters
    - Verify filtering works
    - Repeat for Attendance, Leaves, and Team tabs
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +42,8 @@ export type TaskAssignmentPanelProps = {
   managerCurrentHistorySplit?: boolean;
   /** Manager-owned periodic templates (cron materializes into tasks) */
   managerPeriodicTasks?: ManagerPeriodicTask[];
+  /** For notification deep links, e.g. /org/x/tasks */
+  orgSlug?: string;
 };
 
 export function TaskAssignmentPanel({
@@ -54,7 +57,10 @@ export function TaskAssignmentPanel({
   onTasksChanged,
   managerCurrentHistorySplit = false,
   managerPeriodicTasks = [],
+  orgSlug: orgSlugProp,
 }: TaskAssignmentPanelProps) {
+  const params = useParams() as { orgSlug?: string };
+  const orgSlug = orgSlugProp ?? params.orgSlug;
   const [taskSearchTerm, setTaskSearchTerm] = useState("");
   const [mainAssignmentTab, setMainAssignmentTab] = useState("current");
   const [periodicSubTab, setPeriodicSubTab] = useState<"daily" | "weekly" | "monthly">("daily");
@@ -149,15 +155,23 @@ export function TaskAssignmentPanel({
         });
         return false;
       }
-      return true;
-    }
-    if (isManager || (!isEmployee && taskForm.assignmentType === "specific")) {
+    } else if (isManager || (!isEmployee && taskForm.assignmentType === "specific")) {
       if (!taskForm.assignedTo || !assigneeOk(taskForm.assignedTo)) {
         toast({
           title: "Error",
           description: isManager
             ? "Select a team member to assign this task"
             : "Select an employee for a specific assignment",
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+    if (taskForm.type === "weekly" || taskForm.type === "monthly") {
+      if (!taskForm.dueDate?.trim()) {
+        toast({
+          title: "Error",
+          description: "Due date is required for weekly and monthly tasks",
           variant: "destructive",
         });
         return false;
@@ -175,6 +189,32 @@ export function TaskAssignmentPanel({
 
     setSubmitting(true);
     try {
+      const sendTaskAssignedTo = (recipientIds: string[]) => {
+        if (!orgSlug) return;
+        const assigner =
+          assignableUsers.find((u) => u.id === currentUserId)?.full_name ?? "Your manager";
+        const link = `/org/${orgSlug}/tasks`;
+        const titleTrim = taskForm.title.trim();
+        const rows = recipientIds
+          .filter((uid) => uid && uid !== currentUserId)
+          .map((uid) => ({
+            organization_id: organizationId,
+            user_id: uid,
+            type: "task_assigned" as const,
+            title: "New task assigned",
+            message: `${assigner} assigned you: "${titleTrim}"`,
+            link,
+            metadata: { actionable: false as const },
+          }));
+        if (rows.length === 0) return;
+        void supabase
+          .from("notifications")
+          .insert(rows)
+          .then(({ error: nErr }) => {
+            if (nErr) console.warn("[task_assigned] notification insert", nErr.message);
+          });
+      };
+
       const isCommon = isManager || isEmployee ? false : taskForm.assignmentType === "common";
 
       const baseRow: Record<string, unknown> = {
@@ -193,8 +233,15 @@ export function TaskAssignmentPanel({
       if (taskForm.type === "weekly" && taskForm.dayOfWeek) {
         baseRow.day_of_week = parseInt(taskForm.dayOfWeek, 10);
       }
-      if (taskForm.type === "monthly" && taskForm.dueDate) {
+      if (taskForm.type === "daily") {
+        baseRow.due_date = null;
+      } else if (
+        (taskForm.type === "weekly" || taskForm.type === "monthly") &&
+        taskForm.dueDate
+      ) {
         baseRow.due_date = taskForm.dueDate;
+      } else {
+        baseRow.due_date = null;
       }
 
       if (isManager) {
@@ -204,6 +251,7 @@ export function TaskAssignmentPanel({
         }));
         const { error } = await supabase.from("tasks").insert(rows);
         if (error) throw error;
+        sendTaskAssignedTo(taskForm.assignedToIds);
         const n = rows.length;
         toast({
           title: "Success",
@@ -217,6 +265,12 @@ export function TaskAssignmentPanel({
         };
         const { error } = await supabase.from("tasks").insert(taskData);
         if (error) throw error;
+        const assignTo = isEmployee
+          ? currentUserId
+          : isCommon
+            ? null
+            : taskForm.assignedTo;
+        if (assignTo) sendTaskAssignedTo([assignTo]);
         toast({ title: "Success", description: "Task created successfully" });
       }
       setTaskDialog({ open: false, mode: "create", task: null });
@@ -257,8 +311,10 @@ export function TaskAssignmentPanel({
       } else {
         taskData.day_of_week = null;
       }
-      if (taskForm.type === "monthly" && taskForm.dueDate) {
-        taskData.due_date = taskForm.dueDate;
+      if (taskForm.type === "daily") {
+        taskData.due_date = null;
+      } else if (taskForm.type === "weekly" || taskForm.type === "monthly") {
+        taskData.due_date = taskForm.dueDate || null;
       } else {
         taskData.due_date = null;
       }
@@ -363,7 +419,7 @@ export function TaskAssignmentPanel({
                 }
               </p>
             )}
-            {t.type === "monthly" && t.due_date && <p>Due: {t.due_date}</p>}
+            {t.due_date && t.type !== "daily" && <p>Due: {t.due_date}</p>}
           </div>
         </div>
       </div>
@@ -380,8 +436,11 @@ export function TaskAssignmentPanel({
     </div>
   );
 
+  const taskDueCellText = (t: Task) =>
+    t.type === "daily" ? "—" : t.due_date || "—";
+
   const renderTaskDataRows = (list: Task[], showEmployeeColumn: boolean) => {
-    const colSpan = showEmployeeColumn ? 7 : 6;
+    const colSpan = showEmployeeColumn ? 8 : 7;
     return list.map((t) => {
       const isExpanded = expandedTaskRows.has(t.id);
       const employee = userName(t.assigned_to);
@@ -407,6 +466,9 @@ export function TaskAssignmentPanel({
             </TableCell>
             <TableCell className="max-w-md">
               <p className="text-sm text-muted-foreground truncate">{t.description || "-"}</p>
+            </TableCell>
+            <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+              {taskDueCellText(t)}
             </TableCell>
             <TableCell>
               <span
@@ -489,6 +551,7 @@ export function TaskAssignmentPanel({
                         <TableHead>Task Name</TableHead>
                         <TableHead>Task Type</TableHead>
                         <TableHead>Task Description</TableHead>
+                        <TableHead>Due</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Created at</TableHead>
                       </TableRow>
@@ -526,10 +589,16 @@ export function TaskAssignmentPanel({
               {historyGroups.length > 0 ? (
                 <div className="space-y-2">
                   {historyGroups.map(([employeeName, groupTasks]) => (
-                    <details key={employeeName} className="rounded-lg border">
-                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                        {employeeName} &mdash; {groupTasks.length} task
-                        {groupTasks.length !== 1 ? "s" : ""}
+                    <details key={employeeName} className="group rounded-lg border">
+                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                        <span className="min-w-0 flex-1 text-left">
+                          {employeeName} &mdash; {groupTasks.length} task
+                          {groupTasks.length !== 1 ? "s" : ""}
+                        </span>
+                        <ChevronDown
+                          className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                          aria-hidden
+                        />
                       </summary>
                       <div className="border-t">
                         <Table>
@@ -539,6 +608,7 @@ export function TaskAssignmentPanel({
                               <TableHead>Task Name</TableHead>
                               <TableHead>Task Type</TableHead>
                               <TableHead>Task Description</TableHead>
+                              <TableHead>Due</TableHead>
                               <TableHead>Status</TableHead>
                               <TableHead>Created at</TableHead>
                             </TableRow>
@@ -625,10 +695,16 @@ export function TaskAssignmentPanel({
               return (
                 <div className="space-y-2">
                   {sortedGroups.map(([employeeName, groupTasks]) => (
-                    <details key={employeeName} className="rounded-lg border">
-                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                        {employeeName} &mdash; {groupTasks.length} task
-                        {groupTasks.length !== 1 ? "s" : ""}
+                    <details key={employeeName} className="group rounded-lg border">
+                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
+                        <span className="min-w-0 flex-1 text-left">
+                          {employeeName} &mdash; {groupTasks.length} task
+                          {groupTasks.length !== 1 ? "s" : ""}
+                        </span>
+                        <ChevronDown
+                          className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                          aria-hidden
+                        />
                       </summary>
                       <div className="border-t">
                         <Table>
@@ -638,6 +714,7 @@ export function TaskAssignmentPanel({
                               <TableHead>Task Name</TableHead>
                               <TableHead>Task Type</TableHead>
                               <TableHead>Task Description</TableHead>
+                              <TableHead>Due</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -671,10 +748,13 @@ export function TaskAssignmentPanel({
                                         {t.description || "-"}
                                       </p>
                                     </TableCell>
+                                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                                      {taskDueCellText(t)}
+                                    </TableCell>
                                   </TableRow>
                                   {isExpanded && (
                                     <TableRow>
-                                      <TableCell colSpan={4} className="bg-muted/30">
+                                      <TableCell colSpan={5} className="bg-muted/30">
                                         {renderExpandedTaskPanel(t)}
                                       </TableCell>
                                     </TableRow>
@@ -746,7 +826,11 @@ export function TaskAssignmentPanel({
               <Select
                 value={taskForm.type}
                 onValueChange={(value: "daily" | "weekly" | "monthly") =>
-                  setTaskForm({ ...taskForm, type: value })
+                  setTaskForm((prev) => ({
+                    ...prev,
+                    type: value,
+                    dueDate: value === "daily" ? "" : prev.dueDate,
+                  }))
                 }
               >
                 <SelectTrigger>
@@ -758,6 +842,23 @@ export function TaskAssignmentPanel({
                   <SelectItem value="monthly">Monthly</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Frequency</Label>
+              <Input
+                readOnly
+                tabIndex={-1}
+                className="bg-muted/50 cursor-default"
+                value={
+                  taskDialog.mode === "edit" && taskDialog.task?.source_manager_periodic_task_id
+                    ? "Periodic"
+                    : "Once"
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Periodic applies to tasks materialized from a template; new tasks you create here are Once.
+              </p>
             </div>
 
             {taskForm.type === "weekly" && (
@@ -783,14 +884,17 @@ export function TaskAssignmentPanel({
               </div>
             )}
 
-            {taskForm.type === "monthly" && (
+            {(taskForm.type === "weekly" || taskForm.type === "monthly") && (
               <div className="space-y-2">
-                <Label htmlFor="dueDate">Due Date</Label>
+                <Label htmlFor="dueDate">
+                  Due date <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="dueDate"
                   type="date"
                   value={taskForm.dueDate}
                   onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
+                  required
                 />
               </div>
             )}
@@ -998,7 +1102,8 @@ export function TaskAssignmentPanel({
                 !taskForm.title ||
                 (isManager &&
                   taskDialog.mode === "create" &&
-                  taskForm.assignedToIds.length === 0)
+                  taskForm.assignedToIds.length === 0) ||
+                ((taskForm.type === "weekly" || taskForm.type === "monthly") && !taskForm.dueDate?.trim())
               }
             >
               {submitting ? "Saving..." : taskDialog.mode === "create" ? "Create Task" : "Update Task"}

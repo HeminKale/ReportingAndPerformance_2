@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { format, parse, startOfMonth } from "date-fns";
 import { getCurrentTimeInTimezone, isAfterCutoff, formatInUserTimezone } from "@/lib/utils/timezone";
-import { Clock, CheckCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import type { Attendance, User } from "@/lib/types/database";
 
 function sumAttendanceHours(rows: Attendance[]): number {
@@ -228,6 +228,8 @@ export default function AttendancePage() {
               resource_type: "attendance",
               resource_id: createdAttendance?.id ?? null,
               employee_id: user.id,
+              employee_comment: lateReason.trim(),
+              employee_comment_label: "Late clock-in",
             },
           });
       }
@@ -253,6 +255,9 @@ export default function AttendancePage() {
 
   const handleClockOut = async () => {
     if (!user || !attendance) return;
+    if (attendance.is_late_request && attendance.approval_status === "rejected") {
+      return;
+    }
 
     setActionLoading(true);
 
@@ -366,6 +371,8 @@ export default function AttendancePage() {
               resource_type: "attendance",
               resource_id: attendance.id,
               employee_id: user.id,
+              employee_comment: combinedReason,
+              employee_comment_label: "Clock-out / approval note",
             },
           });
       }
@@ -405,6 +412,12 @@ export default function AttendancePage() {
   const totalHoursDisplay = formatTotalHours(totalHoursDecimal);
   const usingDefaultMonthRange = !historyDateFrom && !historyDateTo;
 
+  const attendanceRequestRejected = Boolean(
+    attendance?.is_late_request && attendance.approval_status === "rejected"
+  );
+  const clockOutDisabledByApproval =
+    attendanceRequestRejected || attendance?.approval_status === "pending";
+
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col p-8">
       <div className="mb-6 shrink-0">
@@ -437,45 +450,86 @@ export default function AttendancePage() {
 
             {attendance ? (
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
+                <div
+                  className={
+                    attendanceRequestRejected
+                      ? "flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4"
+                      : "flex items-center justify-between rounded-lg bg-green-50 p-4"
+                  }
+                >
+                  <div className="flex items-start gap-3">
+                    {attendanceRequestRejected ? (
+                      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                    ) : (
+                      <CheckCircle className="h-5 w-5 shrink-0 text-green-600" />
+                    )}
                     <div>
-                      <p className="font-medium">Clocked In</p>
-                      <p className="text-sm text-muted-foreground">
-                        {user && formatInUserTimezone(attendance.clock_in_time!, user.timezone, 'h:mm a')}
+                      <p className="font-medium">
+                        {attendanceRequestRejected ? "Attendance not accepted" : "Clocked In"}
                       </p>
+                      {attendance.clock_in_time && user && (
+                        <p className="text-sm text-muted-foreground">
+                          {attendanceRequestRejected
+                            ? `Time recorded: ${formatInUserTimezone(
+                                attendance.clock_in_time,
+                                user.timezone,
+                                "h:mm a"
+                              )} — your request was not approved.`
+                            : formatInUserTimezone(
+                                attendance.clock_in_time,
+                                user.timezone,
+                                "h:mm a"
+                              )}
+                        </p>
+                      )}
+                      {attendanceRequestRejected && attendance.late_reason && (
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          <span className="font-medium">Your request:</span> {attendance.late_reason}
+                        </p>
+                      )}
+                      {attendanceRequestRejected && attendance.manager_comment && (
+                        <p className="mt-1 text-sm text-foreground">
+                          <span className="font-medium">Manager comment:</span> {attendance.manager_comment}
+                        </p>
+                      )}
                     </div>
                   </div>
                   {attendance.is_late_request && (
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      attendance.approval_status === 'approved'
-                        ? 'bg-green-100 text-green-800'
-                        : attendance.approval_status === 'rejected'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
+                    <span
+                      className={`shrink-0 text-xs rounded px-2 py-1 ${
+                        attendance.approval_status === "approved"
+                          ? "bg-green-100 text-green-800"
+                          : attendance.approval_status === "rejected"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-yellow-100 text-yellow-800"
+                      }`}
+                    >
                       {attendance.approval_status}
                     </span>
                   )}
                 </div>
 
                 {attendance.clock_out_time ? (
-                  <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg">
+                  <div className="flex items-center gap-3 rounded-lg bg-blue-50 p-4">
                     <CheckCircle className="h-5 w-5 text-blue-600" />
                     <div>
                       <p className="font-medium">Clocked Out</p>
                       <p className="text-sm text-muted-foreground">
-                        {user && formatInUserTimezone(attendance.clock_out_time, user.timezone, 'h:mm a')}
+                        {user && formatInUserTimezone(attendance.clock_out_time, user.timezone, "h:mm a")}
                       </p>
                     </div>
                   </div>
                 ) : (
                   <Button
                     onClick={handleClockOut}
-                    disabled={actionLoading || attendance.approval_status === 'pending'}
+                    disabled={actionLoading || clockOutDisabledByApproval}
                     className="w-full"
                     variant="destructive"
+                    title={
+                      attendanceRequestRejected
+                        ? "Clock in/out is not available while your request is rejected for today."
+                        : undefined
+                    }
                   >
                     {actionLoading ? "Processing..." : "Clock Out"}
                   </Button>

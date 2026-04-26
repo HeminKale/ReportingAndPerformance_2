@@ -71,7 +71,7 @@ Notification fields:
 
 Manager can approve/reject via:
 
-- **Manager Panel -> Task Verifications**, or
+- **Manager Panel → Tasks → Regular** (expand the row when `verification_status` is pending), or
 - **Notifications page** (Approve/Reject buttons on actionable notification)
 
 Approval updates:

@@ -1,13 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { Bell, CheckCheck, Trash2 } from "lucide-react";
 import type { Notification, User } from "@/lib/types/database";
+import { markResourceNotificationsRead } from "@/lib/notifications/mark-resource-read";
+import { requestNotificationsBellRefresh } from "@/lib/notifications/refresh-bell";
 import Link from "next/link";
 
 export default function NotificationsPage() {
@@ -15,8 +23,41 @@ export default function NotificationsPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [commentModal, setCommentModal] = useState<{
+    open: boolean;
+    title: string;
+    body: string;
+  }>({ open: false, title: "", body: "" });
   const { toast } = useToast();
   const supabase = createClient();
+
+  const getCommentModalPayload = (notification: Notification): { title: string; body: string } | null => {
+    const m = notification.metadata || {};
+    const empRaw = m.employee_comment;
+    const empText =
+      typeof empRaw === "string" ? empRaw.trim() : empRaw != null ? String(empRaw).trim() : "";
+    const mgrRaw = m.manager_comment;
+    const mgrText =
+      typeof mgrRaw === "string" ? mgrRaw.trim() : mgrRaw != null ? String(mgrRaw).trim() : "";
+
+    if (!empText && !mgrText) return null;
+
+    const empLabel =
+      typeof m.employee_comment_label === "string" && m.employee_comment_label.trim()
+        ? m.employee_comment_label.trim()
+        : "Employee message";
+
+    if (empText && mgrText) {
+      return {
+        title: "Comments",
+        body: `${empLabel}\n${empText}\n\nManager comment\n${mgrText}`,
+      };
+    }
+    if (mgrText) {
+      return { title: "Manager comment", body: mgrText };
+    }
+    return { title: empLabel, body: empText };
+  };
 
   useEffect(() => {
     fetchNotifications();
@@ -121,6 +162,13 @@ export default function NotificationsPage() {
         if (error) throw error;
       }
 
+      await markResourceNotificationsRead(
+        supabase,
+        currentUser.id,
+        String(resourceType),
+        String(resourceId)
+      );
+
       // Mark actionable notification as actioned and read.
       // We avoid delete because some environments may not allow notification deletes via RLS.
       const { error: notificationUpdateError } = await supabase
@@ -142,6 +190,7 @@ export default function NotificationsPage() {
         title: "Success",
         description: `Request ${action === "approve" ? "approved" : "rejected"} successfully.`,
       });
+      requestNotificationsBellRefresh();
       fetchNotifications();
     } catch (error: any) {
       toast({
@@ -167,6 +216,7 @@ export default function NotificationsPage() {
         variant: "destructive",
       });
     } else {
+      requestNotificationsBellRefresh();
       fetchNotifications();
     }
   };
@@ -193,6 +243,7 @@ export default function NotificationsPage() {
         title: "Success",
         description: "All notifications marked as read",
       });
+      requestNotificationsBellRefresh();
       fetchNotifications();
     }
   };
@@ -210,6 +261,7 @@ export default function NotificationsPage() {
         variant: "destructive",
       });
     } else {
+      requestNotificationsBellRefresh();
       fetchNotifications();
     }
   };
@@ -222,12 +274,22 @@ export default function NotificationsPage() {
     switch (type) {
       case 'task_rejected':
         return 'border-l-red-500';
+      case 'task_approved':
+        return 'border-l-emerald-500';
+      case 'task_recalled':
+        return 'border-l-amber-500';
       case 'leave_approval':
         return 'border-l-green-500';
       case 'late_request':
         return 'border-l-yellow-500';
       case 'task_verification':
         return 'border-l-blue-500';
+      case 'task_assigned':
+        return 'border-l-sky-500';
+      case 'mistake_logged':
+        return 'border-l-orange-500';
+      case 'mistake_rectified':
+        return 'border-l-emerald-500';
       default:
         return 'border-l-gray-500';
     }
@@ -252,6 +314,20 @@ export default function NotificationsPage() {
 
   return (
     <div className="p-8">
+      <Dialog
+        open={commentModal.open}
+        onOpenChange={(open) => setCommentModal((s) => ({ ...s, open }))}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{commentModal.title}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
+            {commentModal.body}
+          </p>
+        </DialogContent>
+      </Dialog>
+
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Notifications</h1>
@@ -269,7 +345,10 @@ export default function NotificationsPage() {
 
       <div className="space-y-4">
         {visibleNotifications.length > 0 ? (
-          visibleNotifications.map((notification) => (
+          visibleNotifications.map((notification) => {
+            const actionable = isActionableNotification(notification);
+            const commentPayload = getCommentModalPayload(notification);
+            return (
             <Card
               key={notification.id}
               className={`border-l-4 ${getNotificationColor(notification.type)} ${
@@ -295,7 +374,7 @@ export default function NotificationsPage() {
                       <p className="text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                       </p>
-                      {isActionableNotification(notification) && (
+                      {actionable && (
                         <div className="mt-3 flex gap-2">
                           <Button
                             size="sm"
@@ -314,24 +393,53 @@ export default function NotificationsPage() {
                           </Button>
                         </div>
                       )}
-                      {notification.link && (
-                        <Link
-                          href={notification.link}
-                          className="text-sm text-primary hover:underline mt-2 inline-block"
-                        >
-                          View details
-                        </Link>
+                      {(notification.link || commentPayload) && (
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                          {notification.link && (
+                            <Link
+                              href={notification.link}
+                              className="text-primary hover:underline"
+                            >
+                              View details
+                            </Link>
+                          )}
+                          {commentPayload && (
+                            <button
+                              type="button"
+                              className="text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer text-sm"
+                              onClick={() => {
+                                setCommentModal({
+                                  open: true,
+                                  title: commentPayload.title,
+                                  body: commentPayload.body,
+                                });
+                              }}
+                            >
+                              View comments
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    {!notification.is_read && (
+                  <div className="flex gap-2 items-start shrink-0">
+                    {!actionable && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => markAsRead(notification.id)}
+                        onClick={() => {
+                          if (!notification.is_read) void markAsRead(notification.id);
+                        }}
+                        aria-label={notification.is_read ? "Read" : "Mark as read"}
+                        title={notification.is_read ? "Read" : "Mark as read"}
                       >
-                        <CheckCheck className="h-4 w-4" />
+                        <CheckCheck
+                          className={
+                            notification.is_read
+                              ? "h-4 w-4 text-primary"
+                              : "h-4 w-4 text-muted-foreground"
+                          }
+                        />
                       </Button>
                     )}
                     <Button
@@ -345,7 +453,8 @@ export default function NotificationsPage() {
                 </div>
               </CardContent>
             </Card>
-          ))
+            );
+          })
         ) : (
           <Card>
             <CardContent className="p-12 text-center">
