@@ -14,6 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
+import { getCurrentTimeInTimezone } from "@/lib/utils/timezone";
 import { Clock, Users, AlertTriangle, Plus, Pencil, Trash2, ChevronDown, ChevronUp, MoreVertical } from "lucide-react";
 import { TaskAssignmentPanel } from "@/components/shared/task-assignment-panel";
 import { Badge } from "@/components/ui/badge";
@@ -104,7 +106,7 @@ export default function ManagerPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const { toast } = useToast();
   const supabase = createClient();
-  const today = format(new Date(), "yyyy-MM-dd");
+  const [today, setToday] = useState(format(getCurrentTimeInTimezone('Asia/Kolkata'), "yyyy-MM-dd"));
   const CERT_GRAPH_MAX_EMPLOYEES = 10;
   const CERT_GRAPH_COLORS = [
     "#2563eb", "#16a34a", "#ea580c", "#7c3aed", "#dc2626",
@@ -189,6 +191,7 @@ export default function ManagerPage() {
       .eq('id', authUser.id)
       .single();
 
+    setUser(userData);
     if (userData?.role !== 'manager' && userData?.role !== 'admin') {
       toast({
         title: "Access denied",
@@ -197,6 +200,9 @@ export default function ManagerPage() {
       });
       return;
     }
+    const userTimezone = userData?.timezone || 'Asia/Kolkata';
+    const currentToday = format(getCurrentTimeInTimezone(userTimezone), "yyyy-MM-dd");
+    setToday(currentToday);
 
     const { data: team, error: teamError } = await supabase
       .rpc('get_all_subordinates', { manager_uuid: authUser.id });
@@ -326,7 +332,7 @@ export default function ManagerPage() {
 
   const toDayString = (value?: string | null) => {
     if (!value) return "";
-    return format(new Date(value), "yyyy-MM-dd");
+    return format(toZonedTime(new Date(value), 'Asia/Kolkata'), "yyyy-MM-dd");
   };
 
   const matchesName = (fullName?: string, term?: string) => {

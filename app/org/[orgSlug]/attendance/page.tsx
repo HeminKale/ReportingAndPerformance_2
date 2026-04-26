@@ -55,17 +55,17 @@ export default function AttendancePage() {
   const [actionLoading, setActionLoading] = useState(false);
   const { toast } = useToast();
   const supabase = createClient();
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const [today, setToday] = useState(format(getCurrentTimeInTimezone('Asia/Kolkata'), 'yyyy-MM-dd'));
 
   useEffect(() => {
     fetchData();
   }, []);
 
   const getEffectiveHistoryRange = useCallback((): { from: string; to: string } => {
-    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const todayStr = format(getCurrentTimeInTimezone('Asia/Kolkata'), "yyyy-MM-dd");
     if (!historyDateFrom && !historyDateTo) {
       return {
-        from: format(startOfMonth(new Date()), "yyyy-MM-dd"),
+        from: format(startOfMonth(getCurrentTimeInTimezone('Asia/Kolkata')), "yyyy-MM-dd"),
         to: todayStr,
       };
     }
@@ -125,11 +125,15 @@ export default function AttendancePage() {
       .eq('id', authUser.id)
       .single();
 
+    const userTimezone = userData?.timezone || 'Asia/Kolkata';
+    const currentToday = format(getCurrentTimeInTimezone(userTimezone), 'yyyy-MM-dd');
+    setToday(currentToday);
+
     const { data: attendanceData } = await supabase
       .from('attendance')
       .select('*')
       .eq('user_id', authUser.id)
-      .eq('date', today)
+      .eq('date', currentToday)
       .single();
 
     setUser(userData);
