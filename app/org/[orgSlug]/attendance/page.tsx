@@ -274,25 +274,23 @@ export default function AttendancePage() {
 
       const { data: todayTaskLogs } = await supabase
         .from('task_logs')
-        .select('task_id,status,verification_status')
+        .select('task_id,status')
         .eq('user_id', user.id)
         .eq('date', today)
         .in('task_id', dailyTaskIds);
 
-      const submittedTaskIds = new Set(
-        (todayTaskLogs || []).map(log => log.task_id)
+      const totalTaskCount = (allDailyTasks || []).length;
+      const completedTaskIds = new Set(
+        (todayTaskLogs || [])
+          .filter(log => log.status === 'completed')
+          .map(log => log.task_id)
       );
+      const completedCount = completedTaskIds.size;
 
-      const unsubmittedTasks = (allDailyTasks || []).filter(task => !submittedTaskIds.has(task.id));
-      const pendingTasks = (todayTaskLogs || []).filter(log => log.status !== 'completed');
-      const rejectedTasks = (todayTaskLogs || []).filter(log => log.verification_status === 'rejected');
-
-      if (unsubmittedTasks.length > 0 || pendingTasks.length > 0 || rejectedTasks.length > 0) {
+      if (completedCount < totalTaskCount) {
         toast({
           title: "Cannot clock out",
-          description: rejectedTasks.length > 0
-            ? "Please resubmit rejected daily tasks before clocking out"
-            : "Please complete or mark all daily tasks before clocking out",
+          description: `Please complete all daily tasks before clocking out (${completedCount}/${totalTaskCount} completed)`,
           variant: "destructive",
         });
         setActionLoading(false);
@@ -422,14 +420,11 @@ export default function AttendancePage() {
     <div className="flex min-h-0 w-full flex-1 flex-col p-8">
       <div className="mb-6 shrink-0">
         <h1 className="text-3xl font-bold">Attendance</h1>
-        <p className="text-muted-foreground">
-          Manage your daily attendance
-        </p>
       </div>
 
       <div className="grid min-h-0 w-full flex-1 gap-6 md:grid-cols-2 md:items-stretch md:min-h-[calc(100dvh-11rem)]">
         <Card className="flex h-full min-h-0 flex-col">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle>Clock In/Out</CardTitle>
             <CardDescription>
               {format(new Date(), 'EEEE, MMMM d, yyyy')}
@@ -559,11 +554,6 @@ export default function AttendancePage() {
         <Card className="flex h-full min-h-0 flex-col">
           <CardHeader className="shrink-0">
             <CardTitle>Attendance History</CardTitle>
-            <CardDescription>
-              {usingDefaultMonthRange
-                ? `Showing this month through today (${format(parse(rangeFrom, "yyyy-MM-dd", new Date()), "MMM d")} – ${format(parse(rangeTo, "yyyy-MM-dd", new Date()), "MMM d, yyyy")}). Set dates below to use a custom range.`
-                : `Showing ${format(parse(rangeFrom, "yyyy-MM-dd", new Date()), "MMM d, yyyy")} – ${format(parse(rangeTo, "yyyy-MM-dd", new Date()), "MMM d, yyyy")}.`}
-            </CardDescription>
           </CardHeader>
           <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden pt-0">
             <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
@@ -594,10 +584,6 @@ export default function AttendancePage() {
                   <span className="text-sm text-muted-foreground">Total Hours:</span>
                   <span className="text-sm font-medium tabular-nums">{totalHoursDisplay}</span>
                 </div>
-                <p className="text-xs text-muted-foreground sm:text-right max-w-[220px]">
-                  {attendanceHistory.filter((r) => r.clock_in_time && r.clock_out_time).length} complete
-                  shift(s) in range; days without clock-out are excluded.
-                </p>
               </div>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto pr-1">

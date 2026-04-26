@@ -80,27 +80,27 @@
   }
 
   [data-theme="midnight"] {
-    --background: 222 47% 8%;
+    --background: 222 47% 4%;
     --foreground: 210 40% 98%;
-    --card: 223 39% 12%;
+    --card: 222 47% 7%;
     --card-foreground: 210 40% 98%;
-    --popover: 223 39% 12%;
+    --popover: 222 47% 7%;
     --popover-foreground: 210 40% 98%;
     --primary: 190 95% 44%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217 33% 17%;
+    --primary-foreground: 222 47% 4%;
+    --secondary: 222 47% 10%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 214 20% 70%;
-    --accent: 217 33% 17%;
+    --muted: 222 47% 10%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 222 47% 10%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 40%;
+    --destructive: 0 62.8% 30%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 22%;
-    --input: 217 33% 22%;
+    --border: 222 47% 12%;
+    --input: 222 47% 12%;
     --ring: 190 95% 44%;
-    --hero-from: 221 43% 15%;
-    --hero-to: 231 35% 20%;
+    --hero-from: 222 47% 6%;
+    --hero-to: 222 47% 8%;
     --hero-ring: 190 95% 44%;
   }
 }
@@ -215,14 +215,14 @@
 [data-theme="midnight"] .app-popover,
 [data-theme="midnight"] .app-profile-panel,
 [data-theme="midnight"] .option-panel {
-  border-color: hsl(217 33% 24%);
-  background-color: hsl(223 39% 12%);
-  box-shadow: 0 14px 36px rgba(2, 6, 23, 0.5);
+  border-color: hsl(222 47% 12%);
+  background-color: hsl(222 47% 7%);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.7);
 }
 
 [data-theme="midnight"] .option-tablist {
-  border-color: hsl(217 33% 26%);
-  background: hsl(217 33% 16%);
+  border-color: hsl(222 47% 12%);
+  background: hsl(222 47% 5%);
 }
 
 [data-theme="midnight"] .app-nav-link {
@@ -299,8 +299,9 @@
 
 [data-theme="midnight"] .option-surface .text-slate-500,
 [data-theme="midnight"] .option-surface .text-slate-600,
-[data-theme="midnight"] .option-surface .text-muted-foreground {
-  color: hsl(214 20% 70%);
+[data-theme="midnight"] .option-surface .text-muted-foreground,
+[data-theme="midnight"] .text-muted-foreground {
+  color: hsl(215 20% 65%) !important;
 }
 
 [data-theme="midnight"] .option-surface .text-slate-900,
@@ -315,15 +316,29 @@
 [data-theme="midnight"] .option-surface .bg-slate-100,
 [data-theme="midnight"] .option-surface .bg-emerald-50,
 [data-theme="midnight"] .option-surface .bg-blue-50,
-[data-theme="midnight"] .option-surface .bg-fuchsia-50 {
-  background-color: hsl(223 39% 12%) !important;
+[data-theme="midnight"] .option-surface .bg-fuchsia-50,
+[data-theme="midnight"] .bg-muted {
+  background-color: hsl(222 47% 6%) !important;
+}
+
+[data-theme="midnight"] .bg-white {
+  background-color: hsl(222 47% 7%) !important;
+}
+
+[data-theme="midnight"] .bg-slate-50\/50 {
+  background-color: hsl(222 47% 3% / 0.6) !important;
 }
 
 [data-theme="midnight"] .option-surface .border-slate-200,
 [data-theme="midnight"] .option-surface .border-emerald-200,
 [data-theme="midnight"] .option-surface .border-blue-200,
-[data-theme="midnight"] .option-surface .border-fuchsia-200 {
-  border-color: hsl(217 33% 24%) !important;
+[data-theme="midnight"] .option-surface .border-fuchsia-200,
+[data-theme="midnight"] .border,
+[data-theme="midnight"] .border-b,
+[data-theme="midnight"] .border-t,
+[data-theme="midnight"] .border-l,
+[data-theme="midnight"] .border-r {
+  border-color: hsl(222 47% 12%) !important;
 }
 
 [data-theme="midnight"] .option-surface .hover\:bg-slate-100:hover,

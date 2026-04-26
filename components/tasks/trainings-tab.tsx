@@ -8,6 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Upload, Image as ImageIcon } from "lucide-react";
 import type { User } from "@/lib/types/database";
 
@@ -33,6 +41,7 @@ export function TrainingsTab({ user }: { user: User | null }) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [rows, setRows] = useState<TrainingRow[]>([]);
   const [newTrainingName, setNewTrainingName] = useState("");
 
@@ -81,6 +90,7 @@ export function TrainingsTab({ user }: { user: User | null }) {
     toast({ title: "Success", description: "Training added" });
     await fetchRows();
     setSaving(false);
+    setIsModalOpen(false);
   };
 
   const updateTraining = async (id: string, updates: Partial<TrainingRow>) => {
@@ -117,23 +127,49 @@ export function TrainingsTab({ user }: { user: User | null }) {
 
   return (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-slate-200 bg-white p-4">
-        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Add Training</p>
-        <div className="mt-3 flex flex-wrap items-end gap-3">
-          <div className="w-full max-w-sm space-y-1">
-            <Label>Name</Label>
-            <Input value={newTrainingName} onChange={(e) => setNewTrainingName(e.target.value)} />
-          </div>
-          <Button
-            type="button"
-            onClick={addTraining}
-            disabled={saving}
-            className="rounded-xl bg-slate-900 text-white hover:bg-slate-800"
-          >
-            {saving ? "Saving..." : "Add Training"}
-          </Button>
-        </div>
-      </section>
+      <div className="flex justify-end">
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogTrigger asChild>
+            <Button
+              variant="ghost"
+              className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 font-semibold"
+            >
+              + Add Training
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Add Training</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label>Training Name</Label>
+                <Input
+                  value={newTrainingName}
+                  onChange={(e) => setNewTrainingName(e.target.value)}
+                  placeholder="e.g. Health and Safety"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsModalOpen(false)}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={addTraining}
+                disabled={saving}
+                className="bg-slate-900 text-white hover:bg-slate-800"
+              >
+                {saving ? "Saving..." : "Save Training"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4">
         <div className="overflow-x-auto rounded-xl border border-slate-200">

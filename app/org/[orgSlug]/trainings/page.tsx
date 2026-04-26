@@ -37,10 +37,8 @@ export default function TrainingsPage() {
 
   return (
     <div className="option-surface space-y-4 p-6 md:p-8">
-      <div className="option-panel rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">Trainings</p>
-        <p className="mt-1 text-sm text-slate-600">Record trainings and upload certificates.</p>
-      </div>
+      <h1 className="text-2xl font-bold text-slate-900">Trainings</h1>
+
       <TrainingsTab user={user} />
     </div>
   );

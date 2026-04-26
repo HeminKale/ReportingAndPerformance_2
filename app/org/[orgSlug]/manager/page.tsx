@@ -571,7 +571,7 @@ export default function ManagerPage() {
       toast({ title: "Success", description: "Mistake recorded successfully" });
       setMistakeDialog({ open: false, mode: 'create', mistake: null });
       setMistakeForm({ title: '', description: '', severity: 'medium', userId: '' });
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -603,7 +603,7 @@ export default function ManagerPage() {
       toast({ title: "Success", description: "Mistake updated successfully" });
       setMistakeDialog({ open: false, mode: 'edit', mistake: null });
       setMistakeForm({ title: '', description: '', severity: 'medium', userId: '' });
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -617,7 +617,7 @@ export default function ManagerPage() {
       const { error } = await supabase.from('mistakes').delete().eq('id', mistakeId);
       if (error) throw error;
       toast({ title: "Success", description: "Mistake deleted successfully" });
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
@@ -653,7 +653,7 @@ export default function ManagerPage() {
       if (nErr) console.warn("mistake_rectified notification", nErr.message);
 
       toast({ title: "Success", description: "Closure accepted. Status set to Rectified." });
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -670,7 +670,7 @@ export default function ManagerPage() {
         .eq('id', mistakeId);
       if (error) throw error;
       toast({ title: "Closure request rejected", description: "The employee can submit a new request if needed." });
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -819,7 +819,7 @@ export default function ManagerPage() {
       toast({ title: "Recalled", description: "The employee has been notified." });
       setRecallDialog({ open: false, log: null });
       setRecallComment("");
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -983,7 +983,7 @@ export default function ManagerPage() {
 
       setActionDialog({ open: false, type: null, item: null, action: null });
       setComment("");
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -1053,25 +1053,40 @@ export default function ManagerPage() {
       </div>
 
       <Tabs value={managerActiveTab} onValueChange={setManagerActiveTab} className="space-y-6">
-        <div className="flex flex-col gap-4 xl:flex-row">
-          <aside className="option-panel w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:w-72">
-            <p className="text-3xl font-bold tracking-tight">Manager Panel</p>
-
-            <TabsList className="option-tablist mt-4 h-auto w-full flex-col items-stretch gap-1 rounded-xl border border-slate-200 bg-slate-50 p-2">
-              <div className="flex w-full flex-col gap-1">
-                <TabsTrigger value="manager-tasks" className="manager-side-trigger justify-between rounded-lg px-3 py-2">
+        <div className="flex flex-col gap-4 xl:flex-row">          <aside className="h-fit flex w-full shrink-0 flex-col rounded-2xl border border-slate-200 bg-slate-50/50 p-2 shadow-sm xl:w-72">
+            <div className="px-4 py-3">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">Manager Panel</h2>
+            </div>
+            <TabsList className="flex h-auto flex-col gap-1.5 bg-transparent p-0">
+              <div className="flex w-full flex-col gap-1.5">
+                <TabsTrigger 
+                  value="manager-tasks" 
+                  className={cn(
+                    "group flex w-full items-center justify-between gap-2 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-300 shadow-none",
+                    "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                    "data-[state=active]:translate-x-1 data-[state=active]:scale-[1.02] data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-[0_8px_16px_-4px_rgba(0,0,0,0.1),0_4px_8px_-2px_rgba(0,0,0,0.05)] data-[state=active]:ring-1 data-[state=active]:ring-slate-200/50"
+                  )}
+                >
                   <span>Tasks</span>
-                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{todayTaskRows.length}</span>
+                  {taskLogs.filter((log: any) => log.verification_status === 'pending').length > 0 && (
+                    <span className={cn(
+                      "rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums transition-colors",
+                      "bg-amber-100/80 text-amber-700 group-hover:bg-amber-200",
+                      "group-data-[state=active]:bg-amber-100 group-data-[state=active]:text-amber-700"
+                    )}>
+                      {taskLogs.filter((log: any) => log.verification_status === 'pending').length}
+                    </span>
+                  )}
                 </TabsTrigger>
                 {managerActiveTab === "manager-tasks" && (
-                  <div className="ml-2 flex flex-col gap-0.5 border-l-2 border-slate-200 pl-2 pb-1">
+                  <div className="mx-2 flex flex-col gap-1 border-l-2 border-slate-200/50 pl-3 pb-1">
                     <button
                       type="button"
                       className={cn(
-                        "w-full rounded-md px-2.5 py-2 text-left text-sm font-medium transition-colors border-l-2",
+                        "w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-all duration-150",
                         tasksSubView === "regular"
-                          ? "border-primary bg-primary/10 text-foreground"
-                          : "border-transparent text-muted-foreground hover:bg-muted/70"
+                          ? "bg-primary/5 text-primary"
+                          : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                       )}
                       onClick={() => setTasksSubView("regular")}
                     >
@@ -1080,10 +1095,10 @@ export default function ManagerPage() {
                     <button
                       type="button"
                       className={cn(
-                        "w-full rounded-md px-2.5 py-2 text-left text-sm font-medium transition-colors border-l-2",
+                        "w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-all duration-150",
                         tasksSubView === "shared"
-                          ? "border-primary bg-primary/10 text-foreground"
-                          : "border-transparent text-muted-foreground hover:bg-muted/70"
+                          ? "bg-primary/5 text-primary"
+                          : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                       )}
                       onClick={() => setTasksSubView("shared")}
                     >
@@ -1092,10 +1107,10 @@ export default function ManagerPage() {
                     <button
                       type="button"
                       className={cn(
-                        "w-full rounded-md px-2.5 py-2 text-left text-sm font-medium transition-colors border-l-2",
+                        "w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-all duration-150",
                         tasksSubView === "history"
-                          ? "border-primary bg-primary/10 text-foreground"
-                          : "border-transparent text-muted-foreground hover:bg-muted/70"
+                          ? "bg-primary/5 text-primary"
+                          : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
                       )}
                       onClick={() => setTasksSubView("history")}
                     >
@@ -1104,18 +1119,40 @@ export default function ManagerPage() {
                   </div>
                 )}
               </div>
-              <TabsTrigger value="attendance-report" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Attendance Report <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentAttendanceReportItems.length}</span></TabsTrigger>
-              <TabsTrigger value="mistakes" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Track Mistakes <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{allMistakes.length}</span></TabsTrigger>
-              <TabsTrigger value="leaves" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Leaves <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentLeaveItems.length}</span></TabsTrigger>
-              <TabsTrigger value="calendar" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Calendar</TabsTrigger>
-              <TabsTrigger value="team" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Team Members <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
-              <TabsTrigger value="documents" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Documents <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
-              <TabsTrigger value="salary" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Salary <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
-              <TabsTrigger value="ratings" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Employee ratings</TabsTrigger>
-              <TabsTrigger value="task-assignment" className="manager-side-trigger justify-between rounded-lg px-3 py-2">
-                <span>Task Assignment</span>
-                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{managedTeamTasks.length}</span>
-              </TabsTrigger>
+
+              {[
+                { value: "attendance-report", label: "Attendance Report", count: attendanceItems.filter((att: any) => att.approval_status === 'pending').length },
+                { value: "mistakes", label: "Track Mistakes", count: allMistakes.filter((m: any) => m.closure_request_pending === true).length },
+                { value: "leaves", label: "Leaves", count: leaveItems.filter((leave: any) => leave.status === 'pending').length },
+                { value: "calendar", label: "Calendar" },
+                { value: "team", label: "Team Members", count: teamMembers.length, alwaysShowCount: true },
+                { value: "documents", label: "Documents" },
+                { value: "salary", label: "Salary" },
+                { value: "ratings", label: "Employee Ratings" },
+                { value: "task-assignment", label: "Task Assignment" },
+              ].map((tab) => (
+                <TabsTrigger 
+                  key={tab.value}
+                  value={tab.value} 
+                  className={cn(
+                    "group flex w-full items-center justify-between gap-2 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-300 shadow-none",
+                    "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                    "data-[state=active]:translate-x-1 data-[state=active]:scale-[1.02] data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-[0_8px_16px_-4px_rgba(0,0,0,0.1),0_4px_8px_-2px_rgba(0,0,0,0.05)] data-[state=active]:ring-1 data-[state=active]:ring-slate-200/50"
+                  )}
+                >
+                  <span>{tab.label}</span>
+                  {tab.count !== undefined && (tab.alwaysShowCount || tab.count > 0) && (
+                    <span className={cn(
+                      "rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums transition-colors",
+                      tab.alwaysShowCount 
+                        ? "bg-slate-200/50 text-slate-500 group-hover:bg-slate-200 group-data-[state=active]:bg-primary/10 group-data-[state=active]:text-primary"
+                        : "bg-amber-100/80 text-amber-700 group-hover:bg-amber-200 group-data-[state=active]:bg-amber-100 group-data-[state=active]:text-amber-700"
+                    )}>
+                      {tab.count}
+                    </span>
+                  )}
+                </TabsTrigger>
+              ))}
             </TabsList>
           </aside>
 
@@ -1785,23 +1822,25 @@ export default function ManagerPage() {
 
         <TabsContent value="mistakes" className="space-y-4">
           <Tabs defaultValue="mistakes-tracker" className="space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <Input
                 placeholder="Search mistakes..."
                 value={mistakeSearchTerm}
                 onChange={(e) => setMistakeSearchTerm(e.target.value)}
                 className="min-w-[160px] flex-1 max-w-md"
               />
-              <TabsList className="option-tablist h-auto shrink-0 rounded-xl bg-slate-100 p-1">
-                <TabsTrigger value="closure-requests">
-                  Closure Requests ({filteredClosureRequests.length})
-                </TabsTrigger>
-                <TabsTrigger value="mistakes-tracker">Mistakes</TabsTrigger>
-              </TabsList>
-              <Button type="button" className="shrink-0" onClick={openCreateMistakeDialog}>
-                <Plus className="h-4 w-4 mr-2" />
-                Record Mistake
-              </Button>
+              <div className="flex items-center gap-3 ml-auto">
+                <TabsList className="option-tablist h-auto shrink-0 rounded-xl bg-slate-100 p-1">
+                  <TabsTrigger value="closure-requests">
+                    Closure Requests ({filteredClosureRequests.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="mistakes-tracker">Mistakes</TabsTrigger>
+                </TabsList>
+                <Button type="button" className="shrink-0" onClick={openCreateMistakeDialog}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Record Mistake
+                </Button>
+              </div>
             </div>
 
             <TabsContent value="closure-requests" className="space-y-4">

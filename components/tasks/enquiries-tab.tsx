@@ -9,6 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Pencil } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import type { User } from "@/lib/types/database";
 
 type EnquiryType = "new" | "renewal";
@@ -43,6 +52,8 @@ export function EnquiriesTab({ user }: { user: User | null }) {
   const [nameFilter, setNameFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [saving, setSaving] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formState, setFormState] = useState({
     name: "",
     status: "prospecting" as EnquiryStatus,
@@ -85,8 +96,38 @@ export function EnquiriesTab({ user }: { user: User | null }) {
   }, [enquiries, activeType, nameFilter, dateFilter]);
 
   const isClosing = formState.status === "closed_won" || formState.status === "closed_lost";
+  const isEditing = !!editingId;
+  const modalTitle = isEditing
+    ? `Edit ${activeType === "new" ? "New" : "Renewal"} Enquiry`
+    : `Add ${activeType === "new" ? "New" : "Renewal"} Enquiry`;
 
-  const handleCreate = async () => {
+  const handleOpenNew = () => {
+    setFormState({
+      name: "",
+      status: "prospecting",
+      reason: "",
+      isoStandard: "",
+      date: new Date().toISOString().slice(0, 10),
+      certificationBody: "",
+    });
+    setEditingId(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (row: EnquiryRow) => {
+    setFormState({
+      name: row.name,
+      status: row.status,
+      reason: row.reason || "",
+      isoStandard: row.iso_standard || "",
+      date: row.date,
+      certificationBody: row.certification_body || "",
+    });
+    setEditingId(row.id);
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async () => {
     if (!user) return;
     if (!formState.name.trim()) {
       toast({ title: "Error", description: "Name is required", variant: "destructive" });
@@ -102,7 +143,7 @@ export function EnquiriesTab({ user }: { user: User | null }) {
     }
 
     setSaving(true);
-    const { error } = await supabase.from("enquiries").insert({
+    const payload = {
       organization_id: user.organization_id,
       owner_id: user.id,
       type: activeType,
@@ -112,7 +153,11 @@ export function EnquiriesTab({ user }: { user: User | null }) {
       iso_standard: formState.isoStandard.trim() || null,
       date: formState.date,
       certification_body: formState.certificationBody.trim() || null,
-    });
+    };
+
+    const { error } = isEditing
+      ? await supabase.from("enquiries").update(payload).eq("id", editingId)
+      : await supabase.from("enquiries").insert(payload);
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -120,7 +165,7 @@ export function EnquiriesTab({ user }: { user: User | null }) {
       return;
     }
 
-    toast({ title: "Success", description: "Enquiry saved successfully" });
+    toast({ title: "Success", description: `Enquiry ${isEditing ? "updated" : "saved"} successfully` });
     setFormState({
       name: "",
       status: "prospecting",
@@ -129,8 +174,10 @@ export function EnquiriesTab({ user }: { user: User | null }) {
       date: new Date().toISOString().slice(0, 10),
       certificationBody: "",
     });
+    setEditingId(null);
     await fetchEnquiries();
     setSaving(false);
+    setIsModalOpen(false);
   };
 
   return (
@@ -151,80 +198,116 @@ export function EnquiriesTab({ user }: { user: User | null }) {
       </aside>
 
       <div className="space-y-4">
-        <TabsContent value="new" className="mt-0 space-y-4">
-          <section className="rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Add Enquiry</p>
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
-              <div className="space-y-1">
-                <Label>Name</Label>
-                <Input value={formState.name} onChange={(e) => setFormState((p) => ({ ...p, name: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label>Status</Label>
-                <Select
-                  value={formState.status}
-                  onValueChange={(value) => setFormState((p) => ({ ...p, status: value as EnquiryStatus }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Date</Label>
-                <Input
-                  type="date"
-                  value={formState.date}
-                  onChange={(e) => setFormState((p) => ({ ...p, date: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>ISO Standard</Label>
-                <Input
-                  value={formState.isoStandard}
-                  onChange={(e) => setFormState((p) => ({ ...p, isoStandard: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Certification Body</Label>
-                <Input
-                  value={formState.certificationBody}
-                  onChange={(e) => setFormState((p) => ({ ...p, certificationBody: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Owner</Label>
-                <Input value={user?.full_name || ""} disabled />
-              </div>
-              <div className="space-y-1 md:col-span-3">
-                <Label>
-                  Reason {(formState.status === "closed_won" || formState.status === "closed_lost") && "(required)"}
-                </Label>
-                <Input
-                  value={formState.reason}
-                  onChange={(e) => setFormState((p) => ({ ...p, reason: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="mt-3 flex justify-end">
+        <div className="flex justify-end">
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogTrigger asChild>
               <Button
-                type="button"
-                onClick={handleCreate}
-                disabled={saving}
-                className="rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+                variant="ghost"
+                onClick={handleOpenNew}
+                className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 font-semibold"
               >
-                {saving ? "Saving..." : "Save Enquiry"}
+                + New Enquiry
               </Button>
-            </div>
-          </section>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>{modalTitle}</DialogTitle>
+              </DialogHeader>
 
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Name</Label>
+                    <Input
+                      value={formState.name}
+                      onChange={(e) => setFormState((p) => ({ ...p, name: e.target.value }))}
+                      placeholder="Company or Person Name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select
+                      value={formState.status}
+                      onValueChange={(value) => setFormState((p) => ({ ...p, status: value as EnquiryStatus }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUS_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Date</Label>
+                    <Input
+                      type="date"
+                      value={formState.date}
+                      onChange={(e) => setFormState((p) => ({ ...p, date: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>ISO Standard</Label>
+                    <Input
+                      value={formState.isoStandard}
+                      onChange={(e) => setFormState((p) => ({ ...p, isoStandard: e.target.value }))}
+                      placeholder="e.g. ISO 9001"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Certification Body</Label>
+                    <Input
+                      value={formState.certificationBody}
+                      onChange={(e) => setFormState((p) => ({ ...p, certificationBody: e.target.value }))}
+                      placeholder="e.g. BSI, TUV"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Owner</Label>
+                    <Input value={user?.full_name || ""} disabled />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>
+                    Reason {(formState.status === "closed_won" || formState.status === "closed_lost") && "(required)"}
+                  </Label>
+                  <Input
+                    value={formState.reason}
+                    onChange={(e) => setFormState((p) => ({ ...p, reason: e.target.value }))}
+                    placeholder="Details about the status..."
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={saving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="bg-slate-900 text-white hover:bg-slate-800"
+                >
+                  {saving ? "Saving..." : "Save Enquiry"}
+                </Button>
+
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <TabsContent value="new" className="mt-0 space-y-4">
           <section className="rounded-2xl border border-slate-200 bg-white p-4">
             <div className="mb-3 flex flex-wrap gap-3">
               <Input
@@ -247,6 +330,7 @@ export function EnquiriesTab({ user }: { user: User | null }) {
                     <TableHead>Date</TableHead>
                     <TableHead>Certification Body</TableHead>
                     <TableHead>Owner</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -272,6 +356,16 @@ export function EnquiriesTab({ user }: { user: User | null }) {
                         <TableCell>{row.date}</TableCell>
                         <TableCell>{row.certification_body || "-"}</TableCell>
                         <TableCell>{row.owner_name || "-"}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(row)}
+                            className="h-8 w-8 text-slate-400 hover:text-blue-600"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -283,79 +377,6 @@ export function EnquiriesTab({ user }: { user: User | null }) {
 
         <TabsContent value="renewal" className="mt-0 space-y-4">
           <section className="rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Add Enquiry</p>
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
-              <div className="space-y-1">
-                <Label>Name</Label>
-                <Input value={formState.name} onChange={(e) => setFormState((p) => ({ ...p, name: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label>Status</Label>
-                <Select
-                  value={formState.status}
-                  onValueChange={(value) => setFormState((p) => ({ ...p, status: value as EnquiryStatus }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Date</Label>
-                <Input
-                  type="date"
-                  value={formState.date}
-                  onChange={(e) => setFormState((p) => ({ ...p, date: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>ISO Standard</Label>
-                <Input
-                  value={formState.isoStandard}
-                  onChange={(e) => setFormState((p) => ({ ...p, isoStandard: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Certification Body</Label>
-                <Input
-                  value={formState.certificationBody}
-                  onChange={(e) => setFormState((p) => ({ ...p, certificationBody: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Owner</Label>
-                <Input value={user?.full_name || ""} disabled />
-              </div>
-              <div className="space-y-1 md:col-span-3">
-                <Label>
-                  Reason {(formState.status === "closed_won" || formState.status === "closed_lost") && "(required)"}
-                </Label>
-                <Input
-                  value={formState.reason}
-                  onChange={(e) => setFormState((p) => ({ ...p, reason: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="mt-3 flex justify-end">
-              <Button
-                type="button"
-                onClick={handleCreate}
-                disabled={saving}
-                className="rounded-xl bg-slate-900 text-white hover:bg-slate-800"
-              >
-                {saving ? "Saving..." : "Save Enquiry"}
-              </Button>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-4">
             <div className="mb-3 flex flex-wrap gap-3">
               <Input
                 placeholder="Filter by name..."
@@ -377,6 +398,7 @@ export function EnquiriesTab({ user }: { user: User | null }) {
                     <TableHead>Date</TableHead>
                     <TableHead>Certification Body</TableHead>
                     <TableHead>Owner</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -402,6 +424,16 @@ export function EnquiriesTab({ user }: { user: User | null }) {
                         <TableCell>{row.date}</TableCell>
                         <TableCell>{row.certification_body || "-"}</TableCell>
                         <TableCell>{row.owner_name || "-"}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(row)}
+                            className="h-8 w-8 text-slate-400 hover:text-blue-600"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -411,6 +443,7 @@ export function EnquiriesTab({ user }: { user: User | null }) {
           </section>
         </TabsContent>
       </div>
+
     </Tabs>
   );
 }

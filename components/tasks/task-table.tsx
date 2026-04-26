@@ -18,9 +18,10 @@ interface TaskTableProps {
   onView: (task: Task, taskLog?: TaskLog) => void;
   /** Shown in the table body when there are zero rows (headers still visible). */
   emptyMessage?: string;
+  hideDueColumn?: boolean;
 }
 
-export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks found" }: TaskTableProps) {
+export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks found", hideDueColumn = false }: TaskTableProps) {
   const [openMenuTaskId, setOpenMenuTaskId] = useState<string | null>(null);
 
   const getStatusBadge = (taskLog?: TaskLog) => {
@@ -70,8 +71,7 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
         <TableHeader>
           <TableRow className="bg-slate-50/80">
             <TableHead>Task Name</TableHead>
-            <TableHead>Task Description</TableHead>
-            <TableHead>Due</TableHead>
+            {!hideDueColumn && <TableHead>Due</TableHead>}
             <TableHead>Status</TableHead>
             <TableHead>Assigned At</TableHead>
             <TableHead>Submitted At</TableHead>
@@ -81,7 +81,7 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
         <TableBody>
           {tasks.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
+              <TableCell colSpan={hideDueColumn ? 5 : 6} className="py-12 text-center text-sm text-muted-foreground">
                 {emptyMessage}
               </TableCell>
             </TableRow>
@@ -101,14 +101,11 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
                     </span>
                   )}
                 </TableCell>
-                <TableCell className="max-w-md">
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {task.description || "-"}
-                  </p>
-                </TableCell>
-                <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                  {dueDateLabel(task)}
-                </TableCell>
+                {!hideDueColumn && (
+                  <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                    {dueDateLabel(task)}
+                  </TableCell>
+                )}
                 <TableCell>{getStatusBadge(taskLog)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {format(new Date(task.created_at), "dd MMM yyyy")}
