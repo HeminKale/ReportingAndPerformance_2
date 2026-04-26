@@ -13,7 +13,7 @@ import { TaskAssignmentPanel } from "@/components/shared/task-assignment-panel";
 import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { ChevronDown, Filter, List } from "lucide-react";
+import { ChevronDown, Filter, LayoutGrid, List } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import type { Task, TaskLog, User } from "@/lib/types/database";
 
@@ -26,9 +26,13 @@ const TASK_SUB_TAB_TRIGGER =
 function TaskToolbarRow({
   left,
   onAddTask,
+  taskViewMode,
+  setTaskViewMode,
 }: {
   left: ReactNode;
   onAddTask: () => void;
+  taskViewMode: "list" | "board";
+  setTaskViewMode: (m: "list" | "board") => void;
 }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
@@ -45,10 +49,25 @@ function TaskToolbarRow({
         <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50/90 p-1">
           <button
             type="button"
-            className="rounded-md p-1.5 bg-primary/15 text-primary transition-colors"
+            onClick={() => setTaskViewMode("list")}
+            className={cn(
+              "rounded-md p-1.5 transition-colors",
+              taskViewMode === "list" ? "bg-primary/15 text-primary" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            )}
             aria-label="List view"
           >
             <List className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setTaskViewMode("board")}
+            className={cn(
+              "rounded-md p-1.5 transition-colors",
+              taskViewMode === "board" ? "bg-primary/15 text-primary" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            )}
+            aria-label="Kanban view"
+          >
+            <LayoutGrid className="h-4 w-4" />
           </button>
           <button
             type="button"
@@ -73,6 +92,7 @@ export default function TasksPage() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [addTaskPanelOpen, setAddTaskPanelOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [taskViewMode, setTaskViewMode] = useState<"list" | "board">("list");
   const [taskPeriod, setTaskPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
   const [historyFilters, setHistoryFilters] = useState({
     daily: { date: '', taskName: '' },
@@ -438,6 +458,8 @@ export default function TasksPage() {
                 </TabsList>
               }
               onAddTask={() => setAddTaskPanelOpen(true)}
+              taskViewMode={taskViewMode}
+              setTaskViewMode={setTaskViewMode}
             />
 
             <TabsContent value="current" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
@@ -589,6 +611,8 @@ export default function TasksPage() {
                 </TabsList>
               }
               onAddTask={() => setAddTaskPanelOpen(true)}
+              taskViewMode={taskViewMode}
+              setTaskViewMode={setTaskViewMode}
             />
 
             <TabsContent value="current" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
@@ -697,6 +721,8 @@ export default function TasksPage() {
                 </TabsList>
               }
               onAddTask={() => setAddTaskPanelOpen(true)}
+              taskViewMode={taskViewMode}
+              setTaskViewMode={setTaskViewMode}
             />
 
             <TabsContent value="current" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
