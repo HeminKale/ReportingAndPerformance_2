@@ -16,7 +16,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { ChevronDown, Filter, LayoutGrid, List } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import type { Task, TaskLog, User } from "@/lib/types/database";
-const TASK_SUB_TAB_LIST = "inline-flex h-auto w-full flex-wrap items-center justify-start gap-0 rounded-none border-0 bg-transparent p-0";
+const TASK_SUB_TAB_LIST = "inline-flex h-auto w-auto flex-wrap items-center justify-start gap-0 rounded-none border-0 bg-transparent p-0";
 const TASK_SUB_TAB_TRIGGER = "rounded-none border-b-2 border-transparent px-4 py-2 text-sm font-semibold text-slate-600 shadow-none transition-colors hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none";
 
 
@@ -324,19 +324,18 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="option-surface flex min-h-0 flex-1 flex-col gap-6 p-6 md:p-8">
+    <div className="option-surface flex flex-col gap-6 p-6 md:p-8">
       {user && <TaskProgressRings tasks={pieChartTasks} />}
 
       <Tabs
         value={taskPeriod}
         onValueChange={(v) => setTaskPeriod(v as "daily" | "weekly" | "monthly")}
-        className="flex min-h-0 flex-1 flex-col gap-5 md:flex-row"
+        className="flex flex-col gap-5 md:flex-row md:items-start"
       >
         {/* ─── Left Sidebar ─── */}
         <aside className="flex w-full shrink-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm md:w-56">
           <div className="border-b border-slate-100 px-4 py-4">
             <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Tasks</p>
-            <p className="mt-0.5 text-sm text-slate-500">View by frequency</p>
           </div>
           <TabsList className="flex flex-col gap-0.5 bg-transparent p-2">
             {(
@@ -377,11 +376,11 @@ export default function TasksPage() {
         </aside>
 
         {/* ─── Right Content Panel ─── */}
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <section className="min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white shadow-sm">
 
           {/* ═══════════════ DAILY TAB ═══════════════ */}
-          <TabsContent value="daily" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
-            <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col">
+          <TabsContent value="daily" className="mt-0 flex flex-col data-[state=inactive]:hidden">
+            <Tabs defaultValue="current" className="flex flex-col">
 
               {/* Toolbar */}
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
@@ -427,7 +426,7 @@ export default function TasksPage() {
               </div>
 
               {/* Current sub-tab */}
-              <TabsContent value="current" className="mt-0 flex min-h-0 flex-1 flex-col overflow-y-auto data-[state=inactive]:hidden">
+              <TabsContent value="current" className="mt-0 data-[state=inactive]:hidden">
                 <div className="flex flex-col gap-4 p-5">
                   {/* Active Tasks Table */}
                   <TaskTable tasks={dailyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
@@ -494,7 +493,7 @@ export default function TasksPage() {
               </TabsContent>
 
               {/* History sub-tab */}
-              <TabsContent value="history" className="mt-0 flex-1 overflow-y-auto p-5">
+              <TabsContent value="history" className="mt-0 p-5">
                 <div className="mb-4 flex flex-wrap gap-3">
                   <Input type="date" className="w-44" value={historyFilters.daily.date} onChange={(e) => setHistoryFilters((prev) => ({ ...prev, daily: { ...prev.daily, date: e.target.value } }))} />
                   <Input placeholder="Search by task name..." className="min-w-[12rem] flex-1" value={historyFilters.daily.taskName} onChange={(e) => setHistoryFilters((prev) => ({ ...prev, daily: { ...prev.daily, taskName: e.target.value } }))} />
@@ -524,8 +523,8 @@ export default function TasksPage() {
           </TabsContent>
 
           {/* ═══════════════ WEEKLY TAB ═══════════════ */}
-          <TabsContent value="weekly" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
-            <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col">
+          <TabsContent value="weekly" className="mt-0 flex flex-col data-[state=inactive]:hidden">
+            <Tabs defaultValue="current" className="flex flex-col">
 
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
                 <TabsList className={TASK_SUB_TAB_LIST}>
@@ -548,7 +547,7 @@ export default function TasksPage() {
                 </div>
               </div>
 
-              <TabsContent value="current" className="mt-0 flex min-h-0 flex-1 flex-col overflow-y-auto data-[state=inactive]:hidden">
+              <TabsContent value="current" className="mt-0 data-[state=inactive]:hidden">
                 <div className="flex flex-col gap-4 p-5">
                   <TaskTable tasks={weeklyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
 
@@ -569,7 +568,7 @@ export default function TasksPage() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="history" className="mt-0 flex-1 overflow-y-auto p-5">
+              <TabsContent value="history" className="mt-0 p-5">
                 <div className="mb-4 flex flex-wrap gap-3">
                   <Input type="date" className="w-44" value={historyFilters.weekly.date} onChange={(e) => setHistoryFilters((prev) => ({ ...prev, weekly: { ...prev.weekly, date: e.target.value } }))} />
                   <Input placeholder="Search by task name..." className="min-w-[12rem] flex-1" value={historyFilters.weekly.taskName} onChange={(e) => setHistoryFilters((prev) => ({ ...prev, weekly: { ...prev.weekly, taskName: e.target.value } }))} />
@@ -599,8 +598,8 @@ export default function TasksPage() {
           </TabsContent>
 
           {/* ═══════════════ MONTHLY TAB ═══════════════ */}
-          <TabsContent value="monthly" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
-            <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col">
+          <TabsContent value="monthly" className="mt-0 flex flex-col data-[state=inactive]:hidden">
+            <Tabs defaultValue="current" className="flex flex-col">
 
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
                 <TabsList className={TASK_SUB_TAB_LIST}>
@@ -623,7 +622,7 @@ export default function TasksPage() {
                 </div>
               </div>
 
-              <TabsContent value="current" className="mt-0 flex min-h-0 flex-1 flex-col overflow-y-auto data-[state=inactive]:hidden">
+              <TabsContent value="current" className="mt-0 data-[state=inactive]:hidden">
                 <div className="flex flex-col gap-4 p-5">
                   <TaskTable tasks={monthlyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
 
@@ -668,7 +667,7 @@ export default function TasksPage() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="history" className="mt-0 flex-1 overflow-y-auto p-5">
+              <TabsContent value="history" className="mt-0 p-5">
                 <div className="mb-4 flex flex-wrap gap-3">
                   <Input type="date" className="w-44" value={historyFilters.monthly.date} onChange={(e) => setHistoryFilters((prev) => ({ ...prev, monthly: { ...prev.monthly, date: e.target.value } }))} />
                   <Input placeholder="Search by task name..." className="min-w-[12rem] flex-1" value={historyFilters.monthly.taskName} onChange={(e) => setHistoryFilters((prev) => ({ ...prev, monthly: { ...prev.monthly, taskName: e.target.value } }))} />
