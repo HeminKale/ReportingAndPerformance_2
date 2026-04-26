@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +42,8 @@ export type TaskAssignmentPanelProps = {
   managerCurrentHistorySplit?: boolean;
   /** Manager-owned periodic templates (cron materializes into tasks) */
   managerPeriodicTasks?: ManagerPeriodicTask[];
+  /** For notification deep links, e.g. /org/x/tasks */
+  orgSlug?: string;
 };
 
 export function TaskAssignmentPanel({
@@ -54,7 +57,10 @@ export function TaskAssignmentPanel({
   onTasksChanged,
   managerCurrentHistorySplit = false,
   managerPeriodicTasks = [],
+  orgSlug: orgSlugProp,
 }: TaskAssignmentPanelProps) {
+  const params = useParams() as { orgSlug?: string };
+  const orgSlug = orgSlugProp ?? params.orgSlug;
   const [taskSearchTerm, setTaskSearchTerm] = useState("");
   const [mainAssignmentTab, setMainAssignmentTab] = useState("current");
   const [periodicSubTab, setPeriodicSubTab] = useState<"daily" | "weekly" | "monthly">("daily");
@@ -175,6 +181,32 @@ export function TaskAssignmentPanel({
 
     setSubmitting(true);
     try {
+      const sendTaskAssignedTo = (recipientIds: string[]) => {
+        if (!orgSlug) return;
+        const assigner =
+          assignableUsers.find((u) => u.id === currentUserId)?.full_name ?? "Your manager";
+        const link = `/org/${orgSlug}/tasks`;
+        const titleTrim = taskForm.title.trim();
+        const rows = recipientIds
+          .filter((uid) => uid && uid !== currentUserId)
+          .map((uid) => ({
+            organization_id: organizationId,
+            user_id: uid,
+            type: "task_assigned" as const,
+            title: "New task assigned",
+            message: `${assigner} assigned you: "${titleTrim}"`,
+            link,
+            metadata: { actionable: false as const },
+          }));
+        if (rows.length === 0) return;
+        void supabase
+          .from("notifications")
+          .insert(rows)
+          .then(({ error: nErr }) => {
+            if (nErr) console.warn("[task_assigned] notification insert", nErr.message);
+          });
+      };
+
       const isCommon = isManager || isEmployee ? false : taskForm.assignmentType === "common";
 
       const baseRow: Record<string, unknown> = {
@@ -204,6 +236,7 @@ export function TaskAssignmentPanel({
         }));
         const { error } = await supabase.from("tasks").insert(rows);
         if (error) throw error;
+        sendTaskAssignedTo(taskForm.assignedToIds);
         const n = rows.length;
         toast({
           title: "Success",
@@ -217,6 +250,12 @@ export function TaskAssignmentPanel({
         };
         const { error } = await supabase.from("tasks").insert(taskData);
         if (error) throw error;
+        const assignTo = isEmployee
+          ? currentUserId
+          : isCommon
+            ? null
+            : taskForm.assignedTo;
+        if (assignTo) sendTaskAssignedTo([assignTo]);
         toast({ title: "Success", description: "Task created successfully" });
       }
       setTaskDialog({ open: false, mode: "create", task: null });

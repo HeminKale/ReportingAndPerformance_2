@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -23,8 +24,10 @@ import { cn } from "@/lib/utils/cn";
 import { ManagerDocumentsTab } from "@/components/manager/manager-documents-tab";
 import { ManagerSalaryTab } from "@/components/manager/manager-salary-tab";
 import { ManagerCalendarTab } from "@/components/manager/manager-calendar-tab";
+import { markResourceNotificationsRead } from "@/lib/notifications/mark-resource-read";
 
 export default function ManagerPage() {
+  const { orgSlug } = useParams() as { orgSlug: string };
   const [user, setUser] = useState<User | null>(null);
   const [teamMembers, setTeamMembers] = useState<User[]>([]);
   const [taskLogs, setTaskLogs] = useState<any[]>([]);
@@ -544,6 +547,18 @@ export default function ManagerPage() {
         });
       if (error) throw error;
 
+      const tasksLink = `/org/${orgSlug}/tasks`;
+      const { error: nErr } = await supabase.from("notifications").insert({
+        organization_id: user.organization_id,
+        user_id: mistakeForm.userId,
+        type: "mistake_logged",
+        title: "Mistake recorded",
+        message: `Your manager logged a mistake: "${mistakeForm.title.trim()}"`,
+        link: tasksLink,
+        metadata: { actionable: false },
+      });
+      if (nErr) console.warn("mistake_logged notification", nErr.message);
+
       toast({ title: "Success", description: "Mistake recorded successfully" });
       setMistakeDialog({ open: false, mode: 'create', mistake: null });
       setMistakeForm({ title: '', description: '', severity: 'medium', userId: '' });
@@ -600,13 +615,34 @@ export default function ManagerPage() {
   };
 
   const handleClosureAccept = async (mistakeId: string) => {
+    if (!user) return;
     setActionLoading(true);
     try {
+      const { data: mrow, error: selErr } = await supabase
+        .from("mistakes")
+        .select("user_id, title")
+        .eq("id", mistakeId)
+        .single();
+      if (selErr) throw selErr;
+
       const { error } = await supabase
         .from('mistakes')
         .update({ status: 'rectified', closure_request_pending: false })
         .eq('id', mistakeId);
       if (error) throw error;
+
+      const tasksLink = `/org/${orgSlug}/tasks`;
+      const { error: nErr } = await supabase.from("notifications").insert({
+        organization_id: user.organization_id,
+        user_id: mrow.user_id,
+        type: "mistake_rectified",
+        title: "Mistake rectified",
+        message: `Your rectification for "${mrow.title || "a mistake"}" was accepted by your manager.`,
+        link: tasksLink,
+        metadata: { actionable: false },
+      });
+      if (nErr) console.warn("mistake_rectified notification", nErr.message);
+
       toast({ title: "Success", description: "Closure accepted. Status set to Rectified." });
       fetchData();
     } catch (error: any) {
@@ -750,6 +786,13 @@ export default function ManagerPage() {
 
         if (error) throw error;
 
+        await markResourceNotificationsRead(
+          supabase,
+          user.id,
+          "task_log",
+          String(actionDialog.item.id)
+        );
+
         await supabase
           .from('notifications')
           .insert({
@@ -771,6 +814,13 @@ export default function ManagerPage() {
 
         if (error) throw error;
 
+        await markResourceNotificationsRead(
+          supabase,
+          user.id,
+          "attendance",
+          String(actionDialog.item.id)
+        );
+
         await supabase
           .from('notifications')
           .insert({
@@ -791,6 +841,13 @@ export default function ManagerPage() {
           .eq('id', actionDialog.item.id);
 
         if (error) throw error;
+
+        await markResourceNotificationsRead(
+          supabase,
+          user.id,
+          "leave",
+          String(actionDialog.item.id)
+        );
 
         await supabase
           .from('notifications')
@@ -1915,6 +1972,7 @@ export default function ManagerPage() {
               onTasksChanged={fetchData}
               managerCurrentHistorySplit
               managerPeriodicTasks={periodicTasks}
+              orgSlug={orgSlug}
             />
           )}
         </TabsContent>

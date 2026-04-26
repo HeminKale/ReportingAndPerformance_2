@@ -228,6 +228,12 @@ export default function NotificationsPage() {
         return 'border-l-yellow-500';
       case 'task_verification':
         return 'border-l-blue-500';
+      case 'task_assigned':
+        return 'border-l-sky-500';
+      case 'mistake_logged':
+        return 'border-l-orange-500';
+      case 'mistake_rectified':
+        return 'border-l-emerald-500';
       default:
         return 'border-l-gray-500';
     }
@@ -269,7 +275,9 @@ export default function NotificationsPage() {
 
       <div className="space-y-4">
         {visibleNotifications.length > 0 ? (
-          visibleNotifications.map((notification) => (
+          visibleNotifications.map((notification) => {
+            const actionable = isActionableNotification(notification);
+            return (
             <Card
               key={notification.id}
               className={`border-l-4 ${getNotificationColor(notification.type)} ${
@@ -295,7 +303,7 @@ export default function NotificationsPage() {
                       <p className="text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                       </p>
-                      {isActionableNotification(notification) && (
+                      {actionable && (
                         <div className="mt-3 flex gap-2">
                           <Button
                             size="sm"
@@ -324,14 +332,24 @@ export default function NotificationsPage() {
                       )}
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    {!notification.is_read && (
+                  <div className="flex gap-2 items-start shrink-0">
+                    {!actionable && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => markAsRead(notification.id)}
+                        onClick={() => {
+                          if (!notification.is_read) void markAsRead(notification.id);
+                        }}
+                        aria-label={notification.is_read ? "Read" : "Mark as read"}
+                        title={notification.is_read ? "Read" : "Mark as read"}
                       >
-                        <CheckCheck className="h-4 w-4" />
+                        <CheckCheck
+                          className={
+                            notification.is_read
+                              ? "h-4 w-4 text-primary"
+                              : "h-4 w-4 text-muted-foreground"
+                          }
+                        />
                       </Button>
                     )}
                     <Button
@@ -345,7 +363,8 @@ export default function NotificationsPage() {
                 </div>
               </CardContent>
             </Card>
-          ))
+            );
+          })
         ) : (
           <Card>
             <CardContent className="p-12 text-center">

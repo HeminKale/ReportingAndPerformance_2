@@ -1,5 +1,7 @@
 # Manager Panel & Settings Enhancements - Implementation Summary
 
+> **Tasks UI (current):** For **Tasks → Regular / Shared / History**, approvals, and shared numeric rollup, see **[MANAGER_TASKS_TAB.md](MANAGER_TASKS_TAB.md)**. Sections below may still name older tabs (e.g. Task Verifications).
+
 ## Overview
 
 This document summarizes the enhancements made to the Manager Panel and the new Settings page, including access control updates, search functionality, and full CRUD operations for users and tasks.
@@ -28,7 +30,7 @@ This document summarizes the enhancements made to the Manager Panel and the new 
 - Added search functionality across all tabs (20% width, right-aligned)
 - Updated access control to manager-only (line 54)
 - Search filters by employee name in:
-  - Task Verifications tab
+  - Tasks-related views and other tabs (see [MANAGER_TASKS_TAB.md](MANAGER_TASKS_TAB.md) for current Tasks layout)
   - Attendance tab
   - Leaves tab
   - Team Members tab

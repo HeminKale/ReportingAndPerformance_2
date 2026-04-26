@@ -170,7 +170,7 @@ employee-tracker/
 ### 7. Manager Panel
 - Team member overview
 - Pending approvals dashboard
-- Task verification interface
+- **Tasks** (sidebar: Regular, Shared, History): due-today view, numeric shared rollup, full task log history; **approvals** on **Tasks → Regular** (pending rows). See [`MANAGER_TASKS_TAB.md`](MANAGER_TASKS_TAB.md).
 - Attendance approval
 - Leave approval
 - Bulk actions

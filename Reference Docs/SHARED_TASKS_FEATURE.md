@@ -1,5 +1,7 @@
 # Shared Tasks Feature
 
+> **Manager Panel UI (current):** The manager no longer uses separate **"Today's Tasks"** / **"Task Verifications"** tabs with nested Shared tabs. Use **[MANAGER_TASKS_TAB.md](MANAGER_TASKS_TAB.md)** for **Tasks → Regular / Shared / History**. The matrix views (`SharedTasksView`, `SharedTasksHistoryView`) described below still exist in code but are not the primary manager entry for the numeric rollup (see **Shared** there).
+
 ## Overview
 
 The Shared Tasks feature provides managers with a comprehensive view of tasks assigned to multiple team members (2 or more). It displays task data in a matrix format where rows represent employees and columns represent tasks, showing status or numeric values in each cell.
@@ -261,7 +263,7 @@ function getHistoricalNumericValue(taskGroup, employee, taskLogs, tasks, targetD
 **Scenario**: Manager wants to review numeric task performance for last week.
 
 **Steps**:
-1. Navigate to Manager Panel → Task Verifications
+1. Navigate to Manager Panel → **Tasks → Regular** (see [MANAGER_TASKS_TAB.md](MANAGER_TASKS_TAB.md); legacy doc step referred to "Task Verifications")
 2. Click "Shared History" tab
 3. Select a date from last week (e.g., last Monday)
 4. View "Weekly Tasks" accordion
@@ -522,8 +524,8 @@ Computes aggregated numeric value for historical view.
 ## Related Features
 
 - **Periodic Task Assignment**: Shared tasks often come from periodic tasks
-- **Task Verifications**: Managers approve/reject task submissions
-- **Today's Task**: Shows individual task assignments
+- **Tasks → Regular** (current): Managers approve/reject pending task submissions; shows due-today assignments. See [MANAGER_TASKS_TAB.md](MANAGER_TASKS_TAB.md).
+- **Today's Task / Task Verifications** (legacy names): Replaced by the **Tasks** sidebar entry above.
 - **Recursive Manager Hierarchy**: Provides employee scope for shared tasks
 
 ---

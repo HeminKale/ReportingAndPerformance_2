@@ -5,7 +5,15 @@ export type VerificationStatus = 'pending' | 'approved' | 'rejected';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 export type LeaveDayType = 'full_day' | 'half_day';
 export type LeaveCategory = 'vacation' | 'sick' | 'personal';
-export type NotificationType = 'task_verification' | 'leave_approval' | 'late_request' | 'task_rejected' | 'general';
+export type NotificationType =
+  | 'task_verification'
+  | 'leave_approval'
+  | 'late_request'
+  | 'task_rejected'
+  | 'general'
+  | 'task_assigned'
+  | 'mistake_logged'
+  | 'mistake_rectified';
 export type MistakeSeverity = 'low' | 'medium' | 'high';
 export type MistakeTrackerStatus = 'open' | 'rectified';
 export type DocumentType =
