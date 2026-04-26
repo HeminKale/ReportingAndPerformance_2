@@ -1151,7 +1151,7 @@ export default function ManagerPage() {
                 </TabsTrigger>
               ))}
             </TabsList>
-          </aside>e>
+          </aside>
 
           <section className="option-panel min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <TabsContent value="manager-tasks" className="space-y-4">
