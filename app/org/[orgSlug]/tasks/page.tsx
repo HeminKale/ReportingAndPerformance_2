@@ -198,6 +198,10 @@ export default function TasksPage() {
       return 'submitted_rejected';
     }
 
+    if (latestLog.verification_status === 'recalled') {
+      return 'submitted_rejected';
+    }
+
     return 'never_submitted';
   };
 
@@ -270,7 +274,7 @@ export default function TasksPage() {
   const isPendingApprovalTask = (task: (Task & { taskLog?: TaskLog })) => {
     const log = task.taskLog;
     if (!log) return false;
-    return log.status === 'completed' && log.verification_status !== 'approved';
+    return log.status === 'completed' && log.verification_status === 'pending';
   };
 
   const dailyPendingApprovalTasks = dailyTasks.filter(isPendingApprovalTask);

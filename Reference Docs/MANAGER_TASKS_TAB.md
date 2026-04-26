@@ -16,7 +16,7 @@ This document is the **canonical reference** for how task-related work is organi
 1. In the **Manager Panel** left sidebar, select **Tasks** (internal tab value `manager-tasks`).
 2. When **Tasks** is active, the sidebar shows indented items: **Regular**, **Shared**, and **History** (there is no second horizontal tab list in the main content for these three).
 3. The main pane renders one view according to `tasksSubView`: `regular` | `shared` | `history`.
-4. The **Tasks** row may show an amber **pending** pill: count of `task_logs` with `verification_status = 'pending'`, plus a neutral count for today's regular rows.
+4. The **Tasks** row shows a neutral count badge for today’s regular rows; dashboard “Total Pending” still aggregates task log **pending** with other pending items.
 
 **There is no top-level "Task Verifications" tab.** Approvals happen under **Tasks → Regular**.
 
@@ -38,8 +38,13 @@ This document is the **canonical reference** for how task-related work is organi
 
 **Status**
 
-- **Not Submitted** uses red badge styling (parallel tone to green for approved).
-- **Pending approval:** chevron on the row expands **Approve** / **Reject** (same `actionDialog` + `handleAction` as the old verification tab; optional `manager_review_comment` on the log).
+- **Not Submitted** — red badge.
+- **Pending approval** — expand chevron shows employee **Comment:** / **Incomplete / note:** (no section title) and **Approve** / **Reject** (`actionDialog` + `handleAction`; `manager_review_comment` on the log).
+- **Completed & verified** — green badge (`verification_status = approved`, completed).
+- **Rejected** — red badge; employee sees **Resubmit** in Tasks (main table, not the pending-approvals strip).
+- **Recalled** — yellow/amber badge after a manager **Recall** from the row **⋯** menu (undoes approve/reject for that log); employee resubmits like rejected.
+
+**DB:** `verification_status` includes `recalled`; notification types `task_approved`, `task_recalled` (see migration `supabase/migrations/20260426120000_task_recalled_notification_types.sql`). Employees get bell notifications with optional manager text; **View comments** on the notifications page reads `metadata.manager_comment` (and employee metadata when present).
 
 **Certificates**
 

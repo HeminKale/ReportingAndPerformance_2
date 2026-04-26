@@ -170,7 +170,7 @@ employee-tracker/
 ### 7. Manager Panel
 - Team member overview
 - Pending approvals dashboard
-- **Tasks** (sidebar: Regular, Shared, History): due-today view, numeric shared rollup, full task log history; **approvals** on **Tasks → Regular** (pending rows). See [`MANAGER_TASKS_TAB.md`](MANAGER_TASKS_TAB.md). Disclosure accordions (chevron): [`ACCORDION_DETAILS_CHEVRON.md`](ACCORDION_DETAILS_CHEVRON.md).
+- **Tasks** (sidebar: Regular, Shared, History): due-today view, numeric shared rollup, full task log history; **approvals** on **Tasks → Regular** (pending rows). See [`MANAGER_TASKS_TAB.md`](MANAGER_TASKS_TAB.md). **Recall / approve / reject / enums / notifications:** [`TASK_RECALL_VERIFICATION.md`](TASK_RECALL_VERIFICATION.md). Disclosure accordions (chevron): [`ACCORDION_DETAILS_CHEVRON.md`](ACCORDION_DETAILS_CHEVRON.md).
 - Attendance approval
 - Leave approval
 - Bulk actions

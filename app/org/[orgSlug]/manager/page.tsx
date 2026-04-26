@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { format } from "date-fns";
-import { Clock, Users, AlertTriangle, Plus, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock, Users, AlertTriangle, Plus, Pencil, Trash2, ChevronDown, ChevronUp, MoreVertical } from "lucide-react";
 import { TaskAssignmentPanel } from "@/components/shared/task-assignment-panel";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -25,6 +25,7 @@ import { ManagerDocumentsTab } from "@/components/manager/manager-documents-tab"
 import { ManagerSalaryTab } from "@/components/manager/manager-salary-tab";
 import { ManagerCalendarTab } from "@/components/manager/manager-calendar-tab";
 import { markResourceNotificationsRead } from "@/lib/notifications/mark-resource-read";
+import { requestNotificationsBellRefresh } from "@/lib/notifications/refresh-bell";
 
 export default function ManagerPage() {
   const { orgSlug } = useParams() as { orgSlug: string };
@@ -59,6 +60,9 @@ export default function ManagerPage() {
   const [taskHistoryDateFrom, setTaskHistoryDateFrom] = useState("");
   const [taskHistoryDateTo, setTaskHistoryDateTo] = useState("");
   const [expandedRegularRowKeys, setExpandedRegularRowKeys] = useState<Set<string>>(new Set());
+  const [regularRowMenuKey, setRegularRowMenuKey] = useState<string | null>(null);
+  const [recallDialog, setRecallDialog] = useState<{ open: boolean; log: any | null }>({ open: false, log: null });
+  const [recallComment, setRecallComment] = useState("");
   const [leavesSearchTerm, setLeavesSearchTerm] = useState("");
   const [leavesDateFilter, setLeavesDateFilter] = useState("");
   const [teamSearchTerm, setTeamSearchTerm] = useState("");
@@ -413,10 +417,12 @@ export default function ManagerPage() {
         const status = !log
           ? "Not Submitted"
           : log.verification_status === "approved"
-            ? "Approved"
+            ? "Completed & verified"
             : log.verification_status === "rejected"
               ? "Rejected"
-              : "Pending Approval";
+              : log.verification_status === "recalled"
+                ? "Recalled"
+                : "Pending Approval";
         return { member, task, log, status };
       });
     });
@@ -769,6 +775,61 @@ export default function ManagerPage() {
     });
   }, [taskLogs, selectedCertEmployeeIds, teamMembers, certGraphMode]);
 
+  const handleRecallConfirm = async () => {
+    if (!user || !recallDialog.log) return;
+    setActionLoading(true);
+    try {
+      const log = recallDialog.log;
+      const note = recallComment.trim();
+      const prev = (log.manager_review_comment && String(log.manager_review_comment).trim()) || "";
+      const merged = prev
+        ? `${prev}\n\nRecall: ${note || "(no additional comment)"}`
+        : `Recall: ${note || "(no additional comment)"}`;
+
+      const { error } = await supabase
+        .from("task_logs")
+        .update({
+          verification_status: "recalled",
+          verified_by: null,
+          verified_at: null,
+          manager_review_comment: merged,
+        })
+        .eq("id", log.id);
+
+      if (error) throw error;
+
+      const taskTitle = (log.tasks?.title as string) || "your task";
+      await supabase.from("notifications").insert({
+        organization_id: user.organization_id,
+        user_id: log.user_id,
+        type: "task_recalled",
+        title: "Task submission recalled",
+        message: `Your manager recalled a decision on "${taskTitle}".${note ? ` ${note}` : ""}`,
+        link: `/org/${orgSlug}/tasks`,
+        metadata: {
+          actionable: false,
+          resource_type: "task_log",
+          resource_id: String(log.id),
+          manager_comment: merged,
+        },
+      });
+
+      requestNotificationsBellRefresh();
+      toast({ title: "Recalled", description: "The employee has been notified." });
+      setRecallDialog({ open: false, log: null });
+      setRecallComment("");
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleAction = async () => {
     if (!user || !actionDialog.item || !actionDialog.action) return;
 
@@ -776,13 +837,14 @@ export default function ManagerPage() {
 
     try {
       if (actionDialog.type === 'task') {
+        const mgr = comment.trim();
         const { error } = await supabase
           .from('task_logs')
           .update({
             verification_status: actionDialog.action === 'approve' ? 'approved' : 'rejected',
             verified_by: user.id,
             verified_at: new Date().toISOString(),
-            manager_review_comment: comment.trim() || null,
+            manager_review_comment: mgr || null,
           })
           .eq('id', actionDialog.item.id);
 
@@ -795,15 +857,32 @@ export default function ManagerPage() {
           String(actionDialog.item.id)
         );
 
+        const taskTitle = actionDialog.item.tasks?.title as string;
+        const notifType = actionDialog.action === "approve" ? "task_approved" : "task_rejected";
+        const notifTitle =
+          actionDialog.action === "approve" ? "Task approved" : "Task rejected";
+        const notifMessage =
+          actionDialog.action === "approve"
+            ? `Your task "${taskTitle}" was approved.${mgr ? ` Manager comment: ${mgr}` : ""}`
+            : `Your task "${taskTitle}" was rejected.${mgr ? ` Manager comment: ${mgr}` : ""}`;
+
         await supabase
           .from('notifications')
           .insert({
             organization_id: user.organization_id,
             user_id: actionDialog.item.user_id,
-            type: actionDialog.action === 'approve' ? 'task_verification' : 'task_rejected',
-            title: `Task ${actionDialog.action === 'approve' ? 'Approved' : 'Rejected'}`,
-            message: `Your task "${actionDialog.item.tasks.title}" has been ${actionDialog.action === 'approve' ? 'approved' : 'rejected'}${comment ? `: ${comment}` : ''}`,
+            type: notifType,
+            title: notifTitle,
+            message: notifMessage,
+            link: `/org/${orgSlug}/tasks`,
+            metadata: {
+              actionable: false,
+              resource_type: "task_log",
+              resource_id: String(actionDialog.item.id),
+              manager_comment: mgr || null,
+            },
           });
+        requestNotificationsBellRefresh();
       } else if (actionDialog.type === 'attendance') {
         const { error } = await supabase
           .from('attendance')
@@ -1061,16 +1140,22 @@ export default function ManagerPage() {
                               const employeeComment = (row.log?.comment && String(row.log.comment).trim()) || "";
                               const employeeReason = (row.log?.reason && String(row.log.reason).trim()) || "";
                               const hasEmployeeNote = Boolean(employeeComment || employeeReason);
+                              const canRecallRow =
+                                row.log &&
+                                (row.log.verification_status === "approved" ||
+                                  row.log.verification_status === "rejected");
                               const statusClass =
-                                row.status === "Approved"
-                                  ? "bg-green-100 text-green-800"
+                                row.status === "Completed & verified"
+                                  ? "bg-emerald-100 text-emerald-900"
                                   : row.status === "Rejected"
                                     ? "bg-red-100 text-red-800"
-                                    : row.status === "Pending Approval"
-                                      ? "bg-yellow-100 text-yellow-800"
-                                      : row.status === "Not Submitted"
-                                        ? "bg-red-100 text-red-800"
-                                        : "";
+                                    : row.status === "Recalled"
+                                      ? "bg-amber-100 text-amber-900"
+                                      : row.status === "Pending Approval"
+                                        ? "bg-yellow-100 text-yellow-800"
+                                        : row.status === "Not Submitted"
+                                          ? "bg-red-100 text-red-800"
+                                          : "";
                               return (
                                 <Fragment key={rowKey}>
                                   <TableRow>
@@ -1106,8 +1191,8 @@ export default function ManagerPage() {
                                       <Badge className={statusClass}>{row.status}</Badge>
                                     </TableCell>
                                     <TableCell className="text-right align-middle">
-                                      {isPending ? (
-                                        <div className="flex justify-end">
+                                      <div className="flex justify-end gap-1">
+                                        {isPending ? (
                                           <Button
                                             type="button"
                                             variant="ghost"
@@ -1115,7 +1200,10 @@ export default function ManagerPage() {
                                             className="h-8 w-8"
                                             aria-expanded={expanded}
                                             aria-label={expanded ? "Collapse review" : "Expand review"}
-                                            onClick={() => toggleRegularTaskRow(rowKey)}
+                                            onClick={() => {
+                                              setRegularRowMenuKey(null);
+                                              toggleRegularTaskRow(rowKey);
+                                            }}
                                           >
                                             {expanded ? (
                                               <ChevronUp className="h-4 w-4" />
@@ -1123,8 +1211,41 @@ export default function ManagerPage() {
                                               <ChevronDown className="h-4 w-4" />
                                             )}
                                           </Button>
-                                        </div>
-                                      ) : null}
+                                        ) : null}
+                                        {canRecallRow ? (
+                                          <div className="relative inline-block text-left">
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-8 w-8"
+                                              aria-expanded={regularRowMenuKey === rowKey}
+                                              aria-label="Task actions"
+                                              onClick={() =>
+                                                setRegularRowMenuKey((prev) => (prev === rowKey ? null : rowKey))
+                                              }
+                                            >
+                                              <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                            {regularRowMenuKey === rowKey && (
+                                              <div className="option-panel absolute right-0 z-10 mt-1 w-44 rounded-md border bg-background p-1 shadow-md">
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  className="w-full justify-start font-medium"
+                                                  onClick={() => {
+                                                    setRegularRowMenuKey(null);
+                                                    setRecallComment("");
+                                                    setRecallDialog({ open: true, log: row.log });
+                                                  }}
+                                                >
+                                                  Recall
+                                                </Button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        ) : null}
+                                      </div>
                                     </TableCell>
                                   </TableRow>
                                   {isPending && expanded && (
@@ -1132,18 +1253,15 @@ export default function ManagerPage() {
                                       <TableCell colSpan={8} className="bg-muted/40">
                                         <div className="space-y-3 py-2">
                                           {hasEmployeeNote ? (
-                                            <div className="rounded-md border border-slate-200 bg-background px-3 py-2 text-sm">
-                                              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                                Employee submission
-                                              </p>
+                                            <div className="rounded-md border border-slate-200 bg-background px-3 py-2 text-sm space-y-1">
                                               {employeeComment ? (
-                                                <p className="mt-1 whitespace-pre-wrap text-foreground">
+                                                <p className="whitespace-pre-wrap text-foreground">
                                                   <span className="text-muted-foreground">Comment: </span>
                                                   {employeeComment}
                                                 </p>
                                               ) : null}
                                               {employeeReason ? (
-                                                <p className="mt-1 whitespace-pre-wrap text-foreground">
+                                                <p className="whitespace-pre-wrap text-foreground">
                                                   <span className="text-muted-foreground">Incomplete / note: </span>
                                                   {employeeReason}
                                                 </p>
@@ -2180,10 +2298,7 @@ export default function ManagerPage() {
                   const empR = (item.reason && String(item.reason).trim()) || "";
                   if (!empC && !empR) return null;
                   return (
-                    <div className="rounded-md border border-slate-200 bg-muted/40 p-3 text-sm space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Employee submission
-                      </p>
+                    <div className="rounded-md border border-slate-200 bg-muted/40 p-3 text-sm space-y-1">
                       {empC ? (
                         <p className="whitespace-pre-wrap text-foreground">
                           <span className="text-muted-foreground">Comment: </span>
@@ -2228,6 +2343,50 @@ export default function ManagerPage() {
               variant={actionDialog.action === 'approve' ? 'default' : 'destructive'}
             >
               {actionLoading ? "Processing..." : actionDialog.action === 'approve' ? 'Approve' : 'Reject'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={recallDialog.open}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRecallDialog({ open: false, log: null });
+            setRecallComment("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Recall submission</DialogTitle>
+            <DialogDescription>
+              The task returns to the employee as <strong>Recalled</strong> so they can fix and resubmit. Optional note
+              is appended to the review trail.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="recallComment">Note (optional)</Label>
+            <Textarea
+              id="recallComment"
+              placeholder="Why you are recalling this decision…"
+              value={recallComment}
+              onChange={(e) => setRecallComment(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRecallDialog({ open: false, log: null });
+                setRecallComment("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleRecallConfirm} disabled={actionLoading}>
+              {actionLoading ? "Saving…" : "Confirm recall"}
             </Button>
           </DialogFooter>
         </DialogContent>

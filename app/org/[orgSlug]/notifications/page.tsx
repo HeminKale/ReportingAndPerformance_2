@@ -33,14 +33,30 @@ export default function NotificationsPage() {
 
   const getCommentModalPayload = (notification: Notification): { title: string; body: string } | null => {
     const m = notification.metadata || {};
-    const raw = m.employee_comment;
-    const text = typeof raw === "string" ? raw.trim() : raw != null ? String(raw).trim() : "";
-    if (!text) return null;
-    const label =
+    const empRaw = m.employee_comment;
+    const empText =
+      typeof empRaw === "string" ? empRaw.trim() : empRaw != null ? String(empRaw).trim() : "";
+    const mgrRaw = m.manager_comment;
+    const mgrText =
+      typeof mgrRaw === "string" ? mgrRaw.trim() : mgrRaw != null ? String(mgrRaw).trim() : "";
+
+    if (!empText && !mgrText) return null;
+
+    const empLabel =
       typeof m.employee_comment_label === "string" && m.employee_comment_label.trim()
         ? m.employee_comment_label.trim()
         : "Employee message";
-    return { title: label, body: text };
+
+    if (empText && mgrText) {
+      return {
+        title: "Comments",
+        body: `${empLabel}\n${empText}\n\nManager comment\n${mgrText}`,
+      };
+    }
+    if (mgrText) {
+      return { title: "Manager comment", body: mgrText };
+    }
+    return { title: empLabel, body: empText };
   };
 
   useEffect(() => {
@@ -258,6 +274,10 @@ export default function NotificationsPage() {
     switch (type) {
       case 'task_rejected':
         return 'border-l-red-500';
+      case 'task_approved':
+        return 'border-l-emerald-500';
+      case 'task_recalled':
+        return 'border-l-amber-500';
       case 'leave_approval':
         return 'border-l-green-500';
       case 'late_request':

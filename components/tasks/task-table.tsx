@@ -32,8 +32,11 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
     if (taskLog.verification_status === "rejected") {
       return <Badge className="rounded-full bg-rose-100 text-rose-800">Rejected</Badge>;
     }
+    if (taskLog.verification_status === "recalled") {
+      return <Badge className="rounded-full bg-amber-100 text-amber-900">Recalled</Badge>;
+    }
     if (taskLog.verification_status === "approved" && taskLog.status === "completed") {
-      return <Badge className="rounded-full bg-emerald-100 text-emerald-800">Completed</Badge>;
+      return <Badge className="rounded-full bg-emerald-100 text-emerald-800">Verified</Badge>;
     }
     if (taskLog.status === "pending") {
       return <Badge className="rounded-full bg-amber-100 text-amber-800">Pending</Badge>;
@@ -46,6 +49,13 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
     if (taskLog.verification_status === "pending") return false;
     if (taskLog.verification_status === "approved") return false;
     return true;
+  };
+
+  const resubmitLabel = (taskLog?: TaskLog, isNumeric?: boolean) => {
+    if (taskLog?.verification_status === "rejected" || taskLog?.verification_status === "recalled") {
+      return isNumeric ? "Re-enter Number" : "Resubmit Task";
+    }
+    return isNumeric ? "Enter Number" : "Submit Task";
   };
 
   return (
@@ -128,7 +138,7 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
                                 setOpenMenuTaskId(null);
                               }}
                             >
-                              {taskLog?.verification_status === "rejected" ? "Re-enter Number" : "Enter Number"}
+                              {resubmitLabel(taskLog, true)}
                             </Button>
                             {taskLog && (
                               <Button
@@ -167,7 +177,7 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
                                   setOpenMenuTaskId(null);
                                 }}
                               >
-                                {taskLog?.verification_status === "rejected" ? "Resubmit Task" : "Submit Task"}
+                                {resubmitLabel(taskLog, false)}
                               </Button>
                             )}
                           </>
