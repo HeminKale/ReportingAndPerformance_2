@@ -12,7 +12,7 @@ The Shared Tasks feature provides managers with a comprehensive view of tasks as
 
 A **Shared Task** is defined as any task (normal or periodic) that is assigned to **2 or more team members**. These tasks are identified by:
 
-1. **Periodic Tasks**: Tasks with the same `source_manager_periodic_task_id` (created by the periodic task cron job)
+1. **Periodic Tasks**: Tasks with the same `source_manager_periodic_task_id` (created by periodic **materialization**: scheduled cron and/or instant-on-create; see [PERIODIC_TASKS_ARCHITECTURE.md](PERIODIC_TASKS_ARCHITECTURE.md))
 2. **Manual Tasks**: Tasks created in bulk with the same `title`, `type`, and `created_at` date
 
 ---
