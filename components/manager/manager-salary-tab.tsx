@@ -41,7 +41,9 @@ export function ManagerSalaryTab({
   const supabase = createClient();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [isEditingSalaries, setIsEditingSalaries] = useState(false);
+  const [draftSalaries, setDraftSalaries] = useState<Record<string, { fixed: number; incentive: number }>>({});
+  const [savingSalaries, setSavingSalaries] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
@@ -63,13 +65,13 @@ export function ManagerSalaryTab({
     return options;
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (opts?: { silent?: boolean }) => {
     if (!teamIds.length) {
       setSalaryRecords([]);
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!opts?.silent) setLoading(true);
     const { data, error } = await supabase
       .from("salary_records")
       .select("id,user_id,month,fixed_salary,incentive,salary_statement_url,salary_statement_name")
@@ -89,6 +91,11 @@ export function ManagerSalaryTab({
     fetchData();
   }, [teamIds.join(",")]);
 
+  useEffect(() => {
+    setIsEditingSalaries(false);
+    setDraftSalaries({});
+  }, [selectedMonth, teamIds.join(",")]);
+
   const filteredMembers = useMemo(() => {
     return teamMembers.filter((member) =>
       member.full_name.toLowerCase().includes(searchTerm.trim().toLowerCase())
@@ -99,36 +106,50 @@ export function ManagerSalaryTab({
     return salaryRecords.find((row) => row.user_id === userId && row.month === `${selectedMonth}-01`);
   };
 
-  const upsertField = async (
-    userId: string,
-    field: "fixed_salary" | "incentive",
-    value: number
-  ) => {
-    if (!currentUser) return;
-    const rowKey = `${userId}-${field}`;
-    setSavingKey(rowKey);
-    const existing = findRecord(userId);
-    const payload: any = {
-      organization_id: currentUser.organization_id,
-      user_id: userId,
-      month: `${selectedMonth}-01`,
-      fixed_salary: existing?.fixed_salary ?? 0,
-      incentive: existing?.incentive ?? 0,
-      created_by: currentUser.id,
-      [field]: value,
-    };
+  const beginEditSalaries = () => {
+    const next: Record<string, { fixed: number; incentive: number }> = {};
+    for (const m of filteredMembers) {
+      const row = salaryRecords.find((r) => r.user_id === m.id && r.month === `${selectedMonth}-01`);
+      next[m.id] = {
+        fixed: Number(row?.fixed_salary ?? 0),
+        incentive: Number(row?.incentive ?? 0),
+      };
+    }
+    setDraftSalaries(next);
+    setIsEditingSalaries(true);
+  };
 
-    const { error } = await supabase
-      .from("salary_records")
-      .upsert(payload, { onConflict: "user_id,month" });
+  const cancelEditSalaries = () => {
+    setIsEditingSalaries(false);
+    setDraftSalaries({});
+  };
 
+  const saveSalaries = async () => {
+    if (!currentUser || filteredMembers.length === 0) return;
+    const month = `${selectedMonth}-01`;
+    setSavingSalaries(true);
+    const rows = filteredMembers.map((m) => {
+      const d = draftSalaries[m.id] ?? { fixed: 0, incentive: 0 };
+      return {
+        organization_id: currentUser.organization_id,
+        user_id: m.id,
+        month,
+        fixed_salary: d.fixed,
+        incentive: d.incentive,
+        created_by: currentUser.id,
+      };
+    });
+    const { error } = await supabase.from("salary_records").upsert(rows, { onConflict: "user_id,month" });
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
-      setSavingKey(null);
+      setSavingSalaries(false);
       return;
     }
-    await fetchData();
-    setSavingKey(null);
+    toast({ title: "Saved", description: "Salary amounts updated." });
+    await fetchData({ silent: true });
+    setIsEditingSalaries(false);
+    setDraftSalaries({});
+    setSavingSalaries(false);
   };
 
   const uploadStatement = async (userId: string, file: File | null) => {
@@ -168,7 +189,7 @@ export function ManagerSalaryTab({
       return;
     }
     toast({ title: "Success", description: "Salary statement uploaded" });
-    fetchData();
+    await fetchData({ silent: true });
   };
 
   const selectedEmployee = teamMembers.find((member) => member.id === selectedEmployeeId) || null;
@@ -180,25 +201,53 @@ export function ManagerSalaryTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Input
-          placeholder="Filter by employee name..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {monthOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            placeholder="Filter by employee name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-sm"
+          />
+          <Select
+            value={selectedMonth}
+            onValueChange={setSelectedMonth}
+            disabled={isEditingSalaries}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {monthOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {!isEditingSalaries ? (
+            <Button type="button" variant="outline" size="sm" onClick={beginEditSalaries} disabled={loading}>
+              Edit
+            </Button>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={cancelEditSalaries}
+                disabled={savingSalaries}
+              >
+                Cancel
+              </Button>
+              <Button type="button" size="sm" onClick={saveSalaries} disabled={savingSalaries}>
+                {savingSalaries ? "Saving…" : "Save"}
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
@@ -228,8 +277,13 @@ export function ManagerSalaryTab({
             ) : (
               filteredMembers.map((member) => {
                 const row = findRecord(member.id);
-                const fixed = Number(row?.fixed_salary || 0);
-                const incentive = Number(row?.incentive || 0);
+                const draft = draftSalaries[member.id];
+                const fixed = isEditingSalaries
+                  ? (draft?.fixed ?? Number(row?.fixed_salary || 0))
+                  : Number(row?.fixed_salary || 0);
+                const incentive = isEditingSalaries
+                  ? (draft?.incentive ?? Number(row?.incentive || 0))
+                  : Number(row?.incentive || 0);
                 const monthLabel = monthOptions.find(m => m.value === selectedMonth)?.label || selectedMonth;
                 return (
                   <TableRow key={member.id}>
@@ -244,22 +298,42 @@ export function ManagerSalaryTab({
                     </TableCell>
                     <TableCell>{monthLabel}</TableCell>
                     <TableCell>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={fixed}
-                        onChange={(e) => upsertField(member.id, "fixed_salary", Number(e.target.value || 0))}
-                        disabled={savingKey === `${member.id}-fixed_salary`}
-                      />
+                      {isEditingSalaries ? (
+                        <Input
+                          type="number"
+                          min={0}
+                          value={fixed}
+                          onChange={(e) =>
+                            setDraftSalaries((prev) => {
+                              const baseFixed = Number(row?.fixed_salary || 0);
+                              const baseInc = Number(row?.incentive || 0);
+                              const cur = prev[member.id] ?? { fixed: baseFixed, incentive: baseInc };
+                              return { ...prev, [member.id]: { ...cur, fixed: Number(e.target.value || 0) } };
+                            })
+                          }
+                        />
+                      ) : (
+                        <span className="tabular-nums text-sm">{fixed.toLocaleString()}</span>
+                      )}
                     </TableCell>
                     <TableCell>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={incentive}
-                        onChange={(e) => upsertField(member.id, "incentive", Number(e.target.value || 0))}
-                        disabled={savingKey === `${member.id}-incentive`}
-                      />
+                      {isEditingSalaries ? (
+                        <Input
+                          type="number"
+                          min={0}
+                          value={incentive}
+                          onChange={(e) =>
+                            setDraftSalaries((prev) => {
+                              const baseFixed = Number(row?.fixed_salary || 0);
+                              const baseInc = Number(row?.incentive || 0);
+                              const cur = prev[member.id] ?? { fixed: baseFixed, incentive: baseInc };
+                              return { ...prev, [member.id]: { ...cur, incentive: Number(e.target.value || 0) } };
+                            })
+                          }
+                        />
+                      ) : (
+                        <span className="tabular-nums text-sm">{incentive.toLocaleString()}</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AlertCircle, CheckSquare, Clock, Flame, Sparkles, TrendingUp, ChevronDown, CheckCircle2, CircleDashed, Crown } from 'lucide-react';
 import { format } from 'date-fns';
 import { getCurrentTimeInTimezone } from '@/lib/utils/timezone';
-import { rankForTotalXp, RANK_TIERS } from '@/lib/gamification/xp-rules';
+import { rankForTotalXp, RANK_TIERS, XP_TRAINING_COMPLETED } from '@/lib/gamification/xp-rules';
 import { DashboardSkyBg } from '@/components/dashboard/dashboard-sky-bg';
 import { ScrollableCardList } from '@/components/dashboard/scrollable-card-list';
 import { XpProgressBar } from '@/components/dashboard/xp-progress-bar';
@@ -254,12 +254,17 @@ export default async function DashboardPage({
                 {trainings && trainings.length > 0 ? (
                   <ScrollableCardList maxHeight="300px">
                     {trainings.map((t) => (
-                      <div key={t.id} className="group flex items-center justify-between rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm transition-all hover:border-blue-100 hover:shadow-md">
-                        <div>
+                      <div key={t.id} className="group flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm transition-all hover:border-blue-100 hover:shadow-md">
+                        <div className="min-w-0 flex-1">
                           <p className="font-semibold text-slate-800">{t.name}</p>
                           <p className="text-xs font-medium text-slate-500">Completed on {t.date_completed ? format(new Date(t.date_completed), 'MMM d, yyyy') : 'N/A'}</p>
                         </div>
-                        <TrendingUp className="h-5 w-5 flex-shrink-0 text-slate-300 group-hover:text-blue-500 transition-colors" />
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <span className="rounded-full border border-violet-100 bg-white px-3 py-1 text-xs font-bold text-violet-600 shadow-sm">
+                            +{XP_TRAINING_COMPLETED} XP
+                          </span>
+                          <TrendingUp className="h-5 w-5 text-slate-300 transition-colors group-hover:text-blue-500" aria-hidden />
+                        </div>
                       </div>
                     ))}
                   </ScrollableCardList>

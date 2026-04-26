@@ -1,52 +1,67 @@
 "use client";
 
 import { useDopamine } from "@/components/dashboard/animation-manager";
+import { perTaskAssignmentXp } from "@/lib/gamification/xp-rules";
+import type { Task, TaskLog, TaskPriority } from "@/lib/types/database";
 
-export function TaskListItem({ 
-  task, 
-  log, 
-  dotColor 
-}: { 
-  task: any; 
-  log: any; 
-  dotColor: string 
+export function TaskListItem({
+  task,
+  log,
+  dotColor,
+}: {
+  task: Task;
+  log: TaskLog | null | undefined;
+  dotColor: string;
 }) {
   const { triggerXpGain } = useDopamine();
 
-  const isApproved = log?.verification_status === 'approved';
+  const isApproved = log?.verification_status === "approved";
+
+  const priority = (task.priority ?? "medium") as TaskPriority;
+  const taskXp = perTaskAssignmentXp(priority, task.assignment_xp_override);
 
   const handleClick = (e: React.MouseEvent) => {
-    // Simulate XP gain on click if not already completed/approved
     if (!isApproved) {
-      triggerXpGain(e.clientX, e.clientY, 10);
+      triggerXpGain(e.clientX, e.clientY, taskXp);
     }
   };
 
   return (
-    <div 
+    <div
       onClick={handleClick}
-      className="flex items-center justify-between rounded-2xl bg-white/80 p-4 shadow-sm border border-slate-100 hover:border-blue-100 transition-colors cursor-pointer group"
+      className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white/80 p-4 shadow-sm transition-colors hover:border-blue-100 group"
     >
-      <div className="flex items-center gap-4">
-        <div className={`h-3 w-3 rounded-full flex-shrink-0 ${dotColor} group-hover:scale-110 transition-transform`} />
-        <div>
-          <p className="font-semibold text-slate-800 leading-tight group-hover:text-blue-600 transition-colors">{task.title}</p>
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-1">{task.type} Task</p>
+      <div className="flex min-w-0 flex-1 items-center gap-4">
+        <div
+          className={`h-3 w-3 flex-shrink-0 rounded-full ${dotColor} transition-transform group-hover:scale-110`}
+        />
+        <div className="min-w-0">
+          <p className="font-semibold leading-tight text-slate-800 transition-colors group-hover:text-blue-600">
+            {task.title}
+          </p>
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">{task.type} Task</p>
         </div>
       </div>
-      {log && (
-        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ml-2 flex-shrink-0 ${
-          isApproved 
-            ? 'bg-emerald-100 text-emerald-800'
-            : log.verification_status === 'rejected'
-            ? 'bg-red-100 text-red-800'
-            : log.verification_status === 'recalled'
-            ? 'bg-amber-100 text-amber-900'
-            : 'bg-yellow-100 text-yellow-800'
-        }`}>
-          {log.verification_status}
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <span className="rounded-full border border-amber-100 bg-amber-50/90 px-2.5 py-0.5 text-[10px] font-bold text-amber-800 shadow-sm">
+          +{taskXp} XP
         </span>
-      )}
+        {log && (
+          <span
+            className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md ${
+              isApproved
+                ? "bg-emerald-100 text-emerald-800"
+                : log.verification_status === "rejected"
+                  ? "bg-red-100 text-red-800"
+                  : log.verification_status === "recalled"
+                    ? "bg-amber-100 text-amber-900"
+                    : "bg-yellow-100 text-yellow-800"
+            }`}
+          >
+            {log.verification_status}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
