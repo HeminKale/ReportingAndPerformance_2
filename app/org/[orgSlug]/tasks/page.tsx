@@ -335,7 +335,7 @@ export default function TasksPage() {
         {/* ─── Left Sidebar ─── */}
         <aside className="h-fit flex w-full shrink-0 flex-col rounded-2xl border border-slate-200 bg-slate-50/50 p-2 shadow-sm md:w-64">
           <div className="px-4 py-3">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">View By</h2>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">Tasks</h2>
           </div>
           <TabsList className="flex h-auto flex-col gap-1.5 bg-transparent p-0">
             {(
@@ -349,9 +349,9 @@ export default function TasksPage() {
                 key={value}
                 value={value}
                 className={cn(
-                  "group flex w-full items-center justify-between gap-2 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-200",
+                  "group flex w-full items-center justify-between gap-2 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-300",
                   "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
-                  "data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-[0_2px_8px_rgba(0,0,0,0.08)] data-[state=active]:ring-1 data-[state=active]:ring-slate-200/50"
+                  "data-[state=active]:translate-x-1 data-[state=active]:scale-[1.02] data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-[0_8px_16px_-4px_rgba(0,0,0,0.1),0_4px_8px_-2px_rgba(0,0,0,0.05)] data-[state=active]:ring-1 data-[state=active]:ring-slate-200/50"
                 )}
               >
                 <span className="flex items-center gap-3">
