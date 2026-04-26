@@ -4,49 +4,351 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 210 40% 98%;
+    --foreground: 222.2 47.4% 11.2%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222.2 47.4% 11.2%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    --primary: 224 76% 48%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
+    --secondary: 210 40% 96%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
+    --muted: 210 40% 96%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
+    --accent: 210 40% 96%;
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --ring: 224 76% 48%;
+    --hero-from: 232 65% 34%;
+    --hero-to: 247 62% 45%;
+    --hero-ring: 199 89% 48%;
     --radius: 0.5rem;
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+  [data-theme="taskos"] {
+    --background: 210 40% 98%;
+    --foreground: 222.2 47.4% 11.2%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    --primary: 224 76% 48%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 224 76% 48%;
+    --hero-from: 232 65% 34%;
+    --hero-to: 247 62% 45%;
+    --hero-ring: 199 89% 48%;
   }
+
+  [data-theme="bloom"] {
+    --background: 270 60% 98%;
+    --foreground: 262 28% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 262 28% 18%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 262 28% 18%;
+    --primary: 270 76% 52%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 270 60% 96%;
+    --secondary-foreground: 262 28% 18%;
+    --muted: 270 40% 96%;
+    --muted-foreground: 262 16% 45%;
+    --accent: 288 55% 95%;
+    --accent-foreground: 262 28% 18%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 270 35% 90%;
+    --input: 270 35% 90%;
+    --ring: 270 76% 52%;
+    --hero-from: 267 68% 42%;
+    --hero-to: 289 68% 44%;
+    --hero-ring: 328 85% 60%;
+  }
+
+  [data-theme="midnight"] {
+    --background: 222 47% 8%;
+    --foreground: 210 40% 98%;
+    --card: 223 39% 12%;
+    --card-foreground: 210 40% 98%;
+    --popover: 223 39% 12%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 190 95% 44%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 214 20% 70%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 40%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 22%;
+    --input: 217 33% 22%;
+    --ring: 190 95% 44%;
+    --hero-from: 221 43% 15%;
+    --hero-to: 231 35% 20%;
+    --hero-ring: 190 95% 44%;
+  }
+}
+
+[data-theme="bloom"] .app-shell-nav {
+  border-color: hsl(270 35% 86% / 0.9);
+  background: hsl(0 0% 100% / 0.88);
+}
+
+[data-theme="bloom"] .app-logo-icon {
+  background: linear-gradient(135deg, hsl(292 72% 55%), hsl(261 75% 58%));
+}
+
+[data-theme="bloom"] .app-logo-text {
+  color: hsl(264 42% 24%);
+}
+
+[data-theme="bloom"] .app-nav-links {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-theme="bloom"] .app-popover,
+[data-theme="bloom"] .app-profile-panel,
+[data-theme="bloom"] .option-panel {
+  border-color: hsl(270 35% 86%);
+  background-color: hsl(0 0% 100%);
+  box-shadow: 0 8px 28px rgba(124, 58, 237, 0.08);
+}
+
+[data-theme="bloom"] .option-tablist {
+  border-color: hsl(274 40% 85%);
+  background: hsl(276 50% 96%);
+}
+
+[data-theme="bloom"] .app-nav-link {
+  color: hsl(263 22% 43%);
+}
+
+[data-theme="bloom"] .app-nav-link:hover {
+  background: transparent;
+  color: hsl(267 58% 36%);
+}
+
+[data-theme="bloom"] .app-nav-link-active {
+  background: transparent;
+  color: hsl(267 58% 34%);
+}
+
+[data-theme="bloom"] .app-avatar-dot {
+  background: linear-gradient(135deg, hsl(292 72% 55%), hsl(261 75% 58%));
+}
+
+[data-theme="bloom"] .app-ghost-btn:hover {
+  background: hsl(276 65% 95%);
+}
+
+[data-theme="bloom"] .app-icon {
+  color: hsl(263 22% 43%);
+}
+
+[data-theme="bloom"] .app-theme-pill-active {
+  border-color: hsl(273 66% 68%);
+  background: hsl(276 65% 95%);
+  color: hsl(267 58% 36%);
+}
+
+[data-theme="bloom"] .option-surface {
+  background:
+    radial-gradient(circle at 15% 10%, hsl(281 87% 96%), transparent 40%),
+    radial-gradient(circle at 85% 20%, hsl(249 92% 95%), transparent 35%);
+}
+
+[data-theme="bloom"] .option-soft-card {
+  background: hsl(276 60% 97%);
+}
+
+[data-theme="bloom"] .option-cta {
+  background: linear-gradient(135deg, hsl(271 62% 38%), hsl(290 61% 42%));
+}
+
+[data-theme="bloom"] .option-cta:hover {
+  background: linear-gradient(135deg, hsl(271 62% 34%), hsl(290 61% 38%));
+}
+
+[data-theme="bloom"] .option-quest-card {
+  border-color: hsl(274 40% 85%);
+  background: hsl(278 70% 97%);
+}
+
+[data-theme="midnight"] .app-shell-nav {
+  border-color: hsl(217 33% 24% / 0.95);
+  background: hsl(222 47% 8% / 0.9);
+}
+
+[data-theme="midnight"] .app-logo-icon {
+  background: linear-gradient(135deg, hsl(191 91% 45%), hsl(221 84% 56%));
+  color: hsl(222 47% 10%);
+}
+
+[data-theme="midnight"] .app-logo-text {
+  color: hsl(210 40% 98%);
+}
+
+[data-theme="midnight"] .app-nav-links {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-theme="midnight"] .app-popover,
+[data-theme="midnight"] .app-profile-panel,
+[data-theme="midnight"] .option-panel {
+  border-color: hsl(217 33% 24%);
+  background-color: hsl(223 39% 12%);
+  box-shadow: 0 14px 36px rgba(2, 6, 23, 0.5);
+}
+
+[data-theme="midnight"] .option-tablist {
+  border-color: hsl(217 33% 26%);
+  background: hsl(217 33% 16%);
+}
+
+[data-theme="midnight"] .app-nav-link {
+  color: hsl(214 20% 76%);
+}
+
+[data-theme="midnight"] .app-nav-link:hover {
+  background: transparent;
+  color: hsl(191 91% 45%);
+}
+
+[data-theme="midnight"] .app-nav-link-active {
+  background: transparent;
+  color: hsl(191 91% 45%);
+}
+
+[data-theme="midnight"] .app-avatar-dot {
+  background: linear-gradient(135deg, hsl(191 91% 45%), hsl(221 84% 56%));
+}
+
+[data-theme="midnight"] .app-ghost-btn:hover {
+  background: hsl(217 33% 18%);
+}
+
+[data-theme="midnight"] .app-icon {
+  color: hsl(214 20% 76%);
+}
+
+[data-theme="midnight"] .app-theme-pill {
+  border-color: hsl(217 33% 26%);
+  background: hsl(217 33% 15%);
+  color: hsl(214 20% 76%);
+}
+
+[data-theme="midnight"] .app-theme-pill-active {
+  border-color: hsl(191 91% 45%);
+  background: hsl(191 91% 45% / 0.16);
+  color: hsl(190 90% 74%);
+}
+
+[data-theme="midnight"] .option-surface {
+  background:
+    radial-gradient(circle at 10% 8%, hsl(191 91% 45% / 0.16), transparent 35%),
+    radial-gradient(circle at 84% 12%, hsl(229 84% 58% / 0.14), transparent 30%),
+    hsl(222 47% 8%);
+}
+
+[data-theme="midnight"] .option-soft-card {
+  background: hsl(217 33% 16%);
+}
+
+[data-theme="midnight"] .option-cta {
+  background: linear-gradient(135deg, hsl(191 91% 45%), hsl(221 84% 56%));
+  color: hsl(222 47% 10%);
+}
+
+[data-theme="midnight"] .option-cta:hover {
+  background: linear-gradient(135deg, hsl(191 91% 49%), hsl(221 84% 60%));
+}
+
+[data-theme="midnight"] .option-quest-card {
+  border-color: hsl(217 33% 24%);
+  background: hsl(223 39% 13%);
+}
+
+[data-theme="midnight"] .option-quest-card p {
+  color: hsl(210 40% 98%);
+}
+
+[data-theme="midnight"] .option-quest-card span {
+  background: hsl(217 33% 18%);
+  color: hsl(190 90% 74%);
+}
+
+[data-theme="midnight"] .option-surface .text-slate-500,
+[data-theme="midnight"] .option-surface .text-slate-600,
+[data-theme="midnight"] .option-surface .text-muted-foreground {
+  color: hsl(214 20% 70%);
+}
+
+[data-theme="midnight"] .option-surface .text-slate-900,
+[data-theme="midnight"] .option-surface .text-blue-900,
+[data-theme="midnight"] .option-surface .text-emerald-900,
+[data-theme="midnight"] .option-surface .text-fuchsia-900 {
+  color: hsl(210 40% 98%);
+}
+
+[data-theme="midnight"] .option-surface .bg-white,
+[data-theme="midnight"] .option-surface .bg-slate-50,
+[data-theme="midnight"] .option-surface .bg-slate-100,
+[data-theme="midnight"] .option-surface .bg-emerald-50,
+[data-theme="midnight"] .option-surface .bg-blue-50,
+[data-theme="midnight"] .option-surface .bg-fuchsia-50 {
+  background-color: hsl(223 39% 12%) !important;
+}
+
+[data-theme="midnight"] .option-surface .border-slate-200,
+[data-theme="midnight"] .option-surface .border-emerald-200,
+[data-theme="midnight"] .option-surface .border-blue-200,
+[data-theme="midnight"] .option-surface .border-fuchsia-200 {
+  border-color: hsl(217 33% 24%) !important;
+}
+
+[data-theme="midnight"] .option-surface .hover\:bg-slate-100:hover,
+[data-theme="midnight"] .option-surface .hover\:bg-accent:hover {
+  background-color: hsl(217 33% 18%) !important;
+}
+
+.task-side-trigger[data-state="active"],
+.manager-side-trigger[data-state="active"] {
+  background-color: hsl(222.2 47.4% 11.2%);
+  color: hsl(210 40% 98%);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25);
+}
+
+.task-side-trigger[data-state="active"] span:last-child,
+.manager-side-trigger[data-state="active"] span:last-child {
+  background-color: rgba(255, 255, 255, 0.22);
+  color: inherit;
+}
+
+[data-theme="midnight"] .task-side-trigger[data-state="active"],
+[data-theme="midnight"] .manager-side-trigger[data-state="active"] {
+  background-color: hsl(191 91% 45% / 0.2);
+  color: hsl(190 90% 74%);
+  box-shadow: none;
 }
 
 @layer base {
@@ -55,5 +357,36 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  @keyframes pulse-glow {
+    0%,
+    100% {
+      box-shadow: 0 0 0 rgba(59, 130, 246, 0);
+    }
+    50% {
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.35);
+    }
+  }
+
+  @keyframes xp-pop {
+    0% {
+      transform: scale(0.96);
+      opacity: 0.8;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2.2s ease-in-out infinite;
+  }
+
+  .animate-xp-pop {
+    animation: xp-pop 250ms ease-out;
   }
 }

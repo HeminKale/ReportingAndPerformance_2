@@ -16,27 +16,29 @@ interface TaskTableProps {
   tasks: TaskWithLog[];
   onSubmit: (task: Task) => void;
   onView: (task: Task, taskLog?: TaskLog) => void;
+  /** Shown in the table body when there are zero rows (headers still visible). */
+  emptyMessage?: string;
 }
 
-export function TaskTable({ tasks, onSubmit, onView }: TaskTableProps) {
+export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks found" }: TaskTableProps) {
   const [openMenuTaskId, setOpenMenuTaskId] = useState<string | null>(null);
 
   const getStatusBadge = (taskLog?: TaskLog) => {
     if (!taskLog) return <Badge variant="outline">Not Submitted</Badge>;
 
     if (taskLog.verification_status === "pending") {
-      return <Badge className="bg-yellow-100 text-yellow-800">Pending Approval</Badge>;
+      return <Badge className="rounded-full bg-amber-100 text-amber-800">Pending Approval</Badge>;
     }
     if (taskLog.verification_status === "rejected") {
-      return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
+      return <Badge className="rounded-full bg-rose-100 text-rose-800">Rejected</Badge>;
     }
     if (taskLog.verification_status === "approved" && taskLog.status === "completed") {
-      return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
+      return <Badge className="rounded-full bg-emerald-100 text-emerald-800">Completed</Badge>;
     }
     if (taskLog.status === "pending") {
-      return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+      return <Badge className="rounded-full bg-amber-100 text-amber-800">Pending</Badge>;
     }
-    return <Badge className="bg-blue-100 text-blue-800">Completed</Badge>;
+    return <Badge className="rounded-full bg-blue-100 text-blue-800">Completed</Badge>;
   };
 
   const canSubmitTask = (taskLog?: TaskLog) => {
@@ -46,19 +48,11 @@ export function TaskTable({ tasks, onSubmit, onView }: TaskTableProps) {
     return true;
   };
 
-  if (tasks.length === 0) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">
-        No tasks found
-      </div>
-    );
-  }
-
   return (
-    <div className="border rounded-lg">
+    <div className="option-panel overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="bg-slate-50/80">
             <TableHead>Task Name</TableHead>
             <TableHead>Task Description</TableHead>
             <TableHead>Status</TableHead>
@@ -68,6 +62,13 @@ export function TaskTable({ tasks, onSubmit, onView }: TaskTableProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
+          {tasks.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
+                {emptyMessage}
+              </TableCell>
+            </TableRow>
+          ) : null}
           {tasks.map((task) => {
             const taskLog = task.taskLog;
             const canSubmit = canSubmitTask(taskLog);
@@ -114,7 +115,7 @@ export function TaskTable({ tasks, onSubmit, onView }: TaskTableProps) {
                       <ChevronDown className="h-4 w-4" />
                     </Button>
                     {isMenuOpen && (
-                      <div className="absolute right-0 z-10 mt-2 w-48 rounded-md border bg-background p-1 shadow-md">
+                      <div className="option-panel absolute right-0 z-10 mt-2 w-48 rounded-md border bg-background p-1 shadow-md">
                         {/* For numeric tasks: "Enter Number" opens the submit dialog when submittable */}
                         {task.is_numeric_task && canSubmit ? (
                           <>

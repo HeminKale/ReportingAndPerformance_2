@@ -20,6 +20,9 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import type { ManagerPeriodicTask, Task, TaskLog, Attendance, Leave, User } from "@/lib/types/database";
 import { SharedTasksView } from "@/components/manager/shared-tasks-view";
 import { SharedTasksHistoryView } from "@/components/manager/shared-tasks-history-view";
+import { ManagerDocumentsTab } from "@/components/manager/manager-documents-tab";
+import { ManagerSalaryTab } from "@/components/manager/manager-salary-tab";
+import { ManagerCalendarTab } from "@/components/manager/manager-calendar-tab";
 
 export default function ManagerPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -41,6 +44,10 @@ export default function ManagerPage() {
   const [currentSearchTerm, setCurrentSearchTerm] = useState("");
   const [historySearchTerm, setHistorySearchTerm] = useState("");
   const [historyDateFilter, setHistoryDateFilter] = useState("");
+  const [historyToDateFilter, setHistoryToDateFilter] = useState("");
+  const [leavesSearchTerm, setLeavesSearchTerm] = useState("");
+  const [leavesDateFilter, setLeavesDateFilter] = useState("");
+  const [teamSearchTerm, setTeamSearchTerm] = useState("");
   const [mistakeSearchTerm, setMistakeSearchTerm] = useState("");
   const [expandedMistakeRows, setExpandedMistakeRows] = useState<Set<string>>(new Set());
   const [certGraphEmployeeFilter, setCertGraphEmployeeFilter] = useState("");
@@ -132,12 +139,22 @@ export default function ManagerPage() {
       )
       .subscribe();
 
+    const mistakesChannel = supabase
+      .channel('manager-mistakes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'mistakes' },
+        () => fetchData()
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(taskLogsChannel);
       supabase.removeChannel(attendanceChannel);
       supabase.removeChannel(leavesChannel);
       supabase.removeChannel(tasksChannel);
       supabase.removeChannel(periodicChannel);
+      supabase.removeChannel(mistakesChannel);
     };
   }, []);
 
@@ -310,6 +327,45 @@ export default function ManagerPage() {
     return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
   };
 
+  const groupByEmployee = (items: any[]): [string, any[]][] => {
+    const groups: Record<string, any[]> = {};
+    for (const item of items) {
+      const key = item.users?.full_name || "Unknown";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(item);
+    }
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  };
+
+  const calculateHours = (clockIn: string | null, clockOut: string | null): string => {
+    if (!clockIn || !clockOut) return '-';
+    const diff = new Date(clockOut).getTime() - new Date(clockIn).getTime();
+    if (diff <= 0) return '-';
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
+  };
+
+  const calculateTotalHours = (attendanceRecords: any[]): number => {
+    let totalMs = 0;
+    for (const att of attendanceRecords) {
+      if (att.clock_in_time && att.clock_out_time) {
+        const diff = new Date(att.clock_out_time).getTime() - new Date(att.clock_in_time).getTime();
+        if (diff > 0) totalMs += diff;
+      }
+    }
+    const hours = totalMs / (1000 * 60 * 60);
+    return Math.round(hours * 10) / 10;
+  };
+
+  const getTasksCompleteForDate = (userId: string, date: string): string => {
+    const logsForDate = taskLogs.filter((log: any) => 
+      log.user_id === userId && getTaskDay(log) === date
+    );
+    const completed = logsForDate.filter((log: any) => log.verification_status === 'approved').length;
+    return logsForDate.length > 0 ? `${completed}/${logsForDate.length}` : '0/0';
+  };
+
   // Today's Task: derive which tasks are due today per team member
   const todayWeekday = new Date().getDay();
   const dueTodayTasks = teamTasks.filter((task: any) => {
@@ -373,11 +429,15 @@ export default function ManagerPage() {
     getAttendanceDay(att) < today &&
     matchesHistoryFilters(att.users?.full_name, getAttendanceDay(att))
   );
-  const filteredMistakes = allMistakes.filter((m) =>
+  const mistakeMatchesSearch = (m: any) =>
     (m.title || '').toLowerCase().includes(mistakeSearchTerm.toLowerCase()) ||
     (m.description || '').toLowerCase().includes(mistakeSearchTerm.toLowerCase()) ||
-    (m.users?.full_name || '').toLowerCase().includes(mistakeSearchTerm.toLowerCase())
+    (m.users?.full_name || '').toLowerCase().includes(mistakeSearchTerm.toLowerCase());
+
+  const filteredClosureRequests = allMistakes.filter(
+    (m) => m.closure_request_pending === true && (m.status || 'open') === 'open' && mistakeMatchesSearch(m)
   );
+  const filteredMistakes = allMistakes.filter(mistakeMatchesSearch);
 
   const toggleMistakeRow = (mistakeId: string) => {
     const newExpanded = new Set(expandedMistakeRows);
@@ -423,6 +483,8 @@ export default function ManagerPage() {
           description: mistakeForm.description,
           severity: mistakeForm.severity,
           date: new Date().toISOString().split('T')[0],
+          status: 'open',
+          closure_request_pending: false,
         });
       if (error) throw error;
 
@@ -481,14 +543,52 @@ export default function ManagerPage() {
     }
   };
 
+  const handleClosureAccept = async (mistakeId: string) => {
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('mistakes')
+        .update({ status: 'rectified', closure_request_pending: false })
+        .eq('id', mistakeId);
+      if (error) throw error;
+      toast({ title: "Success", description: "Closure accepted. Status set to Rectified." });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleClosureReject = async (mistakeId: string) => {
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('mistakes')
+        .update({ closure_request_pending: false })
+        .eq('id', mistakeId);
+      if (error) throw error;
+      toast({ title: "Closure request rejected", description: "The employee can submit a new request if needed." });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const currentLeaveItems = leaveItems.filter((leave) =>
     getLeaveDay(leave) === today &&
-    matchesName(leave.users?.full_name, currentSearchTerm)
+    matchesName(leave.users?.full_name, leavesSearchTerm)
   );
-  const historyLeaveItems = leaveItems.filter((leave) =>
-    getLeaveDay(leave) < today &&
-    matchesHistoryFilters(leave.users?.full_name, getLeaveDay(leave))
-  );
+  const historyLeaveItems = leaveItems.filter((leave) => {
+    const nameMatch = matchesName(leave.users?.full_name, leavesSearchTerm);
+    const dayStr = getLeaveDay(leave);
+    if (leavesDateFilter) {
+      return dayStr === leavesDateFilter && nameMatch && dayStr < today;
+    }
+    return dayStr < today && nameMatch;
+  });
 
   useEffect(() => {
     if (teamMembers.length === 0) {
@@ -667,7 +767,7 @@ export default function ManagerPage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="p-6 md:p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
           <div className="h-64 bg-gray-200 rounded"></div>
@@ -677,10 +777,9 @@ export default function ManagerPage() {
   }
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Manager Panel</h1>
-        <p className="text-muted-foreground">
+    <div className="option-surface space-y-6 p-6 md:p-8">
+      <div className="option-panel rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
           Manage your team and approve requests
         </p>
       </div>
@@ -729,24 +828,32 @@ export default function ManagerPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="today" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="today">Today's Task ({todayTaskRows.length})</TabsTrigger>
-          <TabsTrigger value="tasks">Task Verifications ({currentTaskLogs.length})</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance ({currentAttendanceItems.length})</TabsTrigger>
-          <TabsTrigger value="attendance-report">Attendance Report ({currentAttendanceReportItems.length})</TabsTrigger>
-          <TabsTrigger value="mistakes">Track Mistakes ({allMistakes.length})</TabsTrigger>
-          <TabsTrigger value="leaves">Leaves ({currentLeaveItems.length})</TabsTrigger>
-          <TabsTrigger value="team">Team Members ({teamMembers.length})</TabsTrigger>
-          <TabsTrigger value="task-assignment">
-            <ListTodo className="h-4 w-4 mr-2" />
-            Task Assignment ({managedTeamTasks.length})
-          </TabsTrigger>
-        </TabsList>
+      <Tabs defaultValue="tasks" className="space-y-6">
+        <div className="flex flex-col gap-4 xl:flex-row">
+          <aside className="option-panel w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:w-72">
+            <p className="text-3xl font-bold tracking-tight">Manager Panel</p>
 
+            <TabsList className="option-tablist mt-4 h-auto w-full flex-col items-stretch gap-1 rounded-xl border border-slate-200 bg-slate-50 p-2">
+              <TabsTrigger value="today" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Today's Tasks <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{todayTaskRows.length}</span></TabsTrigger>
+              <TabsTrigger value="tasks" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Task Verifications <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentTaskLogs.length}</span></TabsTrigger>
+              <TabsTrigger value="attendance-report" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Attendance Report <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentAttendanceReportItems.length}</span></TabsTrigger>
+              <TabsTrigger value="mistakes" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Track Mistakes <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{allMistakes.length}</span></TabsTrigger>
+              <TabsTrigger value="leaves" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Leaves <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{currentLeaveItems.length}</span></TabsTrigger>
+              <TabsTrigger value="calendar" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Calendar</TabsTrigger>
+              <TabsTrigger value="team" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Team Members <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
+              <TabsTrigger value="documents" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Documents <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
+              <TabsTrigger value="salary" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Salary <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
+              <TabsTrigger value="task-assignment" className="manager-side-trigger justify-between rounded-lg px-3 py-2">
+                <span>Task Assignment</span>
+                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{managedTeamTasks.length}</span>
+              </TabsTrigger>
+            </TabsList>
+          </aside>
+
+          <section className="option-panel min-w-0 flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <TabsContent value="today" className="space-y-4">
           <Tabs defaultValue="regular" className="space-y-4">
-            <TabsList>
+            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
               <TabsTrigger value="regular">Regular Tasks</TabsTrigger>
               <TabsTrigger value="shared-tasks">Shared Tasks</TabsTrigger>
             </TabsList>
@@ -957,7 +1064,7 @@ export default function ManagerPage() {
 
         <TabsContent value="tasks" className="space-y-4">
           <Tabs defaultValue="current" className="space-y-4">
-            <TabsList>
+            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
               <TabsTrigger value="current">Current ({currentTaskLogs.length})</TabsTrigger>
               <TabsTrigger value="history">History ({historyTaskLogs.length})</TabsTrigger>
               <TabsTrigger value="shared-tasks">Shared Tasks</TabsTrigger>
@@ -1141,128 +1248,9 @@ export default function ManagerPage() {
           </Tabs>
         </TabsContent>
 
-        <TabsContent value="attendance" className="space-y-4">
-          <Tabs defaultValue="current" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="current">Current ({currentAttendanceItems.length})</TabsTrigger>
-              <TabsTrigger value="history">History ({historyAttendanceItems.length})</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="current" className="space-y-4">
-              <Input
-                placeholder="Search by employee name..."
-                value={currentSearchTerm}
-                onChange={(e) => setCurrentSearchTerm(e.target.value)}
-                className="max-w-md"
-              />
-              {currentAttendanceItems.length > 0 ? (
-                <div className="border rounded-lg">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Employee</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Clock In</TableHead>
-                        <TableHead>Reason</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {currentAttendanceItems.map((att) => (
-                        <TableRow key={att.id}>
-                          <TableCell>{att.users?.full_name}</TableCell>
-                          <TableCell>{format(new Date(att.date), "dd/MM/yyyy")}</TableCell>
-                          <TableCell>{att.clock_in_time ? format(new Date(att.clock_in_time), "HH:mm dd/MM/yyyy") : "-"}</TableCell>
-                          <TableCell>{att.late_reason || "-"}</TableCell>
-                          <TableCell className="capitalize">{att.approval_status}</TableCell>
-                          <TableCell>
-                            {att.approval_status === "pending" ? (
-                              <div className="flex gap-2">
-                                <Button size="sm" onClick={() => setActionDialog({ open: true, type: "attendance", item: att, action: "approve" })}>
-                                  Approve
-                                </Button>
-                                <Button size="sm" variant="destructive" onClick={() => setActionDialog({ open: true, type: "attendance", item: att, action: "reject" })}>
-                                  Reject
-                                </Button>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <Card><CardContent className="p-6 text-center text-muted-foreground">No current attendance requests</CardContent></Card>
-              )}
-            </TabsContent>
-
-            <TabsContent value="history" className="space-y-4">
-              <div className="flex gap-3">
-                <Input
-                  placeholder="Search by employee name..."
-                  value={historySearchTerm}
-                  onChange={(e) => setHistorySearchTerm(e.target.value)}
-                  className="flex-1"
-                />
-                <Input
-                  type="date"
-                  value={historyDateFilter}
-                  onChange={(e) => setHistoryDateFilter(e.target.value)}
-                  className="w-44"
-                />
-              </div>
-              {(() => {
-                const groups = groupByDay(historyAttendanceItems, getAttendanceDay);
-                if (groups.length === 0) {
-                  return <Card><CardContent className="p-6 text-center text-muted-foreground">No attendance history</CardContent></Card>;
-                }
-                return (
-                  <div className="space-y-2">
-                    {groups.map(([date, items]) => (
-                      <details key={date} className="rounded-lg border">
-                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50">
-                          {format(new Date(date), 'dd MMM yyyy')} &mdash; {items.length} request{items.length !== 1 ? 's' : ''}
-                        </summary>
-                        <div className="border-t">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Employee</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Reason</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Manager Comment</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {items.map((att: any) => (
-                                <TableRow key={att.id}>
-                                  <TableCell>{att.users?.full_name}</TableCell>
-                                  <TableCell>{format(new Date(att.date), "dd/MM/yyyy")}</TableCell>
-                                  <TableCell>{att.late_reason || "-"}</TableCell>
-                                  <TableCell className="capitalize">{att.approval_status}</TableCell>
-                                  <TableCell>{att.manager_comment || "-"}</TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      </details>
-                    ))}
-                  </div>
-                );
-              })()}
-            </TabsContent>
-          </Tabs>
-        </TabsContent>
-
         <TabsContent value="attendance-report" className="space-y-4">
           <Tabs defaultValue="current" className="space-y-4">
-            <TabsList>
+            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
               <TabsTrigger value="current">Current ({currentAttendanceReportItems.length})</TabsTrigger>
               <TabsTrigger value="history">History ({historyAttendanceReportItems.length})</TabsTrigger>
             </TabsList>
@@ -1285,6 +1273,7 @@ export default function ManagerPage() {
                         <TableHead>Clock Out</TableHead>
                         <TableHead>Reason</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1296,6 +1285,20 @@ export default function ManagerPage() {
                           <TableCell>{att.clock_out_time ? format(new Date(att.clock_out_time), "HH:mm dd/MM/yyyy") : "-"}</TableCell>
                           <TableCell>{att.late_reason || "-"}</TableCell>
                           <TableCell className="capitalize">{att.approval_status}</TableCell>
+                          <TableCell>
+                            {att.is_late_request && att.approval_status === "pending" ? (
+                              <div className="flex gap-2">
+                                <Button size="sm" onClick={() => setActionDialog({ open: true, type: "attendance", item: att, action: "approve" })}>
+                                  Approve
+                                </Button>
+                                <Button size="sm" variant="destructive" onClick={() => setActionDialog({ open: true, type: "attendance", item: att, action: "reject" })}>
+                                  Reject
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1307,176 +1310,343 @@ export default function ManagerPage() {
             </TabsContent>
 
             <TabsContent value="history" className="space-y-4">
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-wrap">
                 <Input
                   placeholder="Search by employee name..."
                   value={historySearchTerm}
                   onChange={(e) => setHistorySearchTerm(e.target.value)}
-                  className="flex-1"
+                  className="flex-1 min-w-[200px]"
                 />
                 <Input
                   type="date"
+                  placeholder="From date"
                   value={historyDateFilter}
                   onChange={(e) => setHistoryDateFilter(e.target.value)}
                   className="w-44"
                 />
+                <Input
+                  type="date"
+                  placeholder="To date"
+                  value={historyToDateFilter}
+                  onChange={(e) => setHistoryToDateFilter(e.target.value)}
+                  className="w-44"
+                />
               </div>
-              {historyAttendanceReportItems.length > 0 ? (
+              {(() => {
+                const filteredItems = historyAttendanceReportItems.filter((att) => {
+                  const nameMatch = matchesName(att.users?.full_name, historySearchTerm);
+                  const attDate = getAttendanceDay(att);
+                  let dateMatch = true;
+                  if (historyDateFilter && historyToDateFilter) {
+                    dateMatch = attDate >= historyDateFilter && attDate <= historyToDateFilter;
+                  } else if (historyDateFilter) {
+                    dateMatch = attDate >= historyDateFilter;
+                  } else if (historyToDateFilter) {
+                    dateMatch = attDate <= historyToDateFilter;
+                  }
+                  return nameMatch && dateMatch;
+                });
+
+                const groups = groupByEmployee(filteredItems);
+                
+                if (groups.length === 0) {
+                  return <Card><CardContent className="p-6 text-center text-muted-foreground">No attendance report history</CardContent></Card>;
+                }
+
+                return (
+                  <div className="space-y-2">
+                    {groups.map(([employeeName, items]) => {
+                      const totalHours = calculateTotalHours(items);
+                      const daysPresent = items.filter((att: any) => att.clock_in_time).length;
+                      const userId = items[0]?.user_id;
+                      
+                      return (
+                        <details key={employeeName} className="rounded-lg border">
+                          <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex items-center justify-between">
+                            <span>{employeeName} &mdash; {items.length} record{items.length !== 1 ? 's' : ''}</span>
+                            <ChevronDown className="h-4 w-4" />
+                          </summary>
+                          <div className="border-t p-4 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <Card>
+                                <CardContent className="p-4">
+                                  <p className="text-sm text-muted-foreground">Total Hours</p>
+                                  <p className="text-2xl font-bold">{totalHours}h</p>
+                                </CardContent>
+                              </Card>
+                              <Card>
+                                <CardContent className="p-4">
+                                  <p className="text-sm text-muted-foreground">Days Present</p>
+                                  <p className="text-2xl font-bold">{daysPresent}</p>
+                                </CardContent>
+                              </Card>
+                            </div>
+                            <div className="border rounded-lg">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Clock In</TableHead>
+                                    <TableHead>Clock Out</TableHead>
+                                    <TableHead>Hours</TableHead>
+                                    <TableHead>Tasks Complete</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {items.map((att: any) => (
+                                    <TableRow key={att.id}>
+                                      <TableCell>{format(new Date(att.date), "dd/MM/yyyy")}</TableCell>
+                                      <TableCell>{att.clock_in_time ? format(new Date(att.clock_in_time), "HH:mm") : "-"}</TableCell>
+                                      <TableCell>{att.clock_out_time ? format(new Date(att.clock_out_time), "HH:mm") : "-"}</TableCell>
+                                      <TableCell>{calculateHours(att.clock_in_time, att.clock_out_time)}</TableCell>
+                                      <TableCell>{getTasksCompleteForDate(userId, getAttendanceDay(att))}</TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        </details>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
+
+        <TabsContent value="mistakes" className="space-y-4">
+          <Tabs defaultValue="mistakes-tracker" className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <Input
+                placeholder="Search mistakes..."
+                value={mistakeSearchTerm}
+                onChange={(e) => setMistakeSearchTerm(e.target.value)}
+                className="min-w-[160px] flex-1 max-w-md"
+              />
+              <TabsList className="option-tablist h-auto shrink-0 rounded-xl bg-slate-100 p-1">
+                <TabsTrigger value="closure-requests">
+                  Closure Requests ({filteredClosureRequests.length})
+                </TabsTrigger>
+                <TabsTrigger value="mistakes-tracker">Mistakes</TabsTrigger>
+              </TabsList>
+              <Button type="button" className="shrink-0" onClick={openCreateMistakeDialog}>
+                <Plus className="h-4 w-4 mr-2" />
+                Record Mistake
+              </Button>
+            </div>
+
+            <TabsContent value="closure-requests" className="space-y-4">
+              {filteredClosureRequests.length > 0 ? (
                 <div className="border rounded-lg">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Employee</TableHead>
                         <TableHead>Date</TableHead>
-                        <TableHead>Clock In</TableHead>
-                        <TableHead>Clock Out</TableHead>
-                        <TableHead>Reason</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Employee</TableHead>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Severity</TableHead>
+                        <TableHead>Added By</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {historyAttendanceReportItems.map((att) => (
-                        <TableRow key={att.id}>
-                          <TableCell>{att.users?.full_name}</TableCell>
-                          <TableCell>{format(new Date(att.date), "dd/MM/yyyy")}</TableCell>
-                          <TableCell>{att.clock_in_time ? format(new Date(att.clock_in_time), "HH:mm dd/MM/yyyy") : "-"}</TableCell>
-                          <TableCell>{att.clock_out_time ? format(new Date(att.clock_out_time), "HH:mm dd/MM/yyyy") : "-"}</TableCell>
-                          <TableCell>{att.late_reason || "-"}</TableCell>
-                          <TableCell className="capitalize">{att.approval_status}</TableCell>
+                      {filteredClosureRequests.map((m) => (
+                        <TableRow key={m.id}>
+                          <TableCell>{m.date ? format(new Date(m.date), "dd/MM/yyyy") : "-"}</TableCell>
+                          <TableCell>{m.users?.full_name || "-"}</TableCell>
+                          <TableCell className="font-medium max-w-xs truncate">{m.title || "-"}</TableCell>
+                          <TableCell>
+                            <Badge
+                              className={
+                                m.severity === "high"
+                                  ? "bg-red-100 text-red-800"
+                                  : m.severity === "medium"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-green-100 text-green-800"
+                              }
+                            >
+                              {m.severity}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{m.added_by_user?.full_name || "-"}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                disabled={actionLoading}
+                                onClick={() => handleClosureAccept(m.id)}
+                              >
+                                Accept
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                disabled={actionLoading}
+                                onClick={() => handleClosureReject(m.id)}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </div>
               ) : (
-                <Card><CardContent className="p-6 text-center text-muted-foreground">No attendance report history</CardContent></Card>
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">No closure requests</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {mistakeSearchTerm ? "Try a different search term" : "Pending employee requests will appear here"}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="mistakes-tracker" className="space-y-4">
+              {filteredMistakes.length > 0 ? (
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead></TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Employee</TableHead>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Severity</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Added By</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredMistakes.map((m) => {
+                        const isExpanded = expandedMistakeRows.has(m.id);
+                        const trackerStatus = m.status || "open";
+                        return (
+                          <Fragment key={m.id}>
+                            <TableRow>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => toggleMistakeRow(m.id)}
+                                >
+                                  {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                </Button>
+                              </TableCell>
+                              <TableCell>{m.date ? format(new Date(m.date), "dd/MM/yyyy") : "-"}</TableCell>
+                              <TableCell>{m.users?.full_name || "-"}</TableCell>
+                              <TableCell className="font-medium">{m.title || "-"}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  className={
+                                    m.severity === "high"
+                                      ? "bg-red-100 text-red-800"
+                                      : m.severity === "medium"
+                                        ? "bg-yellow-100 text-yellow-800"
+                                        : "bg-green-100 text-green-800"
+                                  }
+                                >
+                                  {m.severity}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col gap-1">
+                                  <Badge
+                                    className={
+                                      trackerStatus === "rectified"
+                                        ? "bg-emerald-100 text-emerald-900 w-fit capitalize"
+                                        : "bg-slate-100 text-slate-800 w-fit capitalize"
+                                    }
+                                  >
+                                    {trackerStatus === "rectified" ? "Rectified" : "Open"}
+                                  </Badge>
+                                  {m.closure_request_pending && trackerStatus === "open" ? (
+                                    <span className="text-xs text-amber-700">Closure pending</span>
+                                  ) : null}
+                                </div>
+                              </TableCell>
+                              <TableCell>{m.added_by_user?.full_name || "-"}</TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => openEditMistakeDialog(m)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDeleteMistake(m.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-red-500" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                            {isExpanded && (
+                              <TableRow>
+                                <TableCell colSpan={8} className="bg-muted/30">
+                                  <div className="py-2">
+                                    <p className="text-sm font-medium mb-1">Description</p>
+                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                                      {m.description || "-"}
+                                    </p>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">No mistakes recorded</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {mistakeSearchTerm ? "Try a different search term" : "Record mistakes to track quality issues"}
+                    </p>
+                  </CardContent>
+                </Card>
               )}
             </TabsContent>
           </Tabs>
         </TabsContent>
 
-        <TabsContent value="mistakes" className="space-y-4">
-          <div className="flex justify-between items-center mb-4">
-            <Input
-              placeholder="Search mistakes..."
-              value={mistakeSearchTerm}
-              onChange={(e) => setMistakeSearchTerm(e.target.value)}
-              className="w-1/3"
-            />
-            <Button onClick={openCreateMistakeDialog}>
-              <Plus className="h-4 w-4 mr-2" />
-              Record Mistake
-            </Button>
-          </div>
-
-          {filteredMistakes.length > 0 ? (
-            <div className="border rounded-lg">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead></TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Severity</TableHead>
-                    <TableHead>Added By</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredMistakes.map((m) => {
-                    const isExpanded = expandedMistakeRows.has(m.id);
-                    return (
-                      <Fragment key={m.id}>
-                        <TableRow>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => toggleMistakeRow(m.id)}
-                            >
-                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                            </Button>
-                          </TableCell>
-                          <TableCell>{m.date ? format(new Date(m.date), "dd/MM/yyyy") : "-"}</TableCell>
-                          <TableCell>{m.users?.full_name || "-"}</TableCell>
-                          <TableCell className="font-medium">{m.title || "-"}</TableCell>
-                          <TableCell>
-                            <Badge className={
-                              m.severity === 'high'
-                                ? 'bg-red-100 text-red-800'
-                                : m.severity === 'medium'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-green-100 text-green-800'
-                            }>
-                              {m.severity}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{m.added_by_user?.full_name || "-"}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openEditMistakeDialog(m)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteMistake(m.id)}
-                              >
-                                <Trash2 className="h-4 w-4 text-red-500" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                        {isExpanded && (
-                          <TableRow>
-                            <TableCell colSpan={7} className="bg-muted/30">
-                              <div className="py-2">
-                                <p className="text-sm font-medium mb-1">Description</p>
-                                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                                  {m.description || "-"}
-                                </p>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No mistakes recorded</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {mistakeSearchTerm ? "Try a different search term" : "Record mistakes to track quality issues"}
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
         <TabsContent value="leaves" className="space-y-4">
           <Tabs defaultValue="current" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="current">Current ({currentLeaveItems.length})</TabsTrigger>
-              <TabsTrigger value="history">History ({historyLeaveItems.length})</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="current" className="space-y-4">
+            <div className="flex gap-3 items-center flex-wrap">
               <Input
                 placeholder="Search by employee name..."
-                value={currentSearchTerm}
-                onChange={(e) => setCurrentSearchTerm(e.target.value)}
-                className="max-w-md"
+                value={leavesSearchTerm}
+                onChange={(e) => setLeavesSearchTerm(e.target.value)}
+                className="flex-1 min-w-[200px]"
               />
+              <Input
+                type="date"
+                value={leavesDateFilter}
+                onChange={(e) => setLeavesDateFilter(e.target.value)}
+                className="w-44"
+              />
+              <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
+                <TabsTrigger value="current">Current ({currentLeaveItems.length})</TabsTrigger>
+                <TabsTrigger value="history">History ({historyLeaveItems.length})</TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="current" className="space-y-4">
               {currentLeaveItems.length > 0 ? (
                 <div className="border rounded-lg">
                   <Table>
@@ -1525,20 +1695,6 @@ export default function ManagerPage() {
             </TabsContent>
 
             <TabsContent value="history" className="space-y-4">
-              <div className="flex gap-3">
-                <Input
-                  placeholder="Search by employee name..."
-                  value={historySearchTerm}
-                  onChange={(e) => setHistorySearchTerm(e.target.value)}
-                  className="flex-1"
-                />
-                <Input
-                  type="date"
-                  value={historyDateFilter}
-                  onChange={(e) => setHistoryDateFilter(e.target.value)}
-                  className="w-44"
-                />
-              </div>
               {(() => {
                 const groups = groupByDay(historyLeaveItems, getLeaveDay);
                 if (groups.length === 0) {
@@ -1586,9 +1742,19 @@ export default function ManagerPage() {
           </Tabs>
         </TabsContent>
 
+        <TabsContent value="calendar" className="space-y-4">
+          <ManagerCalendarTab teamMembers={teamMembers} />
+        </TabsContent>
+
         <TabsContent value="team" className="space-y-4">
+          <Input
+            placeholder="Search by employee name..."
+            value={teamSearchTerm}
+            onChange={(e) => setTeamSearchTerm(e.target.value)}
+            className="max-w-md"
+          />
           {teamMembers.filter(member =>
-            member.full_name.toLowerCase().includes(currentSearchTerm.toLowerCase())
+            member.full_name.toLowerCase().includes(teamSearchTerm.toLowerCase())
           ).length > 0 ? (
             <div className="border rounded-lg">
               <Table>
@@ -1601,7 +1767,7 @@ export default function ManagerPage() {
                 </TableHeader>
                 <TableBody>
                   {teamMembers
-                    .filter(member => member.full_name.toLowerCase().includes(currentSearchTerm.toLowerCase()))
+                    .filter(member => member.full_name.toLowerCase().includes(teamSearchTerm.toLowerCase()))
                     .map((member) => (
                       <TableRow key={member.id}>
                         <TableCell>{member.full_name}</TableCell>
@@ -1615,6 +1781,14 @@ export default function ManagerPage() {
           ) : (
             <Card><CardContent className="p-6 text-center text-muted-foreground">No team members assigned</CardContent></Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="documents" className="space-y-4">
+          <ManagerDocumentsTab currentUser={user} teamMembers={teamMembers} onTeamRefresh={fetchData} />
+        </TabsContent>
+
+        <TabsContent value="salary" className="space-y-4">
+          <ManagerSalaryTab currentUser={user} teamMembers={teamMembers} />
         </TabsContent>
 
         <TabsContent value="task-assignment" className="space-y-4">
@@ -1633,6 +1807,8 @@ export default function ManagerPage() {
             />
           )}
         </TabsContent>
+          </section>
+        </div>
       </Tabs>
 
       <Dialog open={mistakeDialog.open} onOpenChange={(open) => {

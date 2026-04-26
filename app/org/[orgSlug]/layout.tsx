@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { Sidebar } from '@/components/shared/sidebar';
+import { TopNav } from '@/components/shared/top-nav';
 
 export default async function OrgLayout({
   children,
@@ -29,9 +29,9 @@ export default async function OrgLayout({
   }
 
   return (
-    <div className="flex h-screen">
-      <Sidebar orgSlug={orgSlug} userRole={userData.role} userId={user.id} userName={userData.full_name} />
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
+    <div className="flex h-screen flex-col bg-background">
+      <TopNav orgSlug={orgSlug} userRole={userData.role} userId={user.id} userName={userData.full_name} />
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-16">
         {children}
       </main>
     </div>

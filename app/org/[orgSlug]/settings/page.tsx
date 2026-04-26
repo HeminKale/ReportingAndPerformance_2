@@ -356,6 +356,8 @@ export default function SettingsPage() {
           description: mistakeForm.description,
           severity: mistakeForm.severity,
           date: new Date().toISOString().split('T')[0],
+          status: 'open',
+          closure_request_pending: false,
         });
 
       if (error) throw error;

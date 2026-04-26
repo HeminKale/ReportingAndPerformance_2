@@ -27,7 +27,7 @@ import { ManagerPeriodicTasksTab } from "@/components/shared/manager-periodic-ta
 const NO_LINKED_MONTHLY_VALUE = "__no_linked_monthly__";
 
 export type TaskAssignmentPanelProps = {
-  mode: "admin" | "manager";
+  mode: "admin" | "manager" | "employee";
   organizationId: string;
   currentUserId: string;
   assignableUsers: User[];
@@ -74,8 +74,8 @@ export function TaskAssignmentPanel({
     type: "daily" as "daily" | "weekly" | "monthly",
     dayOfWeek: "",
     dueDate: "",
-    assignmentType: (mode === "manager" ? "specific" : "common") as "common" | "specific",
-    assignedTo: "",
+    assignmentType: (mode === "manager" || mode === "employee" ? "specific" : "common") as "common" | "specific",
+    assignedTo: mode === "employee" ? currentUserId : "",
     /** Manager create: one task row per selected employee */
     assignedToIds: [] as string[],
     isActive: true,
@@ -88,6 +88,7 @@ export function TaskAssignmentPanel({
   const supabase = createClient();
 
   const isManager = mode === "manager";
+  const isEmployee = mode === "employee";
   const splitView = Boolean(managerCurrentHistorySplit && isManager);
 
   const toTaskDay = (iso: string) => format(new Date(iso), "yyyy-MM-dd");
@@ -102,8 +103,8 @@ export function TaskAssignmentPanel({
       type: "daily",
       dayOfWeek: "",
       dueDate: "",
-      assignmentType: isManager ? "specific" : "common",
-      assignedTo: "",
+      assignmentType: isManager || isEmployee ? "specific" : "common",
+      assignedTo: isEmployee ? currentUserId : "",
       assignedToIds: [],
       isActive: true,
       isNumericTask: false,
@@ -150,7 +151,7 @@ export function TaskAssignmentPanel({
       }
       return true;
     }
-    if (isManager || taskForm.assignmentType === "specific") {
+    if (isManager || (!isEmployee && taskForm.assignmentType === "specific")) {
       if (!taskForm.assignedTo || !assigneeOk(taskForm.assignedTo)) {
         toast({
           title: "Error",
@@ -174,7 +175,7 @@ export function TaskAssignmentPanel({
 
     setSubmitting(true);
     try {
-      const isCommon = isManager ? false : taskForm.assignmentType === "common";
+      const isCommon = isManager || isEmployee ? false : taskForm.assignmentType === "common";
 
       const baseRow: Record<string, unknown> = {
         organization_id: organizationId,
@@ -212,7 +213,7 @@ export function TaskAssignmentPanel({
       } else {
         const taskData = {
           ...baseRow,
-          assigned_to: !isCommon ? taskForm.assignedTo : null,
+          assigned_to: isEmployee ? currentUserId : (!isCommon ? taskForm.assignedTo : null),
         };
         const { error } = await supabase.from("tasks").insert(taskData);
         if (error) throw error;
@@ -238,13 +239,13 @@ export function TaskAssignmentPanel({
 
     setSubmitting(true);
     try {
-      const isCommon = isManager ? false : taskForm.assignmentType === "common";
+      const isCommon = isManager || isEmployee ? false : taskForm.assignmentType === "common";
       const taskData: Record<string, unknown> = {
         title: taskForm.title,
         description: taskForm.description || null,
         type: taskForm.type,
         is_common_task: isCommon,
-        assigned_to: !isCommon ? taskForm.assignedTo : null,
+        assigned_to: isEmployee ? currentUserId : (!isCommon ? taskForm.assignedTo : null),
         is_active: taskForm.isActive,
         is_numeric_task: taskForm.isNumericTask,
         numeric_unit: taskForm.isNumericTask ? taskForm.numericUnit : null,
@@ -436,39 +437,40 @@ export function TaskAssignmentPanel({
     <>
       {splitView ? (
         <>
-          <div className="flex justify-between items-center mb-4">
-            <div />
-            <Button
-              onClick={() => {
-                if (mainAssignmentTab === "periodic") {
-                  setPeriodicCreateTrigger((n) => n + 1);
-                } else {
-                  openCreateTaskDialog();
-                }
-              }}
-              disabled={mainAssignmentTab !== "periodic" && assignableUsers.length === 0}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {mainAssignmentTab === "periodic" ? "Create periodic task" : "Create Task"}
-            </Button>
-          </div>
-
           <Tabs
             value={mainAssignmentTab}
             onValueChange={setMainAssignmentTab}
             className="space-y-4"
           >
-            <TabsList className="flex flex-wrap h-auto gap-1">
-              <TabsTrigger value="current">
-                Current ({currentAssignmentTasks.length})
-              </TabsTrigger>
-              <TabsTrigger value="history">
-                History ({historyAssignmentTasks.length})
-              </TabsTrigger>
-              <TabsTrigger value="periodic">
-                Periodic tasks ({managerPeriodicTasks.length})
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex w-full flex-wrap items-center gap-3">
+              <TabsList className="flex h-auto flex-wrap gap-1">
+                <TabsTrigger value="current">
+                  Current ({currentAssignmentTasks.length})
+                </TabsTrigger>
+                <TabsTrigger value="history">
+                  History ({historyAssignmentTasks.length})
+                </TabsTrigger>
+                <TabsTrigger value="periodic">
+                  Periodic tasks ({managerPeriodicTasks.length})
+                </TabsTrigger>
+              </TabsList>
+              <div className="ml-auto flex shrink-0">
+                <Button
+                  type="button"
+                  onClick={() => {
+                    if (mainAssignmentTab === "periodic") {
+                      setPeriodicCreateTrigger((n) => n + 1);
+                    } else {
+                      openCreateTaskDialog();
+                    }
+                  }}
+                  disabled={mainAssignmentTab !== "periodic" && assignableUsers.length === 0}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {mainAssignmentTab === "periodic" ? "Create periodic task" : "Create Task"}
+                </Button>
+              </div>
+            </div>
 
             <TabsContent value="current" className="space-y-4">
               <Input
@@ -562,7 +564,6 @@ export function TaskAssignmentPanel({
             <TabsContent value="periodic" className="space-y-4">
               <ManagerPeriodicTasksTab
                 periodicTasks={managerPeriodicTasks}
-                directReportCount={assignableUsers.length}
                 monthlyNumericLinkOptions={monthlyNumericLinkOptions}
                 monthlyPeriodicLinkOptions={monthlyPeriodicLinkOptions}
                 organizationId={organizationId}
@@ -794,7 +795,7 @@ export function TaskAssignmentPanel({
               </div>
             )}
 
-            {!isManager && (
+            {!isManager && !isEmployee && (
               <div className="space-y-2">
                 <Label>Assignment Type</Label>
                 <div className="flex gap-4 flex-wrap">
@@ -887,7 +888,7 @@ export function TaskAssignmentPanel({
                 )}
               </div>
             ) : (
-              (isManager || taskForm.assignmentType === "specific") && (
+              (isManager || (!isEmployee && taskForm.assignmentType === "specific")) && (
                 <div className="space-y-2">
                   <Label htmlFor="assignedTo">Assign To</Label>
                   <Select
