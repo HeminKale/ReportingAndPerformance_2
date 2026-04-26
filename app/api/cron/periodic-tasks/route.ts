@@ -2,7 +2,8 @@
  * Dispatches manager periodic task templates into real `tasks` rows for each direct report.
  *
  * Schedule (recommended: at least hourly so org timezones line up with calendar days):
- * - Vercel: add to vercel.json `crons`: `{ "path": "/api/cron/periodic-tasks", "schedule": "0 * * * *" }`
+ * - Vercel: see `vercel.json` in the app root (`crons` → this path). Crons run on production only.
+ * - CRON_SECRET: generate locally (e.g. `openssl rand -hex 32`), set in Vercel → Env → Production; Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`.
  * - Or any scheduler: GET/POST with header `Authorization: Bearer <CRON_SECRET>`
  *
  * Example (local):
