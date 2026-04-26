@@ -1068,13 +1068,15 @@ export default function ManagerPage() {
                   )}
                 >
                   <span>Tasks</span>
-                  <span className={cn(
-                    "rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums transition-colors",
-                    "bg-slate-200/50 text-slate-500 group-hover:bg-slate-200",
-                    "group-data-[state=active]:bg-primary/10 group-data-[state=active]:text-primary"
-                  )}>
-                    {todayTaskRows.length}
-                  </span>
+                  {taskLogs.filter((log: any) => log.verification_status === 'pending').length > 0 && (
+                    <span className={cn(
+                      "rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums transition-colors",
+                      "bg-amber-100/80 text-amber-700 group-hover:bg-amber-200",
+                      "group-data-[state=active]:bg-amber-100 group-data-[state=active]:text-amber-700"
+                    )}>
+                      {taskLogs.filter((log: any) => log.verification_status === 'pending').length}
+                    </span>
+                  )}
                 </TabsTrigger>
                 {managerActiveTab === "manager-tasks" && (
                   <div className="mx-2 flex flex-col gap-1 border-l-2 border-slate-200/50 pl-3 pb-1">
@@ -1119,15 +1121,15 @@ export default function ManagerPage() {
               </div>
 
               {[
-                { value: "attendance-report", label: "Attendance Report", count: currentAttendanceReportItems.length },
-                { value: "mistakes", label: "Track Mistakes", count: allMistakes.length },
-                { value: "leaves", label: "Leaves", count: currentLeaveItems.length },
+                { value: "attendance-report", label: "Attendance Report", count: attendanceItems.filter((att: any) => att.approval_status === 'pending').length },
+                { value: "mistakes", label: "Track Mistakes", count: allMistakes.filter((m: any) => m.closure_request_pending === true).length },
+                { value: "leaves", label: "Leaves", count: leaveItems.filter((leave: any) => leave.status === 'pending').length },
                 { value: "calendar", label: "Calendar" },
-                { value: "team", label: "Team Members", count: teamMembers.length },
-                { value: "documents", label: "Documents", count: teamMembers.length },
-                { value: "salary", label: "Salary", count: teamMembers.length },
+                { value: "team", label: "Team Members", count: teamMembers.length, alwaysShowCount: true },
+                { value: "documents", label: "Documents" },
+                { value: "salary", label: "Salary" },
                 { value: "ratings", label: "Employee Ratings" },
-                { value: "task-assignment", label: "Task Assignment", count: managedTeamTasks.length },
+                { value: "task-assignment", label: "Task Assignment" },
               ].map((tab) => (
                 <TabsTrigger 
                   key={tab.value}
@@ -1139,11 +1141,12 @@ export default function ManagerPage() {
                   )}
                 >
                   <span>{tab.label}</span>
-                  {tab.count !== undefined && (
+                  {tab.count !== undefined && (tab.alwaysShowCount || tab.count > 0) && (
                     <span className={cn(
                       "rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums transition-colors",
-                      "bg-slate-200/50 text-slate-500 group-hover:bg-slate-200",
-                      "group-data-[state=active]:bg-primary/10 group-data-[state=active]:text-primary"
+                      tab.alwaysShowCount 
+                        ? "bg-slate-200/50 text-slate-500 group-hover:bg-slate-200 group-data-[state=active]:bg-primary/10 group-data-[state=active]:text-primary"
+                        : "bg-amber-100/80 text-amber-700 group-hover:bg-amber-200 group-data-[state=active]:bg-amber-100 group-data-[state=active]:text-amber-700"
                     )}>
                       {tab.count}
                     </span>
@@ -1819,23 +1822,25 @@ export default function ManagerPage() {
 
         <TabsContent value="mistakes" className="space-y-4">
           <Tabs defaultValue="mistakes-tracker" className="space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <Input
                 placeholder="Search mistakes..."
                 value={mistakeSearchTerm}
                 onChange={(e) => setMistakeSearchTerm(e.target.value)}
                 className="min-w-[160px] flex-1 max-w-md"
               />
-              <TabsList className="option-tablist h-auto shrink-0 rounded-xl bg-slate-100 p-1">
-                <TabsTrigger value="closure-requests">
-                  Closure Requests ({filteredClosureRequests.length})
-                </TabsTrigger>
-                <TabsTrigger value="mistakes-tracker">Mistakes</TabsTrigger>
-              </TabsList>
-              <Button type="button" className="shrink-0" onClick={openCreateMistakeDialog}>
-                <Plus className="h-4 w-4 mr-2" />
-                Record Mistake
-              </Button>
+              <div className="flex items-center gap-3 ml-auto">
+                <TabsList className="option-tablist h-auto shrink-0 rounded-xl bg-slate-100 p-1">
+                  <TabsTrigger value="closure-requests">
+                    Closure Requests ({filteredClosureRequests.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="mistakes-tracker">Mistakes</TabsTrigger>
+                </TabsList>
+                <Button type="button" className="shrink-0" onClick={openCreateMistakeDialog}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Record Mistake
+                </Button>
+              </div>
             </div>
 
             <TabsContent value="closure-requests" className="space-y-4">
