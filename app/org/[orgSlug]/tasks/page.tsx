@@ -438,8 +438,6 @@ export default function TasksPage() {
                 </TabsList>
               }
               onAddTask={() => setAddTaskPanelOpen(true)}
-              taskViewMode={taskViewMode}
-              setTaskViewMode={setTaskViewMode}
             />
 
             <TabsContent value="current" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
