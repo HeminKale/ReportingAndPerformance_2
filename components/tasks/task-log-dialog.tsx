@@ -95,6 +95,18 @@ export function TaskLogDialog({ task, open, onOpenChange, date }: TaskLogDialogP
         .single();
 
       if (submittingUser?.manager_id) {
+        const employeeComment =
+          task.is_numeric_task
+            ? (comment || "").trim() || null
+            : status === "completed"
+              ? (comment || "").trim() || null
+              : (reason || "").trim() || null;
+        const commentLabel = task.is_numeric_task
+          ? "Note"
+          : status === "completed"
+            ? "Comment"
+            : "Reason (pending)";
+
         const managerMessage = `${submittingUser.full_name} submitted "${task.title}" as ${status} and it is waiting for your review.`;
         const { error: managerNotificationError } = await supabase
           .from('notifications')
@@ -111,6 +123,8 @@ export function TaskLogDialog({ task, open, onOpenChange, date }: TaskLogDialogP
               resource_id: submittedTaskLog?.id ?? null,
               employee_id: user.id,
               task_id: task.id,
+              employee_comment: employeeComment,
+              employee_comment_label: commentLabel,
             },
           });
 

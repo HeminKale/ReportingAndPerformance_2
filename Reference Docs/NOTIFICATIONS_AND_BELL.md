@@ -46,6 +46,8 @@ Conventional shapes:
 
 Include `employee_id` where useful for routing or future use (e.g. leaves/attendance/task submission flows).
 
+**Employee free text** for manager-facing requests is stored in `metadata.employee_comment` (and optional `metadata.employee_comment_label` for the modal title), set when the employee submits: task log (`task-log-dialog`), leave request (`leaves/page`), late clock-in and early clock-out (`attendance/page`). The notifications page shows **View comments** (same row as **View details**) which opens a dialog with that text.
+
 `resource_id` in JSONB may be stored as a string; the client helper normalizes with `String()` when matching.
 
 **Helper:** `lib/notifications/mark-resource-read.ts` — `markResourceNotificationsRead(supabase, userId, resourceType, resourceId)`.

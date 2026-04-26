@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -17,8 +23,25 @@ export default function NotificationsPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [commentModal, setCommentModal] = useState<{
+    open: boolean;
+    title: string;
+    body: string;
+  }>({ open: false, title: "", body: "" });
   const { toast } = useToast();
   const supabase = createClient();
+
+  const getCommentModalPayload = (notification: Notification): { title: string; body: string } | null => {
+    const m = notification.metadata || {};
+    const raw = m.employee_comment;
+    const text = typeof raw === "string" ? raw.trim() : raw != null ? String(raw).trim() : "";
+    if (!text) return null;
+    const label =
+      typeof m.employee_comment_label === "string" && m.employee_comment_label.trim()
+        ? m.employee_comment_label.trim()
+        : "Employee message";
+    return { title: label, body: text };
+  };
 
   useEffect(() => {
     fetchNotifications();
@@ -271,6 +294,20 @@ export default function NotificationsPage() {
 
   return (
     <div className="p-8">
+      <Dialog
+        open={commentModal.open}
+        onOpenChange={(open) => setCommentModal((s) => ({ ...s, open }))}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{commentModal.title}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
+            {commentModal.body}
+          </p>
+        </DialogContent>
+      </Dialog>
+
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Notifications</h1>
@@ -290,6 +327,7 @@ export default function NotificationsPage() {
         {visibleNotifications.length > 0 ? (
           visibleNotifications.map((notification) => {
             const actionable = isActionableNotification(notification);
+            const commentPayload = getCommentModalPayload(notification);
             return (
             <Card
               key={notification.id}
@@ -335,13 +373,32 @@ export default function NotificationsPage() {
                           </Button>
                         </div>
                       )}
-                      {notification.link && (
-                        <Link
-                          href={notification.link}
-                          className="text-sm text-primary hover:underline mt-2 inline-block"
-                        >
-                          View details
-                        </Link>
+                      {(notification.link || commentPayload) && (
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                          {notification.link && (
+                            <Link
+                              href={notification.link}
+                              className="text-primary hover:underline"
+                            >
+                              View details
+                            </Link>
+                          )}
+                          {commentPayload && (
+                            <button
+                              type="button"
+                              className="text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer text-sm"
+                              onClick={() => {
+                                setCommentModal({
+                                  open: true,
+                                  title: commentPayload.title,
+                                  body: commentPayload.body,
+                                });
+                              }}
+                            >
+                              View comments
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>

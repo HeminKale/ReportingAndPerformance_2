@@ -112,6 +112,8 @@ export default function LeavesPage() {
               resource_type: "leave",
               resource_id: createdLeave?.id ?? null,
               employee_id: user.id,
+              employee_comment: formData.reason.trim(),
+              employee_comment_label: "Reason",
             },
           });
       }

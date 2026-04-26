@@ -228,6 +228,8 @@ export default function AttendancePage() {
               resource_type: "attendance",
               resource_id: createdAttendance?.id ?? null,
               employee_id: user.id,
+              employee_comment: lateReason.trim(),
+              employee_comment_label: "Late clock-in",
             },
           });
       }
@@ -366,6 +368,8 @@ export default function AttendancePage() {
               resource_type: "attendance",
               resource_id: attendance.id,
               employee_id: user.id,
+              employee_comment: combinedReason,
+              employee_comment_label: "Clock-out / approval note",
             },
           });
       }
