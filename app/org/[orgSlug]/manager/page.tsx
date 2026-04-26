@@ -571,7 +571,7 @@ export default function ManagerPage() {
       toast({ title: "Success", description: "Mistake recorded successfully" });
       setMistakeDialog({ open: false, mode: 'create', mistake: null });
       setMistakeForm({ title: '', description: '', severity: 'medium', userId: '' });
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -603,7 +603,7 @@ export default function ManagerPage() {
       toast({ title: "Success", description: "Mistake updated successfully" });
       setMistakeDialog({ open: false, mode: 'edit', mistake: null });
       setMistakeForm({ title: '', description: '', severity: 'medium', userId: '' });
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -617,7 +617,7 @@ export default function ManagerPage() {
       const { error } = await supabase.from('mistakes').delete().eq('id', mistakeId);
       if (error) throw error;
       toast({ title: "Success", description: "Mistake deleted successfully" });
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
@@ -653,7 +653,7 @@ export default function ManagerPage() {
       if (nErr) console.warn("mistake_rectified notification", nErr.message);
 
       toast({ title: "Success", description: "Closure accepted. Status set to Rectified." });
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -670,7 +670,7 @@ export default function ManagerPage() {
         .eq('id', mistakeId);
       if (error) throw error;
       toast({ title: "Closure request rejected", description: "The employee can submit a new request if needed." });
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -819,7 +819,7 @@ export default function ManagerPage() {
       toast({ title: "Recalled", description: "The employee has been notified." });
       setRecallDialog({ open: false, log: null });
       setRecallComment("");
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -983,7 +983,7 @@ export default function ManagerPage() {
 
       setActionDialog({ open: false, type: null, item: null, action: null });
       setComment("");
-      fetchData();
+      await fetchData();
     } catch (error: any) {
       toast({
         title: "Error",
