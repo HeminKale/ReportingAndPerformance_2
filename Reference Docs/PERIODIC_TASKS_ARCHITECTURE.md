@@ -1,6 +1,6 @@
 # Periodic tasks — architecture and behavior
 
-This document is the **canonical reference** for how manager periodic templates become employee `tasks`, how scheduling works, and what users should expect. Related docs: [Selective assignment](SELECTIVE_PERIODIC_TASK_ASSIGNMENT.md), [Daily → monthly rollup](DAILY_PERIODIC_MONTHLY_ROLLUP_LINK.md).
+This document is the **canonical reference** for how manager periodic templates become employee `tasks`, how scheduling works, and what users should expect. Related docs: [Selective assignment](SELECTIVE_PERIODIC_TASK_ASSIGNMENT.md), [Daily → monthly rollup](DAILY_PERIODIC_MONTHLY_ROLLUP_LINK.md), **[Cron on a VPS (e.g. Hostinger)](PERIODIC_TASKS_CRON_HOSTINGER_VPS.md)**.
 
 ---
 
@@ -128,6 +128,12 @@ Replace the first variable with the **same** secret value shown in the dashboard
 **Vercel-managed Cron:** After enabling bypass automation, confirm in **Cron Jobs → View logs** that invocations return **200** and JSON `{ "ok": true, ... }`. If they still show the auth HTML page, ensure bypass is enabled for the project and redeploy if Vercel requires it after rotating secrets.
 
 **Plan note:** Protection bypass for automation is part of Vercel’s **Advanced Deployment Protection** offering; availability depends on your Vercel plan. If the UI shows an upgrade gate, use **Option B/C** or an external scheduler until bypass is available.
+
+---
+
+## Hosting without Vercel (VPS / Hostinger)
+
+`vercel.json` does **not** schedule jobs on a self-hosted server. Use **Linux cron** or **systemd** to `curl` (or `wget`) your production URL with **`Authorization: Bearer <CRON_SECRET>`**. Step-by-step: **[PERIODIC_TASKS_CRON_HOSTINGER_VPS.md](PERIODIC_TASKS_CRON_HOSTINGER_VPS.md)**.
 
 ---
 

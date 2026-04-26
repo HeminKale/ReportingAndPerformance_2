@@ -454,7 +454,8 @@ Potential improvements for future versions:
 
 ## Related Features
 
-- **[Periodic tasks architecture](PERIODIC_TASKS_ARCHITECTURE.md)**: Cron, instant create, period keys, Vercel Hobby
+- **[Periodic tasks architecture](PERIODIC_TASKS_ARCHITECTURE.md)**: Cron, instant create, period keys, Vercel Hobby  
+- **[Periodic cron on VPS / Hostinger](PERIODIC_TASKS_CRON_HOSTINGER_VPS.md)**: Linux `cron` + `curl`, no `vercel.json`
 - **Normal Task Assignment**: Similar checkbox UI for immediate task creation
 - **Daily Periodic Monthly Rollup**: Numeric daily tasks can roll up to monthly
 - **Task Verification**: Managers verify completed tasks from team members

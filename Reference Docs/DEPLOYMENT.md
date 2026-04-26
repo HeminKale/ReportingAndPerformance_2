@@ -64,6 +64,8 @@ Make sure to add them for all environments (Production, Preview, Development).
 
 Full reference: [PERIODIC_TASKS_ARCHITECTURE.md](PERIODIC_TASKS_ARCHITECTURE.md).
 
+**Self-hosted VPS (e.g. Hostinger):** `vercel.json` cron entries do not run there. Use Linux `cron` + `curl` as in [PERIODIC_TASKS_CRON_HOSTINGER_VPS.md](PERIODIC_TASKS_CRON_HOSTINGER_VPS.md).
+
 #### Step 4: Deploy
 
 Click "Deploy" and wait for the build to complete.
