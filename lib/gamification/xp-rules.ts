@@ -45,14 +45,14 @@ export type RankTier = {
 
 /** Milestones every 250 XP up to 2000; extend `RANK_TIERS` for higher ceilings. */
 export const RANK_TIERS: RankTier[] = [
-  { id: "t250", minXp: 250, rankName: "Contributor", badgeName: "First Spark" },
-  { id: "t500", minXp: 500, rankName: "Operator", badgeName: "Steady Flame" },
-  { id: "t750", minXp: 750, rankName: "Specialist", badgeName: "Momentum" },
-  { id: "t1000", minXp: 1000, rankName: "Expert", badgeName: "Peak Performer" },
-  { id: "t1250", minXp: 1250, rankName: "Ace", badgeName: "Sharp Edge" },
-  { id: "t1500", minXp: 1500, rankName: "Champion", badgeName: "Trailblazer" },
-  { id: "t1750", minXp: 1750, rankName: "Elite", badgeName: "High Voltage" },
-  { id: "t2000", minXp: 2000, rankName: "Legend", badgeName: "Hall of Fame" },
+  { id: "t250", minXp: 250, rankName: "Beginner", badgeName: "🌱 Starter" },
+  { id: "t500", minXp: 500, rankName: "Explorer", badgeName: "🚀 Go-Getter" },
+  { id: "t750", minXp: 750, rankName: "Performer", badgeName: "💼 Achiever" },
+  { id: "t1000", minXp: 1000, rankName: "Pro", badgeName: "🧠 Consistent" },
+  { id: "t1250", minXp: 1250, rankName: "Expert", badgeName: "⚡ Elite" },
+  { id: "t1500", minXp: 1500, rankName: "Master", badgeName: "🔥 Dominator" },
+  { id: "t1750", minXp: 1750, rankName: "Champion", badgeName: "🏆 Champion" },
+  { id: "t2000", minXp: 2000, rankName: "Legend", badgeName: "👑 Legend" },
 ];
 
 export function rankForTotalXp(totalXp: number): { rankName: string; nextTier: RankTier | null } {
