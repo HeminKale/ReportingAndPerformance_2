@@ -9,6 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import type { User } from "@/lib/types/database";
 
 type EnquiryType = "new" | "renewal";
@@ -43,6 +51,7 @@ export function EnquiriesTab({ user }: { user: User | null }) {
   const [nameFilter, setNameFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [saving, setSaving] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [formState, setFormState] = useState({
     name: "",
     status: "prospecting" as EnquiryStatus,
@@ -131,6 +140,7 @@ export function EnquiriesTab({ user }: { user: User | null }) {
     });
     await fetchEnquiries();
     setSaving(false);
+    setIsModalOpen(false);
   };
 
   return (
@@ -151,80 +161,113 @@ export function EnquiriesTab({ user }: { user: User | null }) {
       </aside>
 
       <div className="space-y-4">
-        <TabsContent value="new" className="mt-0 space-y-4">
-          <section className="rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Add Enquiry</p>
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
-              <div className="space-y-1">
-                <Label>Name</Label>
-                <Input value={formState.name} onChange={(e) => setFormState((p) => ({ ...p, name: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label>Status</Label>
-                <Select
-                  value={formState.status}
-                  onValueChange={(value) => setFormState((p) => ({ ...p, status: value as EnquiryStatus }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Date</Label>
-                <Input
-                  type="date"
-                  value={formState.date}
-                  onChange={(e) => setFormState((p) => ({ ...p, date: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>ISO Standard</Label>
-                <Input
-                  value={formState.isoStandard}
-                  onChange={(e) => setFormState((p) => ({ ...p, isoStandard: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Certification Body</Label>
-                <Input
-                  value={formState.certificationBody}
-                  onChange={(e) => setFormState((p) => ({ ...p, certificationBody: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Owner</Label>
-                <Input value={user?.full_name || ""} disabled />
-              </div>
-              <div className="space-y-1 md:col-span-3">
-                <Label>
-                  Reason {(formState.status === "closed_won" || formState.status === "closed_lost") && "(required)"}
-                </Label>
-                <Input
-                  value={formState.reason}
-                  onChange={(e) => setFormState((p) => ({ ...p, reason: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="mt-3 flex justify-end">
+        <div className="flex justify-end">
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogTrigger asChild>
               <Button
-                type="button"
-                onClick={handleCreate}
-                disabled={saving}
-                className="rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+                variant="ghost"
+                className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 font-semibold"
               >
-                {saving ? "Saving..." : "Save Enquiry"}
+                + New Enquiry
               </Button>
-            </div>
-          </section>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>Add {activeType === "new" ? "New" : "Renewal"} Enquiry</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Name</Label>
+                    <Input
+                      value={formState.name}
+                      onChange={(e) => setFormState((p) => ({ ...p, name: e.target.value }))}
+                      placeholder="Company or Person Name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select
+                      value={formState.status}
+                      onValueChange={(value) => setFormState((p) => ({ ...p, status: value as EnquiryStatus }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUS_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Date</Label>
+                    <Input
+                      type="date"
+                      value={formState.date}
+                      onChange={(e) => setFormState((p) => ({ ...p, date: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>ISO Standard</Label>
+                    <Input
+                      value={formState.isoStandard}
+                      onChange={(e) => setFormState((p) => ({ ...p, isoStandard: e.target.value }))}
+                      placeholder="e.g. ISO 9001"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Certification Body</Label>
+                    <Input
+                      value={formState.certificationBody}
+                      onChange={(e) => setFormState((p) => ({ ...p, certificationBody: e.target.value }))}
+                      placeholder="e.g. BSI, TUV"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Owner</Label>
+                    <Input value={user?.full_name || ""} disabled />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>
+                    Reason {(formState.status === "closed_won" || formState.status === "closed_lost") && "(required)"}
+                  </Label>
+                  <Input
+                    value={formState.reason}
+                    onChange={(e) => setFormState((p) => ({ ...p, reason: e.target.value }))}
+                    placeholder="Details about the status..."
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={saving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreate}
+                  disabled={saving}
+                  className="bg-slate-900 text-white hover:bg-slate-800"
+                >
+                  {saving ? "Saving..." : "Save Enquiry"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
 
+        <TabsContent value="new" className="mt-0 space-y-4">
           <section className="rounded-2xl border border-slate-200 bg-white p-4">
             <div className="mb-3 flex flex-wrap gap-3">
               <Input
@@ -283,79 +326,6 @@ export function EnquiriesTab({ user }: { user: User | null }) {
 
         <TabsContent value="renewal" className="mt-0 space-y-4">
           <section className="rounded-2xl border border-slate-200 bg-white p-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Add Enquiry</p>
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
-              <div className="space-y-1">
-                <Label>Name</Label>
-                <Input value={formState.name} onChange={(e) => setFormState((p) => ({ ...p, name: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label>Status</Label>
-                <Select
-                  value={formState.status}
-                  onValueChange={(value) => setFormState((p) => ({ ...p, status: value as EnquiryStatus }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Date</Label>
-                <Input
-                  type="date"
-                  value={formState.date}
-                  onChange={(e) => setFormState((p) => ({ ...p, date: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>ISO Standard</Label>
-                <Input
-                  value={formState.isoStandard}
-                  onChange={(e) => setFormState((p) => ({ ...p, isoStandard: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Certification Body</Label>
-                <Input
-                  value={formState.certificationBody}
-                  onChange={(e) => setFormState((p) => ({ ...p, certificationBody: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Owner</Label>
-                <Input value={user?.full_name || ""} disabled />
-              </div>
-              <div className="space-y-1 md:col-span-3">
-                <Label>
-                  Reason {(formState.status === "closed_won" || formState.status === "closed_lost") && "(required)"}
-                </Label>
-                <Input
-                  value={formState.reason}
-                  onChange={(e) => setFormState((p) => ({ ...p, reason: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="mt-3 flex justify-end">
-              <Button
-                type="button"
-                onClick={handleCreate}
-                disabled={saving}
-                className="rounded-xl bg-slate-900 text-white hover:bg-slate-800"
-              >
-                {saving ? "Saving..." : "Save Enquiry"}
-              </Button>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-4">
             <div className="mb-3 flex flex-wrap gap-3">
               <Input
                 placeholder="Filter by name..."
@@ -411,6 +381,7 @@ export function EnquiriesTab({ user }: { user: User | null }) {
           </section>
         </TabsContent>
       </div>
+
     </Tabs>
   );
 }
