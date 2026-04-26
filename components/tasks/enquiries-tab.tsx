@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Pencil } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +53,7 @@ export function EnquiriesTab({ user }: { user: User | null }) {
   const [dateFilter, setDateFilter] = useState("");
   const [saving, setSaving] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formState, setFormState] = useState({
     name: "",
     status: "prospecting" as EnquiryStatus,
@@ -94,8 +96,38 @@ export function EnquiriesTab({ user }: { user: User | null }) {
   }, [enquiries, activeType, nameFilter, dateFilter]);
 
   const isClosing = formState.status === "closed_won" || formState.status === "closed_lost";
+  const isEditing = !!editingId;
+  const modalTitle = isEditing
+    ? `Edit ${activeType === "new" ? "New" : "Renewal"} Enquiry`
+    : `Add ${activeType === "new" ? "New" : "Renewal"} Enquiry`;
 
-  const handleCreate = async () => {
+  const handleOpenNew = () => {
+    setFormState({
+      name: "",
+      status: "prospecting",
+      reason: "",
+      isoStandard: "",
+      date: new Date().toISOString().slice(0, 10),
+      certificationBody: "",
+    });
+    setEditingId(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (row: EnquiryRow) => {
+    setFormState({
+      name: row.name,
+      status: row.status,
+      reason: row.reason || "",
+      isoStandard: row.iso_standard || "",
+      date: row.date,
+      certificationBody: row.certification_body || "",
+    });
+    setEditingId(row.id);
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async () => {
     if (!user) return;
     if (!formState.name.trim()) {
       toast({ title: "Error", description: "Name is required", variant: "destructive" });
@@ -111,7 +143,7 @@ export function EnquiriesTab({ user }: { user: User | null }) {
     }
 
     setSaving(true);
-    const { error } = await supabase.from("enquiries").insert({
+    const payload = {
       organization_id: user.organization_id,
       owner_id: user.id,
       type: activeType,
@@ -121,7 +153,11 @@ export function EnquiriesTab({ user }: { user: User | null }) {
       iso_standard: formState.isoStandard.trim() || null,
       date: formState.date,
       certification_body: formState.certificationBody.trim() || null,
-    });
+    };
+
+    const { error } = isEditing
+      ? await supabase.from("enquiries").update(payload).eq("id", editingId)
+      : await supabase.from("enquiries").insert(payload);
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -129,7 +165,7 @@ export function EnquiriesTab({ user }: { user: User | null }) {
       return;
     }
 
-    toast({ title: "Success", description: "Enquiry saved successfully" });
+    toast({ title: "Success", description: `Enquiry ${isEditing ? "updated" : "saved"} successfully` });
     setFormState({
       name: "",
       status: "prospecting",
@@ -138,6 +174,7 @@ export function EnquiriesTab({ user }: { user: User | null }) {
       date: new Date().toISOString().slice(0, 10),
       certificationBody: "",
     });
+    setEditingId(null);
     await fetchEnquiries();
     setSaving(false);
     setIsModalOpen(false);
@@ -166,6 +203,7 @@ export function EnquiriesTab({ user }: { user: User | null }) {
             <DialogTrigger asChild>
               <Button
                 variant="ghost"
+                onClick={handleOpenNew}
                 className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 font-semibold"
               >
                 + New Enquiry
@@ -173,8 +211,9 @@ export function EnquiriesTab({ user }: { user: User | null }) {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
               <DialogHeader>
-                <DialogTitle>Add {activeType === "new" ? "New" : "Renewal"} Enquiry</DialogTitle>
+                <DialogTitle>{modalTitle}</DialogTitle>
               </DialogHeader>
+
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -256,12 +295,13 @@ export function EnquiriesTab({ user }: { user: User | null }) {
                   Cancel
                 </Button>
                 <Button
-                  onClick={handleCreate}
+                  onClick={handleSave}
                   disabled={saving}
                   className="bg-slate-900 text-white hover:bg-slate-800"
                 >
                   {saving ? "Saving..." : "Save Enquiry"}
                 </Button>
+
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -290,6 +330,7 @@ export function EnquiriesTab({ user }: { user: User | null }) {
                     <TableHead>Date</TableHead>
                     <TableHead>Certification Body</TableHead>
                     <TableHead>Owner</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -315,6 +356,16 @@ export function EnquiriesTab({ user }: { user: User | null }) {
                         <TableCell>{row.date}</TableCell>
                         <TableCell>{row.certification_body || "-"}</TableCell>
                         <TableCell>{row.owner_name || "-"}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(row)}
+                            className="h-8 w-8 text-slate-400 hover:text-blue-600"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -347,6 +398,7 @@ export function EnquiriesTab({ user }: { user: User | null }) {
                     <TableHead>Date</TableHead>
                     <TableHead>Certification Body</TableHead>
                     <TableHead>Owner</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -372,6 +424,16 @@ export function EnquiriesTab({ user }: { user: User | null }) {
                         <TableCell>{row.date}</TableCell>
                         <TableCell>{row.certification_body || "-"}</TableCell>
                         <TableCell>{row.owner_name || "-"}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(row)}
+                            className="h-8 w-8 text-slate-400 hover:text-blue-600"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
