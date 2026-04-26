@@ -211,6 +211,9 @@ export default function TasksPage() {
   const pieChartTasks = useMemo(() => {
     const currentDayOfWeek = new Date().getDay();
     return currentTasks.filter((task) => {
+      // Always include recalled tasks regardless of date so they affect the rings
+      if (task.taskLog?.verification_status === "recalled") return true;
+
       if (task.type === "daily") {
         return isAssignedToday(task);
       }

@@ -399,6 +399,8 @@ export default function ManagerPage() {
   // Tasks → Regular: derive which tasks are due today per team member
   const todayTaskRows = useMemo(() => {
     const todayWeekday = new Date().getDay();
+    
+    // Part 1: Tasks due today
     const dueTodayTasks = teamTasks.filter((task: any) => {
       const createdToday = toDayString(task.created_at) === today;
       if (!createdToday) return false;
@@ -407,7 +409,8 @@ export default function ManagerPage() {
       if (task.type === "monthly") return task.due_date === today;
       return false;
     });
-    return dueTodayTasks.flatMap((task: any) => {
+
+    const activeRows = dueTodayTasks.flatMap((task: any) => {
       const relevantMembers = task.is_common_task
         ? teamMembers
         : teamMembers.filter((m: User) => m.id === task.assigned_to);
@@ -427,6 +430,20 @@ export default function ManagerPage() {
         return { member, task, log, status };
       });
     });
+
+    // Part 2: Recalled tasks from the past
+    const recalledPastLogs = taskLogs.filter((l: any) => 
+      l.verification_status === 'recalled' && getTaskDay(l) !== today
+    );
+
+    const recalledRows = recalledPastLogs.map((log: any) => {
+      const member = teamMembers.find(m => m.id === log.user_id);
+      const task = log.tasks;
+      if (!member || !task) return null;
+      return { member, task, log, status: "Recalled" as const };
+    }).filter(Boolean) as any[];
+
+    return [...activeRows, ...recalledRows];
   }, [teamTasks, teamMembers, taskLogs, today]);
 
   const filteredTaskHistoryLogs = useMemo(() => {
@@ -1207,7 +1224,7 @@ export default function ManagerPage() {
                           </TableHeader>
                           <TableBody>
                             {rows.map((row) => {
-                              const rowKey = `${row.member.id}-${row.task.id}`;
+                              const rowKey = `${row.member.id}-${row.task.id}-${row.log?.id || 'no-log'}`;
                               const isPending = row.log?.verification_status === "pending";
                               const expanded = expandedRegularRowKeys.has(rowKey);
                               const employeeComment = (row.log?.comment && String(row.log.comment).trim()) || "";
@@ -1605,6 +1622,7 @@ export default function ManagerPage() {
                                 <TableHead>Verification</TableHead>
                                 <TableHead>Submitted At</TableHead>
                                 <TableHead>Verified At</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1632,6 +1650,21 @@ export default function ManagerPage() {
                                   </TableCell>
                                   <TableCell>
                                     {log.verified_at ? format(new Date(log.verified_at), "HH:mm dd/MM/yyyy") : "-"}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {(log.verification_status === "approved" || log.verification_status === "rejected") && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 px-2 text-xs font-medium text-primary hover:bg-primary/10"
+                                        onClick={() => {
+                                          setRecallComment("");
+                                          setRecallDialog({ open: true, log: log });
+                                        }}
+                                      >
+                                        Recall
+                                      </Button>
+                                    )}
                                   </TableCell>
                                 </TableRow>
                               ))}
