@@ -18,6 +18,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
+import { getCurrentTimeInTimezone } from "@/lib/utils/timezone";
 import { CalendarIcon, Trophy, Medal, Award } from "lucide-react";
 import type { User, LeaderboardDaily } from "@/lib/types/database";
 import { dailyPerformanceLabel } from "@/lib/types/database";
@@ -54,20 +55,20 @@ function SkeletonRow() {
 }
 
 function todayYmd() {
-  return format(new Date(), "yyyy-MM-dd");
+  return format(getCurrentTimeInTimezone('Asia/Kolkata'), "yyyy-MM-dd");
 }
 
 export default function LeaderboardPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
+    const now = getCurrentTimeInTimezone('Asia/Kolkata');
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
 
   const [dailyRows, setDailyRows] = useState<DailyRow[]>([]);
   const [dailyLoading, setDailyLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
+  const [selectedDay, setSelectedDay] = useState<Date>(() => getCurrentTimeInTimezone('Asia/Kolkata'));
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const supabase = createClient();
@@ -90,9 +91,19 @@ export default function LeaderboardPage() {
 
     const { data: userData } = await supabase
       .from("users")
-      .select("organization_id")
+      .select("organization_id, timezone")
       .eq("id", user.id)
       .single();
+
+    if (userData?.timezone) {
+      const zonedNow = getCurrentTimeInTimezone(userData.timezone);
+      // We only set these if they are still at their initial "mount" values to avoid overwriting user changes
+      setSelectedMonth(prev => prev === format(getCurrentTimeInTimezone('Asia/Kolkata'), "yyyy-MM") ? format(zonedNow, "yyyy-MM") : prev);
+      setSelectedDay(prev => {
+        const istInitial = format(getCurrentTimeInTimezone('Asia/Kolkata'), "yyyy-MM-dd");
+        return format(prev, "yyyy-MM-dd") === istInitial ? zonedNow : prev;
+      });
+    }
 
     const firstDay = `${selectedMonth}-01`;
     const { data } = await supabase

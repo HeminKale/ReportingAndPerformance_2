@@ -12,6 +12,7 @@ import { TaskProgressRings } from "@/components/tasks/task-progress-rings";
 import { TaskAssignmentPanel } from "@/components/shared/task-assignment-panel";
 import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
+import { getCurrentTimeInTimezone } from "@/lib/utils/timezone";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { ChevronDown, Filter, LayoutGrid, List } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
@@ -39,8 +40,8 @@ export default function TasksPage() {
     monthly: { date: '', taskName: '' },
   });
   const supabase = createClient();
-  const currentMonth = format(new Date(), 'yyyy-MM-dd');
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const [currentMonth, setCurrentMonth] = useState(format(getCurrentTimeInTimezone('Asia/Kolkata'), 'yyyy-MM-dd'));
+  const [today, setToday] = useState(format(getCurrentTimeInTimezone('Asia/Kolkata'), 'yyyy-MM-dd'));
 
   type TaskLifecycleState =
     | 'never_submitted'
@@ -62,6 +63,12 @@ export default function TasksPage() {
       .select('*')
       .eq('id', authUser.id)
       .single();
+
+    const userTimezone = userData?.timezone || 'Asia/Kolkata';
+    const zonedNow = getCurrentTimeInTimezone(userTimezone);
+    const todayStr = format(zonedNow, 'yyyy-MM-dd');
+    setToday(todayStr);
+    setCurrentMonth(todayStr); // Assuming currentMonth should follow today's date for this page's logic
 
     const { data: tasksData } = await supabase
       .from('tasks')
@@ -211,6 +218,9 @@ export default function TasksPage() {
   const pieChartTasks = useMemo(() => {
     const currentDayOfWeek = new Date().getDay();
     return currentTasks.filter((task) => {
+      // Always include recalled tasks regardless of date so they affect the rings
+      if (task.taskLog?.verification_status === "recalled") return true;
+
       if (task.type === "daily") {
         return isAssignedToday(task);
       }

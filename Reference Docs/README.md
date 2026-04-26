@@ -100,7 +100,8 @@ For detailed setup instructions, see [SETUP.md](SETUP.md).
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment guide for Vercel
 - **[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)** - Comprehensive project overview and architecture
 - **[CALENDAR_FEATURE.md](CALENDAR_FEATURE.md)** - Calendar page: leaves, attendance, tasks, queries, and rules
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues and solutions
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues and solutions
+- [TASK_RECALL_ENHANCEMENTS_AND_TIMEZONE_LOCALIZATION.md](TASK_RECALL_ENHANCEMENTS_AND_TIMEZONE_LOCALIZATION.md) - Detailed guide on the Task Recall system and Timezone localization logic.
 
 ## Project Structure
 

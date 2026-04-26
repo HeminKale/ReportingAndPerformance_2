@@ -14,6 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
+import { getCurrentTimeInTimezone } from "@/lib/utils/timezone";
 import { Clock, Users, AlertTriangle, Plus, Pencil, Trash2, ChevronDown, ChevronUp, MoreVertical } from "lucide-react";
 import { TaskAssignmentPanel } from "@/components/shared/task-assignment-panel";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +64,7 @@ export default function ManagerPage() {
   const [taskHistoryDateTo, setTaskHistoryDateTo] = useState("");
   const [expandedRegularRowKeys, setExpandedRegularRowKeys] = useState<Set<string>>(new Set());
   const [regularRowMenuKey, setRegularRowMenuKey] = useState<string | null>(null);
+  const [taskHistoryRowMenuKey, setTaskHistoryRowMenuKey] = useState<string | null>(null);
   const [recallDialog, setRecallDialog] = useState<{ open: boolean; log: any | null }>({ open: false, log: null });
   const [recallComment, setRecallComment] = useState("");
   const [leavesSearchTerm, setLeavesSearchTerm] = useState("");
@@ -103,7 +106,7 @@ export default function ManagerPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const { toast } = useToast();
   const supabase = createClient();
-  const today = format(new Date(), "yyyy-MM-dd");
+  const [today, setToday] = useState(format(getCurrentTimeInTimezone('Asia/Kolkata'), "yyyy-MM-dd"));
   const CERT_GRAPH_MAX_EMPLOYEES = 10;
   const CERT_GRAPH_COLORS = [
     "#2563eb", "#16a34a", "#ea580c", "#7c3aed", "#dc2626",
@@ -188,6 +191,7 @@ export default function ManagerPage() {
       .eq('id', authUser.id)
       .single();
 
+    setUser(userData);
     if (userData?.role !== 'manager' && userData?.role !== 'admin') {
       toast({
         title: "Access denied",
@@ -196,6 +200,9 @@ export default function ManagerPage() {
       });
       return;
     }
+    const userTimezone = userData?.timezone || 'Asia/Kolkata';
+    const currentToday = format(getCurrentTimeInTimezone(userTimezone), "yyyy-MM-dd");
+    setToday(currentToday);
 
     const { data: team, error: teamError } = await supabase
       .rpc('get_all_subordinates', { manager_uuid: authUser.id });
@@ -325,7 +332,7 @@ export default function ManagerPage() {
 
   const toDayString = (value?: string | null) => {
     if (!value) return "";
-    return format(new Date(value), "yyyy-MM-dd");
+    return format(toZonedTime(new Date(value), 'Asia/Kolkata'), "yyyy-MM-dd");
   };
 
   const matchesName = (fullName?: string, term?: string) => {
@@ -399,6 +406,8 @@ export default function ManagerPage() {
   // Tasks → Regular: derive which tasks are due today per team member
   const todayTaskRows = useMemo(() => {
     const todayWeekday = new Date().getDay();
+    
+    // Part 1: Tasks due today
     const dueTodayTasks = teamTasks.filter((task: any) => {
       const createdToday = toDayString(task.created_at) === today;
       if (!createdToday) return false;
@@ -407,7 +416,8 @@ export default function ManagerPage() {
       if (task.type === "monthly") return task.due_date === today;
       return false;
     });
-    return dueTodayTasks.flatMap((task: any) => {
+
+    const activeRows = dueTodayTasks.flatMap((task: any) => {
       const relevantMembers = task.is_common_task
         ? teamMembers
         : teamMembers.filter((m: User) => m.id === task.assigned_to);
@@ -427,6 +437,20 @@ export default function ManagerPage() {
         return { member, task, log, status };
       });
     });
+
+    // Part 2: Recalled tasks from the past
+    const recalledPastLogs = taskLogs.filter((l: any) => 
+      l.verification_status === 'recalled' && getTaskDay(l) !== today
+    );
+
+    const recalledRows = recalledPastLogs.map((log: any) => {
+      const member = teamMembers.find(m => m.id === log.user_id);
+      const task = log.tasks;
+      if (!member || !task) return null;
+      return { member, task, log, status: "Recalled" as const };
+    }).filter(Boolean) as any[];
+
+    return [...activeRows, ...recalledRows];
   }, [teamTasks, teamMembers, taskLogs, today]);
 
   const filteredTaskHistoryLogs = useMemo(() => {
@@ -1207,7 +1231,7 @@ export default function ManagerPage() {
                           </TableHeader>
                           <TableBody>
                             {rows.map((row) => {
-                              const rowKey = `${row.member.id}-${row.task.id}`;
+                              const rowKey = `${row.member.id}-${row.task.id}-${row.log?.id || 'no-log'}`;
                               const isPending = row.log?.verification_status === "pending";
                               const expanded = expandedRegularRowKeys.has(rowKey);
                               const employeeComment = (row.log?.comment && String(row.log.comment).trim()) || "";
@@ -1605,6 +1629,9 @@ export default function ManagerPage() {
                                 <TableHead>Verification</TableHead>
                                 <TableHead>Submitted At</TableHead>
                                 <TableHead>Verified At</TableHead>
+                                <TableHead className="w-12 text-right">
+                                  <span className="sr-only">Actions</span>
+                                </TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1633,6 +1660,41 @@ export default function ManagerPage() {
                                   <TableCell>
                                     {log.verified_at ? format(new Date(log.verified_at), "HH:mm dd/MM/yyyy") : "-"}
                                   </TableCell>
+                                  <TableCell className="text-right">
+                                    {log.verification_status === "approved" || log.verification_status === "rejected" ? (
+                                      <div className="relative inline-block text-left">
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8"
+                                          aria-expanded={taskHistoryRowMenuKey === log.id}
+                                          aria-label="Task actions"
+                                          onClick={() =>
+                                            setTaskHistoryRowMenuKey((prev) => (prev === log.id ? null : log.id))
+                                          }
+                                        >
+                                          <MoreVertical className="h-4 w-4" />
+                                        </Button>
+                                        {taskHistoryRowMenuKey === log.id && (
+                                          <div className="option-panel absolute right-0 z-10 mt-1 w-44 rounded-md border bg-background p-1 shadow-md">
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="w-full justify-start font-medium"
+                                              onClick={() => {
+                                                setTaskHistoryRowMenuKey(null);
+                                                setRecallComment("");
+                                                setRecallDialog({ open: true, log: log });
+                                              }}
+                                            >
+                                              Recall
+                                            </Button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : null}
+                                  </TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>
@@ -1649,9 +1711,19 @@ export default function ManagerPage() {
 
         <TabsContent value="attendance-report" className="space-y-4">
           <Tabs defaultValue="current" className="space-y-4">
-            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
-              <TabsTrigger value="current">Current ({currentAttendanceReportItems.length})</TabsTrigger>
-              <TabsTrigger value="history">History ({historyAttendanceReportItems.length})</TabsTrigger>
+            <TabsList className="flex h-auto w-full justify-start gap-6 rounded-none border-b border-slate-200 bg-transparent p-0 mb-4">
+              <TabsTrigger 
+                value="current"
+                className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+              >
+                Current ({currentAttendanceReportItems.length})
+              </TabsTrigger>
+              <TabsTrigger 
+                value="history"
+                className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+              >
+                History ({historyAttendanceReportItems.length})
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="current" className="space-y-4">
@@ -1830,11 +1902,19 @@ export default function ManagerPage() {
                 className="min-w-[160px] flex-1 max-w-md"
               />
               <div className="flex items-center gap-3 ml-auto">
-                <TabsList className="option-tablist h-auto shrink-0 rounded-xl bg-slate-100 p-1">
-                  <TabsTrigger value="closure-requests">
+                <TabsList className="flex h-auto justify-start gap-4 rounded-none border-b border-slate-200 bg-transparent p-0">
+                  <TabsTrigger 
+                    value="closure-requests"
+                    className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  >
                     Closure Requests ({filteredClosureRequests.length})
                   </TabsTrigger>
-                  <TabsTrigger value="mistakes-tracker">Mistakes</TabsTrigger>
+                  <TabsTrigger 
+                    value="mistakes-tracker"
+                    className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  >
+                    Mistakes
+                  </TabsTrigger>
                 </TabsList>
                 <Button type="button" className="shrink-0" onClick={openCreateMistakeDialog}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -2046,9 +2126,19 @@ export default function ManagerPage() {
                 onChange={(e) => setLeavesDateFilter(e.target.value)}
                 className="w-44"
               />
-              <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
-                <TabsTrigger value="current">Current ({currentLeaveItems.length})</TabsTrigger>
-                <TabsTrigger value="history">History ({historyLeaveItems.length})</TabsTrigger>
+              <TabsList className="flex h-auto justify-start gap-6 rounded-none border-b border-slate-200 bg-transparent p-0">
+                <TabsTrigger 
+                  value="current"
+                  className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
+                  Current ({currentLeaveItems.length})
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="history"
+                  className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
+                  History ({historyLeaveItems.length})
+                </TabsTrigger>
               </TabsList>
             </div>
 

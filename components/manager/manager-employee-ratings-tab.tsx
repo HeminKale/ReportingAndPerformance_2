@@ -251,10 +251,20 @@ export function ManagerEmployeeRatingsTab({ currentUser, teamMembers }: ManagerE
         <CardDescription>{desc}</CardDescription>
       </CardHeader>
       <Tabs value={ratingsSubTab} onValueChange={(v) => setRatingsSubTab(v as "monthly" | "daily")}>
-        <div className="px-6 pb-2">
-          <TabsList>
-            <TabsTrigger value="monthly">Monthly</TabsTrigger>
-            <TabsTrigger value="daily">Daily</TabsTrigger>
+        <div className="px-6 border-b border-slate-200">
+          <TabsList className="flex h-auto justify-start gap-6 rounded-none bg-transparent p-0">
+            <TabsTrigger 
+              value="monthly"
+              className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+            >
+              Monthly
+            </TabsTrigger>
+            <TabsTrigger 
+              value="daily"
+              className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+            >
+              Daily
+            </TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="monthly" className="space-y-0 mt-0">

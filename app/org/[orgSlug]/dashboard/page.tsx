@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, CheckSquare, Clock, Flame, Sparkles, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
+import { getCurrentTimeInTimezone } from '@/lib/utils/timezone';
 
 export default async function DashboardPage({
   params,
@@ -23,7 +24,9 @@ export default async function DashboardPage({
     .eq('id', user.id)
     .single();
 
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const userTimezone = userData?.timezone || 'Asia/Kolkata';
+  const nowUserTime = getCurrentTimeInTimezone(userTimezone);
+  const today = format(nowUserTime, 'yyyy-MM-dd');
 
   const { data: todayTasks } = await supabase
     .from('tasks')
@@ -50,7 +53,7 @@ export default async function DashboardPage({
 
   const completedTasks = taskLogs?.filter(log => log.status === 'completed').length || 0;
   const totalTasks = todayTasks?.length || 0;
-  const currentHour = new Date().getHours();
+  const currentHour = nowUserTime.getHours();
   const greeting =
     currentHour >= 5 && currentHour < 12
       ? "Good morning"
