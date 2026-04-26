@@ -159,6 +159,18 @@ export function ManagerPeriodicTasksTab({
   };
 
   const buildPayload = () => {
+    const linked_monthly_task_id =
+      form.type === "daily" && form.isNumericTask && form.linkedMonthlyTaskId
+        ? form.linkedMonthlyTaskId
+        : null;
+    const linked_monthly_periodic_id =
+      form.type === "daily" &&
+      form.isNumericTask &&
+      !form.linkedMonthlyTaskId &&
+      form.linkedMonthlyPeriodicId
+        ? form.linkedMonthlyPeriodicId
+        : null;
+
     const payload: Record<string, unknown> = {
       organization_id: organizationId,
       manager_id: managerId,
@@ -170,20 +182,18 @@ export function ManagerPeriodicTasksTab({
         form.type === "monthly" && form.monthlyDay !== "" ? parseInt(form.monthlyDay, 10) : null,
       is_numeric_task: form.isNumericTask,
       numeric_unit: form.isNumericTask ? form.numericUnit.trim() || null : null,
-      linked_monthly_task_id:
-        form.type === "daily" && form.isNumericTask && form.linkedMonthlyTaskId
-          ? form.linkedMonthlyTaskId
-          : null,
-      linked_monthly_periodic_id:
-        form.type === "daily" &&
-        form.isNumericTask &&
-        !form.linkedMonthlyTaskId &&
-        form.linkedMonthlyPeriodicId
-          ? form.linkedMonthlyPeriodicId
-          : null,
+      linked_monthly_task_id,
       is_enabled: form.isEnabled,
       assigned_user_ids: form.assignedUserIds.length > 0 ? form.assignedUserIds : null,
     };
+
+    // PostgREST rejects unknown columns: omit null `linked_monthly_periodic_id` on create so DBs
+    // that have not applied 20260412100000_periodic_monthly_template_link.sql still work.
+    // Edits still send explicit nulls so links can be cleared and stay in sync with the schema.
+    if (dialog.mode === "edit" || linked_monthly_periodic_id !== null) {
+      payload.linked_monthly_periodic_id = linked_monthly_periodic_id;
+    }
+
     return payload;
   };
 
