@@ -390,9 +390,9 @@ export default function TasksPage() {
       <Tabs
         value={taskPeriod}
         onValueChange={(v) => setTaskPeriod(v as "daily" | "weekly" | "monthly")}
-        className="flex min-h-0 flex-1 flex-col gap-6 md:flex-row md:items-start"
+        className="flex min-h-[700px] flex-1 flex-col gap-6 md:flex-row md:items-stretch"
       >
-        <aside className="flex w-full shrink-0 flex-col items-stretch rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:w-[248px] md:self-start">
+        <aside className="flex w-full shrink-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:w-[248px]">
           <div className="shrink-0 space-y-1">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Tasks</p>
             <p className="text-sm leading-snug text-slate-600">Daily, weekly, and monthly work.</p>
@@ -401,49 +401,49 @@ export default function TasksPage() {
             <TabsTrigger
               value="daily"
               className={cn(
-                "flex h-auto w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-700 shadow-sm transition-colors",
-                "hover:border-slate-300 hover:bg-slate-50",
-                "data-[state=active]:border-blue-600 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-950 data-[state=active]:shadow-sm",
-                "data-[state=active]:[&>span:last-child]:bg-blue-100 data-[state=active]:[&>span:last-child]:text-blue-900"
+                "group flex h-auto w-full items-center justify-between gap-3 rounded-lg border border-transparent bg-transparent px-3 py-2.5 text-left text-sm font-medium text-slate-600 shadow-none transition-all",
+                "hover:bg-slate-100 hover:text-slate-900",
+                "data-[state=active]:border-transparent data-[state=active]:bg-primary/10 data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none",
+                "data-[state=active]:[&>span:last-child]:bg-primary/20 data-[state=active]:[&>span:last-child]:text-primary"
               )}
             >
               <span>Daily</span>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600 tabular-nums">
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold tabular-nums text-slate-500 transition-colors group-hover:bg-slate-200 group-hover:text-slate-700">
                 {dailyTasks.length}
               </span>
             </TabsTrigger>
             <TabsTrigger
               value="weekly"
               className={cn(
-                "flex h-auto w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-700 shadow-sm transition-colors",
-                "hover:border-slate-300 hover:bg-slate-50",
-                "data-[state=active]:border-blue-600 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-950 data-[state=active]:shadow-sm",
-                "data-[state=active]:[&>span:last-child]:bg-blue-100 data-[state=active]:[&>span:last-child]:text-blue-900"
+                "group flex h-auto w-full items-center justify-between gap-3 rounded-lg border border-transparent bg-transparent px-3 py-2.5 text-left text-sm font-medium text-slate-600 shadow-none transition-all",
+                "hover:bg-slate-100 hover:text-slate-900",
+                "data-[state=active]:border-transparent data-[state=active]:bg-primary/10 data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none",
+                "data-[state=active]:[&>span:last-child]:bg-primary/20 data-[state=active]:[&>span:last-child]:text-primary"
               )}
             >
               <span>Weekly</span>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600 tabular-nums">
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold tabular-nums text-slate-500 transition-colors group-hover:bg-slate-200 group-hover:text-slate-700">
                 {weeklyTasks.length}
               </span>
             </TabsTrigger>
             <TabsTrigger
               value="monthly"
               className={cn(
-                "flex h-auto w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-sm font-semibold text-slate-700 shadow-sm transition-colors",
-                "hover:border-slate-300 hover:bg-slate-50",
-                "data-[state=active]:border-blue-600 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-950 data-[state=active]:shadow-sm",
-                "data-[state=active]:[&>span:last-child]:bg-blue-100 data-[state=active]:[&>span:last-child]:text-blue-900"
+                "group flex h-auto w-full items-center justify-between gap-3 rounded-lg border border-transparent bg-transparent px-3 py-2.5 text-left text-sm font-medium text-slate-600 shadow-none transition-all",
+                "hover:bg-slate-100 hover:text-slate-900",
+                "data-[state=active]:border-transparent data-[state=active]:bg-primary/10 data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none",
+                "data-[state=active]:[&>span:last-child]:bg-primary/20 data-[state=active]:[&>span:last-child]:text-primary"
               )}
             >
               <span>Monthly</span>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600 tabular-nums">
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold tabular-nums text-slate-500 transition-colors group-hover:bg-slate-200 group-hover:text-slate-700">
                 {monthlyTasks.length}
               </span>
             </TabsTrigger>
           </TabsList>
         </aside>
 
-        <section className="option-panel flex min-h-[600px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="option-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <TabsContent value="daily" className="mt-0 flex min-h-0 flex-1 flex-col">
           <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col">
             <TaskToolbarRow
