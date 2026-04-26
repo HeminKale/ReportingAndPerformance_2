@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -16,71 +16,10 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { ChevronDown, Filter, LayoutGrid, List } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import type { Task, TaskLog, User } from "@/lib/types/database";
+const TASK_SUB_TAB_LIST = "inline-flex h-auto w-full flex-wrap items-center justify-start gap-0 rounded-none border-0 bg-transparent p-0";
+const TASK_SUB_TAB_TRIGGER = "rounded-none border-b-2 border-transparent px-4 py-2 text-sm font-semibold text-slate-600 shadow-none transition-colors hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none";
 
-/** Current / History row — underline active state (matches top nav). */
-const TASK_SUB_TAB_LIST =
-  "inline-flex h-auto w-full flex-wrap items-center justify-start gap-0 rounded-none border-0 bg-transparent p-0";
-const TASK_SUB_TAB_TRIGGER =
-  "rounded-none border-b-2 border-transparent px-4 py-2 text-sm font-semibold text-slate-600 shadow-none transition-colors hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none";
 
-function TaskToolbarRow({
-  left,
-  onAddTask,
-  taskViewMode,
-  setTaskViewMode,
-}: {
-  left: ReactNode;
-  onAddTask: () => void;
-  taskViewMode: "list" | "board";
-  setTaskViewMode: (m: "list" | "board") => void;
-}) {
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-3">
-      <div className="min-w-0 shrink-0">{left}</div>
-      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-        <Button
-          type="button"
-          size="sm"
-          className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-          onClick={onAddTask}
-        >
-          + Add Task
-        </Button>
-        <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50/90 p-1">
-          <button
-            type="button"
-            onClick={() => setTaskViewMode("list")}
-            className={cn(
-              "rounded-md p-1.5 transition-colors",
-              taskViewMode === "list" ? "bg-primary/15 text-primary" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-            )}
-            aria-label="List view"
-          >
-            <List className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setTaskViewMode("board")}
-            className={cn(
-              "rounded-md p-1.5 transition-colors",
-              taskViewMode === "board" ? "bg-primary/15 text-primary" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-            )}
-            aria-label="Kanban view"
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
-            aria-label="Filters"
-          >
-            <Filter className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function TasksPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -391,64 +330,61 @@ export default function TasksPage() {
       <Tabs
         value={taskPeriod}
         onValueChange={(v) => setTaskPeriod(v as "daily" | "weekly" | "monthly")}
-        className="flex min-h-[700px] flex-1 flex-col gap-6 md:flex-row md:items-stretch"
+        className="flex min-h-0 flex-1 flex-col gap-5 md:flex-row"
       >
-        <aside className="flex w-full shrink-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:w-[248px]">
-          <div className="shrink-0 space-y-1">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Tasks</p>
-            <p className="text-sm leading-snug text-slate-600">Daily, weekly, and monthly work.</p>
+        {/* ─── Left Sidebar ─── */}
+        <aside className="flex w-full shrink-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm md:w-56">
+          <div className="border-b border-slate-100 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Tasks</p>
+            <p className="mt-0.5 text-sm text-slate-500">View by frequency</p>
           </div>
-          <TabsList className="mt-4 flex w-full flex-col gap-1.5 bg-transparent p-0">
-            <TabsTrigger
-              value="daily"
-              className={cn(
-                "group flex h-auto w-full items-center justify-between gap-3 rounded-lg border border-transparent bg-transparent px-3 py-2.5 text-left text-sm font-medium text-slate-600 shadow-none transition-all",
-                "hover:bg-slate-100 hover:text-slate-900",
-                "data-[state=active]:border-transparent data-[state=active]:bg-primary/10 data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none",
-                "data-[state=active]:[&>span:last-child]:bg-primary/20 data-[state=active]:[&>span:last-child]:text-primary"
-              )}
-            >
-              <span>Daily</span>
-              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold tabular-nums text-slate-500 transition-colors group-hover:bg-slate-200 group-hover:text-slate-700">
-                {dailyTasks.length}
-              </span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="weekly"
-              className={cn(
-                "group flex h-auto w-full items-center justify-between gap-3 rounded-lg border border-transparent bg-transparent px-3 py-2.5 text-left text-sm font-medium text-slate-600 shadow-none transition-all",
-                "hover:bg-slate-100 hover:text-slate-900",
-                "data-[state=active]:border-transparent data-[state=active]:bg-primary/10 data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none",
-                "data-[state=active]:[&>span:last-child]:bg-primary/20 data-[state=active]:[&>span:last-child]:text-primary"
-              )}
-            >
-              <span>Weekly</span>
-              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold tabular-nums text-slate-500 transition-colors group-hover:bg-slate-200 group-hover:text-slate-700">
-                {weeklyTasks.length}
-              </span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="monthly"
-              className={cn(
-                "group flex h-auto w-full items-center justify-between gap-3 rounded-lg border border-transparent bg-transparent px-3 py-2.5 text-left text-sm font-medium text-slate-600 shadow-none transition-all",
-                "hover:bg-slate-100 hover:text-slate-900",
-                "data-[state=active]:border-transparent data-[state=active]:bg-primary/10 data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none",
-                "data-[state=active]:[&>span:last-child]:bg-primary/20 data-[state=active]:[&>span:last-child]:text-primary"
-              )}
-            >
-              <span>Monthly</span>
-              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold tabular-nums text-slate-500 transition-colors group-hover:bg-slate-200 group-hover:text-slate-700">
-                {monthlyTasks.length}
-              </span>
-            </TabsTrigger>
+          <TabsList className="flex flex-col gap-0.5 bg-transparent p-2">
+            {(
+              [
+                { value: "daily", label: "Daily", count: dailyTasks.length },
+                { value: "weekly", label: "Weekly", count: weeklyTasks.length },
+                { value: "monthly", label: "Monthly", count: monthlyTasks.length },
+              ] as const
+            ).map(({ value, label, count }) => (
+              <TabsTrigger
+                key={value}
+                value={value}
+                className={cn(
+                  "group flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-600 shadow-none transition-all duration-150",
+                  "hover:bg-slate-100 hover:text-slate-900",
+                  "data-[state=active]:bg-primary/10 data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none",
+                  "data-[state=inactive]:bg-transparent"
+                )}
+              >
+                <span className="flex items-center gap-2.5">
+                  <span
+                    className={cn(
+                      "flex h-2 w-2 shrink-0 rounded-full",
+                      value === "daily" && "bg-sky-400",
+                      value === "weekly" && "bg-violet-400",
+                      value === "monthly" && "bg-amber-400",
+                      "data-[state=active]:opacity-100 opacity-60 group-hover:opacity-100"
+                    )}
+                  />
+                  {label}
+                </span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-500 transition-colors group-hover:bg-slate-200 group-data-[state=active]:bg-primary/20 group-data-[state=active]:text-primary">
+                  {count}
+                </span>
+              </TabsTrigger>
+            ))}
           </TabsList>
         </aside>
 
-        <section className="option-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <TabsContent value="daily" className="mt-0 flex min-h-0 flex-1 flex-col">
-          <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col">
-            <TaskToolbarRow
-              left={
+        {/* ─── Right Content Panel ─── */}
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+          {/* ═══════════════ DAILY TAB ═══════════════ */}
+          <TabsContent value="daily" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+            <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col">
+
+              {/* Toolbar */}
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
                 <TabsList className={TASK_SUB_TAB_LIST}>
                   <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
                     Current ({dailyCurrentTodayCount})
@@ -457,20 +393,48 @@ export default function TasksPage() {
                     History ({dailyHistoryTasks.length})
                   </TabsTrigger>
                 </TabsList>
-              }
-              onAddTask={() => setAddTaskPanelOpen(true)}
-              taskViewMode={taskViewMode}
-              setTaskViewMode={setTaskViewMode}
-            />
-
-            <TabsContent value="current" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <div className="sticky top-0 z-10 -mx-5 border-b border-slate-200 bg-white px-5 pb-3 pt-0 shadow-sm">
-                  <TaskTable tasks={dailyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                    onClick={() => setAddTaskPanelOpen(true)}
+                  >
+                    + Add Task
+                  </Button>
+                  <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50/90 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setTaskViewMode("list")}
+                      className={cn("rounded-md p-1.5 transition-colors", taskViewMode === "list" ? "bg-primary/15 text-primary" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800")}
+                      aria-label="List view"
+                    >
+                      <List className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTaskViewMode("board")}
+                      className={cn("rounded-md p-1.5 transition-colors", taskViewMode === "board" ? "bg-primary/15 text-primary" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800")}
+                      aria-label="Kanban view"
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </button>
+                    <button type="button" className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800" aria-label="Filters">
+                      <Filter className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="space-y-4 pt-4">
+              </div>
+
+              {/* Current sub-tab */}
+              <TabsContent value="current" className="mt-0 flex min-h-0 flex-1 flex-col overflow-y-auto data-[state=inactive]:hidden">
+                <div className="flex flex-col gap-4 p-5">
+                  {/* Active Tasks Table */}
+                  <TaskTable tasks={dailyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
+
+                  {/* Monthly Numeric Summary cards */}
                   {dailyFreshTasks.some((t) => t.is_numeric_task && t.linked_monthly_task_id) && user && (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {dailyFreshTasks
                         .filter((t) => t.is_numeric_task && t.linked_monthly_task_id)
                         .map((task) => (
@@ -483,38 +447,34 @@ export default function TasksPage() {
                         ))}
                     </div>
                   )}
+
+                  {/* Pending Approvals accordion */}
                   {dailyPendingApprovalTasks.length > 0 && (
-                    <details className="group rounded-lg border">
-                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
-                        <span className="min-w-0 flex-1 text-left">Pending approvals ({dailyPendingApprovalTasks.length})</span>
-                        <ChevronDown
-                          className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
-                          aria-hidden
-                        />
+                    <details className="group rounded-xl border border-slate-200 bg-slate-50/50">
+                      <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 font-medium text-slate-700 hover:bg-slate-100/70">
+                        <span className="flex items-center gap-2 text-sm">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">
+                            {dailyPendingApprovalTasks.length}
+                          </span>
+                          Pending Approvals
+                        </span>
+                        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180" aria-hidden />
                       </summary>
-                      <div className="border-t p-4">
-                        <TaskTable
-                          tasks={dailyPendingApprovalTasks}
-                          onSubmit={handleSubmit}
-                          onView={handleView}
-                        />
+                      <div className="border-t border-slate-200 p-4">
+                        <TaskTable tasks={dailyPendingApprovalTasks} onSubmit={handleSubmit} onView={handleView} />
                       </div>
                     </details>
                   )}
 
-                  <details className="group rounded-lg border">
-                    <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
-                      <span className="min-w-0 flex-1 text-left">Number of certificates-daily</span>
-                      <ChevronDown
-                        className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
-                        aria-hidden
-                      />
+                  {/* Certificates chart accordion */}
+                  <details className="group rounded-xl border border-slate-200 bg-slate-50/50">
+                    <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 font-medium text-slate-700 hover:bg-slate-100/70">
+                      <span className="text-sm">Number of Certificates — Daily</span>
+                      <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180" aria-hidden />
                     </summary>
-                    <div className="border-t p-4">
+                    <div className="border-t border-slate-200 p-4">
                       {dailyCertificatesChartData.length === 0 ? (
-                        <div className="py-8 text-center text-sm text-muted-foreground">
-                          No numeric submissions found for this month.
-                        </div>
+                        <div className="py-8 text-center text-sm text-muted-foreground">No numeric submissions found for this month.</div>
                       ) : (
                         <div className="h-64 w-full">
                           <ResponsiveContainer width="100%" height="100%">
@@ -531,77 +491,43 @@ export default function TasksPage() {
                     </div>
                   </details>
                 </div>
-              </div>
-            </TabsContent>
+              </TabsContent>
 
-            <TabsContent value="history" className="mt-0 space-y-4">
-              <div className="flex flex-wrap gap-3">
-                <Input
-                  type="date"
-                  className="w-44"
-                  value={historyFilters.daily.date}
-                  onChange={(e) =>
-                    setHistoryFilters((prev) => ({
-                      ...prev,
-                      daily: { ...prev.daily, date: e.target.value },
-                    }))
-                  }
-                />
-                <Input
-                  placeholder="Search by task name..."
-                  className="min-w-[12rem] flex-1"
-                  value={historyFilters.daily.taskName}
-                  onChange={(e) =>
-                    setHistoryFilters((prev) => ({
-                      ...prev,
-                      daily: { ...prev.daily, taskName: e.target.value },
-                    }))
-                  }
-                />
-              </div>
-              {(() => {
-                const filtered = applyHistoryFilters(dailyHistoryTasks, 'daily');
-                const groups = groupByAssignedDate(filtered);
-                if (groups.length === 0) {
+              {/* History sub-tab */}
+              <TabsContent value="history" className="mt-0 flex-1 overflow-y-auto p-5">
+                <div className="mb-4 flex flex-wrap gap-3">
+                  <Input type="date" className="w-44" value={historyFilters.daily.date} onChange={(e) => setHistoryFilters((prev) => ({ ...prev, daily: { ...prev.daily, date: e.target.value } }))} />
+                  <Input placeholder="Search by task name..." className="min-w-[12rem] flex-1" value={historyFilters.daily.taskName} onChange={(e) => setHistoryFilters((prev) => ({ ...prev, daily: { ...prev.daily, taskName: e.target.value } }))} />
+                </div>
+                {(() => {
+                  const filtered = applyHistoryFilters(dailyHistoryTasks, "daily");
+                  const groups = groupByAssignedDate(filtered);
+                  if (groups.length === 0) return <TaskTable tasks={[]} onSubmit={handleSubmit} onView={handleView} emptyMessage="No history matches these filters." />;
                   return (
-                    <TaskTable
-                      tasks={[]}
-                      onSubmit={handleSubmit}
-                      onView={handleView}
-                      emptyMessage="No history matches these filters."
-                    />
+                    <div className="space-y-2">
+                      {groups.map(([date, tasks]) => (
+                        <details key={date} className="group rounded-xl border border-slate-200 bg-slate-50/50">
+                          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 hover:bg-slate-100/70">
+                            <span className="text-sm font-medium text-slate-700">Assigned {format(new Date(date), "dd MMM yyyy")} &mdash; {tasks.length} task{tasks.length !== 1 ? "s" : ""}</span>
+                            <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180" aria-hidden />
+                          </summary>
+                          <div className="border-t border-slate-200 p-4">
+                            <TaskTable tasks={tasks} onSubmit={handleSubmit} onView={handleView} />
+                          </div>
+                        </details>
+                      ))}
+                    </div>
                   );
-                }
-                return (
-                  <div className="space-y-2">
-                    {groups.map(([date, tasks]) => (
-                      <details key={date} className="group rounded-lg border">
-                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
-                          <span className="min-w-0 flex-1 text-left">
-                            Assigned {format(new Date(date), "dd MMM yyyy")} &mdash; {tasks.length} task
-                            {tasks.length !== 1 ? "s" : ""}
-                          </span>
-                          <ChevronDown
-                            className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
-                            aria-hidden
-                          />
-                        </summary>
-                        <div className="border-t p-4">
-                          <TaskTable tasks={tasks} onSubmit={handleSubmit} onView={handleView} />
-                        </div>
-                      </details>
-                    ))}
-                  </div>
-                );
-              })()}
-            </TabsContent>
-          </Tabs>
-        </TabsContent>
+                })()}
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
 
-        <TabsContent value="weekly" className="mt-0 flex min-h-0 flex-1 flex-col">
-          <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col">
-            <TaskToolbarRow
-              left={
+          {/* ═══════════════ WEEKLY TAB ═══════════════ */}
+          <TabsContent value="weekly" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+            <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col">
+
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
                 <TabsList className={TASK_SUB_TAB_LIST}>
                   <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
                     Current ({weeklyCurrentTodayCount})
@@ -610,108 +536,73 @@ export default function TasksPage() {
                     History ({weeklyHistoryTasks.length})
                   </TabsTrigger>
                 </TabsList>
-              }
-              onAddTask={() => setAddTaskPanelOpen(true)}
-              taskViewMode={taskViewMode}
-              setTaskViewMode={setTaskViewMode}
-            />
-
-            <TabsContent value="current" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <div className="sticky top-0 z-10 -mx-5 border-b border-slate-200 bg-white px-5 pb-3 pt-0 shadow-sm">
-                  <TaskTable tasks={weeklyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
+                <div className="flex items-center gap-2">
+                  <Button type="button" size="sm" className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90" onClick={() => setAddTaskPanelOpen(true)}>
+                    + Add Task
+                  </Button>
+                  <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50/90 p-1">
+                    <button type="button" onClick={() => setTaskViewMode("list")} className={cn("rounded-md p-1.5 transition-colors", taskViewMode === "list" ? "bg-primary/15 text-primary" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800")} aria-label="List view"><List className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => setTaskViewMode("board")} className={cn("rounded-md p-1.5 transition-colors", taskViewMode === "board" ? "bg-primary/15 text-primary" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800")} aria-label="Kanban view"><LayoutGrid className="h-4 w-4" /></button>
+                    <button type="button" className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800" aria-label="Filters"><Filter className="h-4 w-4" /></button>
+                  </div>
                 </div>
-                <div className="space-y-4 pt-4">
+              </div>
+
+              <TabsContent value="current" className="mt-0 flex min-h-0 flex-1 flex-col overflow-y-auto data-[state=inactive]:hidden">
+                <div className="flex flex-col gap-4 p-5">
+                  <TaskTable tasks={weeklyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
+
                   {weeklyPendingApprovalTasks.length > 0 && (
-                    <details className="group rounded-lg border">
-                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
-                        <span className="min-w-0 flex-1 text-left">Pending approvals ({weeklyPendingApprovalTasks.length})</span>
-                        <ChevronDown
-                          className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
-                          aria-hidden
-                        />
+                    <details className="group rounded-xl border border-slate-200 bg-slate-50/50">
+                      <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 font-medium text-slate-700 hover:bg-slate-100/70">
+                        <span className="flex items-center gap-2 text-sm">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">{weeklyPendingApprovalTasks.length}</span>
+                          Pending Approvals
+                        </span>
+                        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180" aria-hidden />
                       </summary>
-                      <div className="border-t p-4">
-                        <TaskTable
-                          tasks={weeklyPendingApprovalTasks}
-                          onSubmit={handleSubmit}
-                          onView={handleView}
-                        />
+                      <div className="border-t border-slate-200 p-4">
+                        <TaskTable tasks={weeklyPendingApprovalTasks} onSubmit={handleSubmit} onView={handleView} />
                       </div>
                     </details>
                   )}
                 </div>
-              </div>
-            </TabsContent>
+              </TabsContent>
 
-            <TabsContent value="history" className="mt-0 space-y-4">
-              <div className="flex flex-wrap gap-3">
-                <Input
-                  type="date"
-                  className="w-44"
-                  value={historyFilters.weekly.date}
-                  onChange={(e) =>
-                    setHistoryFilters((prev) => ({
-                      ...prev,
-                      weekly: { ...prev.weekly, date: e.target.value },
-                    }))
-                  }
-                />
-                <Input
-                  placeholder="Search by task name..."
-                  className="min-w-[12rem] flex-1"
-                  value={historyFilters.weekly.taskName}
-                  onChange={(e) =>
-                    setHistoryFilters((prev) => ({
-                      ...prev,
-                      weekly: { ...prev.weekly, taskName: e.target.value },
-                    }))
-                  }
-                />
-              </div>
-              {(() => {
-                const filtered = applyHistoryFilters(weeklyHistoryTasks, 'weekly');
-                const groups = groupByAssignedDate(filtered);
-                if (groups.length === 0) {
+              <TabsContent value="history" className="mt-0 flex-1 overflow-y-auto p-5">
+                <div className="mb-4 flex flex-wrap gap-3">
+                  <Input type="date" className="w-44" value={historyFilters.weekly.date} onChange={(e) => setHistoryFilters((prev) => ({ ...prev, weekly: { ...prev.weekly, date: e.target.value } }))} />
+                  <Input placeholder="Search by task name..." className="min-w-[12rem] flex-1" value={historyFilters.weekly.taskName} onChange={(e) => setHistoryFilters((prev) => ({ ...prev, weekly: { ...prev.weekly, taskName: e.target.value } }))} />
+                </div>
+                {(() => {
+                  const filtered = applyHistoryFilters(weeklyHistoryTasks, "weekly");
+                  const groups = groupByAssignedDate(filtered);
+                  if (groups.length === 0) return <TaskTable tasks={[]} onSubmit={handleSubmit} onView={handleView} emptyMessage="No history matches these filters." />;
                   return (
-                    <TaskTable
-                      tasks={[]}
-                      onSubmit={handleSubmit}
-                      onView={handleView}
-                      emptyMessage="No history matches these filters."
-                    />
+                    <div className="space-y-2">
+                      {groups.map(([date, tasks]) => (
+                        <details key={date} className="group rounded-xl border border-slate-200 bg-slate-50/50">
+                          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 hover:bg-slate-100/70">
+                            <span className="text-sm font-medium text-slate-700">Assigned {format(new Date(date), "dd MMM yyyy")} &mdash; {tasks.length} task{tasks.length !== 1 ? "s" : ""}</span>
+                            <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180" aria-hidden />
+                          </summary>
+                          <div className="border-t border-slate-200 p-4">
+                            <TaskTable tasks={tasks} onSubmit={handleSubmit} onView={handleView} />
+                          </div>
+                        </details>
+                      ))}
+                    </div>
                   );
-                }
-                return (
-                  <div className="space-y-2">
-                    {groups.map(([date, tasks]) => (
-                      <details key={date} className="group rounded-lg border">
-                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
-                          <span className="min-w-0 flex-1 text-left">
-                            Assigned {format(new Date(date), "dd MMM yyyy")} &mdash; {tasks.length} task
-                            {tasks.length !== 1 ? "s" : ""}
-                          </span>
-                          <ChevronDown
-                            className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
-                            aria-hidden
-                          />
-                        </summary>
-                        <div className="border-t p-4">
-                          <TaskTable tasks={tasks} onSubmit={handleSubmit} onView={handleView} />
-                        </div>
-                      </details>
-                    ))}
-                  </div>
-                );
-              })()}
-            </TabsContent>
-          </Tabs>
-        </TabsContent>
+                })()}
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
 
-        <TabsContent value="monthly" className="mt-0 flex min-h-0 flex-1 flex-col">
-          <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col">
-            <TaskToolbarRow
-              left={
+          {/* ═══════════════ MONTHLY TAB ═══════════════ */}
+          <TabsContent value="monthly" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+            <Tabs defaultValue="current" className="flex min-h-0 flex-1 flex-col">
+
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
                 <TabsList className={TASK_SUB_TAB_LIST}>
                   <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
                     Current ({monthlyCurrentTodayCount})
@@ -720,46 +611,43 @@ export default function TasksPage() {
                     History ({monthlyHistoryTasks.length})
                   </TabsTrigger>
                 </TabsList>
-              }
-              onAddTask={() => setAddTaskPanelOpen(true)}
-              taskViewMode={taskViewMode}
-              setTaskViewMode={setTaskViewMode}
-            />
-
-            <TabsContent value="current" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <div className="sticky top-0 z-10 -mx-5 border-b border-slate-200 bg-white px-5 pb-3 pt-0 shadow-sm">
-                  <TaskTable tasks={monthlyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
+                <div className="flex items-center gap-2">
+                  <Button type="button" size="sm" className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90" onClick={() => setAddTaskPanelOpen(true)}>
+                    + Add Task
+                  </Button>
+                  <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50/90 p-1">
+                    <button type="button" onClick={() => setTaskViewMode("list")} className={cn("rounded-md p-1.5 transition-colors", taskViewMode === "list" ? "bg-primary/15 text-primary" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800")} aria-label="List view"><List className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => setTaskViewMode("board")} className={cn("rounded-md p-1.5 transition-colors", taskViewMode === "board" ? "bg-primary/15 text-primary" : "text-slate-500 hover:bg-slate-100 hover:text-slate-800")} aria-label="Kanban view"><LayoutGrid className="h-4 w-4" /></button>
+                    <button type="button" className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800" aria-label="Filters"><Filter className="h-4 w-4" /></button>
+                  </div>
                 </div>
-                <div className="space-y-4 pt-4">
+              </div>
+
+              <TabsContent value="current" className="mt-0 flex min-h-0 flex-1 flex-col overflow-y-auto data-[state=inactive]:hidden">
+                <div className="flex flex-col gap-4 p-5">
+                  <TaskTable tasks={monthlyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
+
                   {monthlyPendingApprovalTasks.length > 0 && (
-                    <details className="group rounded-lg border">
-                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
-                        <span className="min-w-0 flex-1 text-left">Pending approvals ({monthlyPendingApprovalTasks.length})</span>
-                        <ChevronDown
-                          className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
-                          aria-hidden
-                        />
+                    <details className="group rounded-xl border border-slate-200 bg-slate-50/50">
+                      <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 font-medium text-slate-700 hover:bg-slate-100/70">
+                        <span className="flex items-center gap-2 text-sm">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">{monthlyPendingApprovalTasks.length}</span>
+                          Pending Approvals
+                        </span>
+                        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180" aria-hidden />
                       </summary>
-                      <div className="border-t p-4">
-                        <TaskTable
-                          tasks={monthlyPendingApprovalTasks}
-                          onSubmit={handleSubmit}
-                          onView={handleView}
-                        />
+                      <div className="border-t border-slate-200 p-4">
+                        <TaskTable tasks={monthlyPendingApprovalTasks} onSubmit={handleSubmit} onView={handleView} />
                       </div>
                     </details>
                   )}
 
-                  <details className="group rounded-lg border">
-                    <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
-                      <span className="min-w-0 flex-1 text-left">Number of certificates-monthly</span>
-                      <ChevronDown
-                        className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
-                        aria-hidden
-                      />
+                  <details className="group rounded-xl border border-slate-200 bg-slate-50/50">
+                    <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 font-medium text-slate-700 hover:bg-slate-100/70">
+                      <span className="text-sm">Number of Certificates — Monthly</span>
+                      <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180" aria-hidden />
                     </summary>
-                    <div className="border-t p-4">
+                    <div className="border-t border-slate-200 p-4">
                       {monthlyCertificatesChartData.some((p) => p.value > 0) ? (
                         <div className="h-64 w-full">
                           <ResponsiveContainer width="100%" height="100%">
@@ -773,79 +661,42 @@ export default function TasksPage() {
                           </ResponsiveContainer>
                         </div>
                       ) : (
-                        <div className="py-8 text-center text-sm text-muted-foreground">
-                          No linked daily numeric submissions found yet.
-                        </div>
+                        <div className="py-8 text-center text-sm text-muted-foreground">No linked daily numeric submissions found yet.</div>
                       )}
                     </div>
                   </details>
                 </div>
-              </div>
-            </TabsContent>
+              </TabsContent>
 
-            <TabsContent value="history" className="mt-0 space-y-4">
-              <div className="flex flex-wrap gap-3">
-                <Input
-                  type="date"
-                  className="w-44"
-                  value={historyFilters.monthly.date}
-                  onChange={(e) =>
-                    setHistoryFilters((prev) => ({
-                      ...prev,
-                      monthly: { ...prev.monthly, date: e.target.value },
-                    }))
-                  }
-                />
-                <Input
-                  placeholder="Search by task name..."
-                  className="min-w-[12rem] flex-1"
-                  value={historyFilters.monthly.taskName}
-                  onChange={(e) =>
-                    setHistoryFilters((prev) => ({
-                      ...prev,
-                      monthly: { ...prev.monthly, taskName: e.target.value },
-                    }))
-                  }
-                />
-              </div>
-              {(() => {
-                const filtered = applyHistoryFilters(monthlyHistoryTasks, 'monthly');
-                const groups = groupByAssignedDate(filtered);
-                if (groups.length === 0) {
+              <TabsContent value="history" className="mt-0 flex-1 overflow-y-auto p-5">
+                <div className="mb-4 flex flex-wrap gap-3">
+                  <Input type="date" className="w-44" value={historyFilters.monthly.date} onChange={(e) => setHistoryFilters((prev) => ({ ...prev, monthly: { ...prev.monthly, date: e.target.value } }))} />
+                  <Input placeholder="Search by task name..." className="min-w-[12rem] flex-1" value={historyFilters.monthly.taskName} onChange={(e) => setHistoryFilters((prev) => ({ ...prev, monthly: { ...prev.monthly, taskName: e.target.value } }))} />
+                </div>
+                {(() => {
+                  const filtered = applyHistoryFilters(monthlyHistoryTasks, "monthly");
+                  const groups = groupByAssignedDate(filtered);
+                  if (groups.length === 0) return <TaskTable tasks={[]} onSubmit={handleSubmit} onView={handleView} emptyMessage="No history matches these filters." />;
                   return (
-                    <TaskTable
-                      tasks={[]}
-                      onSubmit={handleSubmit}
-                      onView={handleView}
-                      emptyMessage="No history matches these filters."
-                    />
+                    <div className="space-y-2">
+                      {groups.map(([date, tasks]) => (
+                        <details key={date} className="group rounded-xl border border-slate-200 bg-slate-50/50">
+                          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 hover:bg-slate-100/70">
+                            <span className="text-sm font-medium text-slate-700">Assigned {format(new Date(date), "dd MMM yyyy")} &mdash; {tasks.length} task{tasks.length !== 1 ? "s" : ""}</span>
+                            <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180" aria-hidden />
+                          </summary>
+                          <div className="border-t border-slate-200 p-4">
+                            <TaskTable tasks={tasks} onSubmit={handleSubmit} onView={handleView} />
+                          </div>
+                        </details>
+                      ))}
+                    </div>
                   );
-                }
-                return (
-                  <div className="space-y-2">
-                    {groups.map(([date, tasks]) => (
-                      <details key={date} className="group rounded-lg border">
-                        <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
-                          <span className="min-w-0 flex-1 text-left">
-                            Assigned {format(new Date(date), "dd MMM yyyy")} &mdash; {tasks.length} task
-                            {tasks.length !== 1 ? "s" : ""}
-                          </span>
-                          <ChevronDown
-                            className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
-                            aria-hidden
-                          />
-                        </summary>
-                        <div className="border-t p-4">
-                          <TaskTable tasks={tasks} onSubmit={handleSubmit} onView={handleView} />
-                        </div>
-                      </details>
-                    ))}
-                  </div>
-                );
-              })()}
-            </TabsContent>
-          </Tabs>
-        </TabsContent>
+                })()}
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+
         </section>
       </Tabs>
 
