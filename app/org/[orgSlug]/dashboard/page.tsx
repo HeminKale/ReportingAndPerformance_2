@@ -242,54 +242,8 @@ export default async function DashboardPage({
             </div>
           </div>
 
-          {/* Daily Quests Card */}
-          <div className="flex flex-col rounded-[2rem] bg-white/80 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.08)] p-6">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700 mb-4 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-amber-500" /> Daily Quests
-            </h3>
-            <div className="flex flex-col gap-3">
-              
-              <div className="relative rounded-xl border border-blue-100 bg-blue-50/50 p-4 shadow-sm">
-                <div className="absolute top-2 right-2 bg-white rounded-full px-2 py-0.5 text-[10px] font-bold text-blue-600 shadow-sm">+8 XP</div>
-                <p className="font-semibold text-blue-900 text-sm">Complete today's tasks</p>
-                <div className="mt-2 flex items-center gap-1.5">
-                   {completionPct === 100 ? (
-                     <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /><span className="text-xs font-bold text-emerald-600">Completed</span></>
-                   ) : (
-                     <><CircleDashed className="h-3.5 w-3.5 text-blue-400" /><span className="text-xs font-bold text-blue-500">In Progress</span></>
-                   )}
-                </div>
-              </div>
-
-              <div className="relative rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 shadow-sm">
-                <div className="absolute top-2 right-2 bg-white rounded-full px-2 py-0.5 text-[10px] font-bold text-emerald-600 shadow-sm">+5 XP</div>
-                <p className="font-semibold text-emerald-900 text-sm">Timely clock in</p>
-                <div className="mt-2 flex items-center gap-1.5">
-                   {attendance?.clock_in_time ? (
-                     <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /><span className="text-xs font-bold text-emerald-600">Completed</span></>
-                   ) : (
-                     <><CircleDashed className="h-3.5 w-3.5 text-emerald-400" /><span className="text-xs font-bold text-emerald-500">Pending</span></>
-                   )}
-                </div>
-              </div>
-
-              <div className="relative rounded-xl border border-fuchsia-100 bg-fuchsia-50/50 p-4 shadow-sm">
-                <div className="absolute top-2 right-2 bg-white rounded-full px-2 py-0.5 text-[10px] font-bold text-fuchsia-600 shadow-sm">+10 XP</div>
-                <p className="font-semibold text-fuchsia-900 text-sm">Zero mistakes</p>
-                <div className="mt-2 flex items-center gap-1.5">
-                   <CircleDashed className="h-3.5 w-3.5 text-fuchsia-400" /><span className="text-xs font-bold text-fuchsia-500">Evaluating at EOD</span>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column (Rest of Content) */}
-        <div className="w-full md:w-[60%] px-4 md:pl-4 md:pr-8 pt-[32vh] pb-12 flex flex-col gap-6">
-           
-           {/* Trainings Completed (Top Right) */}
-           <Card className="rounded-[2.5rem] border-white/40 shadow-xl bg-white/70 backdrop-blur-md">
+          {/* Trainings Completed (Now on Left) */}
+          <Card className="rounded-[2.5rem] border-white/40 shadow-xl bg-white/70 backdrop-blur-md">
              <CardHeader className="px-8 pt-8">
                <CardTitle>Trainings Completed</CardTitle>
                <CardDescription>
@@ -316,8 +270,54 @@ export default async function DashboardPage({
                 )}
              </CardContent>
            </Card>
+        </div>
 
-           {/* Today's Tasks (Bottom Right) */}
+        {/* Right Column (Rest of Content) */}
+        <div className="w-full md:w-[60%] px-4 md:pl-4 md:pr-8 pt-[32vh] pb-12 flex flex-col gap-6">
+           
+           {/* Daily Quests (Now on Right) */}
+           <div className="flex flex-col rounded-[2.5rem] bg-white/70 backdrop-blur-md border border-white/40 shadow-xl p-8">
+            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-amber-500" /> Daily Quests
+            </h3>
+            <div className="flex flex-col gap-4">
+              
+              <div className="relative rounded-2xl border border-blue-100 bg-blue-50/50 p-5 shadow-sm">
+                <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-bold text-blue-600 shadow-sm">+8 XP</div>
+                <p className="font-bold text-blue-900">Complete today's tasks</p>
+                <div className="mt-3 flex items-center gap-2">
+                   {completionPct === 100 ? (
+                     <><CheckCircle2 className="h-4 w-4 text-emerald-500" /><span className="text-sm font-bold text-emerald-600">Completed</span></>
+                   ) : (
+                     <><CircleDashed className="h-4 w-4 text-blue-400" /><span className="text-sm font-bold text-blue-500">In Progress</span></>
+                   )}
+                </div>
+              </div>
+
+              <div className="relative rounded-2xl border border-emerald-100 bg-emerald-50/50 p-5 shadow-sm">
+                <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-bold text-emerald-600 shadow-sm">+5 XP</div>
+                <p className="font-bold text-emerald-900">Timely clock in</p>
+                <div className="mt-3 flex items-center gap-2">
+                   {attendance?.clock_in_time ? (
+                     <><CheckCircle2 className="h-4 w-4 text-emerald-500" /><span className="text-sm font-bold text-emerald-600">Completed</span></>
+                   ) : (
+                     <><CircleDashed className="h-4 w-4 text-emerald-400" /><span className="text-sm font-bold text-emerald-500">Pending</span></>
+                   )}
+                </div>
+              </div>
+
+              <div className="relative rounded-2xl border border-fuchsia-100 bg-fuchsia-50/50 p-5 shadow-sm">
+                <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-bold text-fuchsia-600 shadow-sm">+10 XP</div>
+                <p className="font-bold text-fuchsia-900">Zero mistakes</p>
+                <div className="mt-3 flex items-center gap-2">
+                   <CircleDashed className="h-4 w-4 text-fuchsia-400" /><span className="text-sm font-bold text-fuchsia-500">Evaluating at EOD</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+           {/* Today's Tasks */}
            <Card className="rounded-[2.5rem] border-white/40 shadow-xl bg-white/70 backdrop-blur-md">
              <CardHeader className="px-8 pt-8">
                <CardTitle>Today's Tasks</CardTitle>
