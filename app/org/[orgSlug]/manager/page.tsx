@@ -62,6 +62,7 @@ export default function ManagerPage() {
   const [taskHistoryDateTo, setTaskHistoryDateTo] = useState("");
   const [expandedRegularRowKeys, setExpandedRegularRowKeys] = useState<Set<string>>(new Set());
   const [regularRowMenuKey, setRegularRowMenuKey] = useState<string | null>(null);
+  const [taskHistoryRowMenuKey, setTaskHistoryRowMenuKey] = useState<string | null>(null);
   const [recallDialog, setRecallDialog] = useState<{ open: boolean; log: any | null }>({ open: false, log: null });
   const [recallComment, setRecallComment] = useState("");
   const [leavesSearchTerm, setLeavesSearchTerm] = useState("");
@@ -1622,7 +1623,9 @@ export default function ManagerPage() {
                                 <TableHead>Verification</TableHead>
                                 <TableHead>Submitted At</TableHead>
                                 <TableHead>Verified At</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead className="w-12 text-right">
+                                  <span className="sr-only">Actions</span>
+                                </TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1652,19 +1655,39 @@ export default function ManagerPage() {
                                     {log.verified_at ? format(new Date(log.verified_at), "HH:mm dd/MM/yyyy") : "-"}
                                   </TableCell>
                                   <TableCell className="text-right">
-                                    {(log.verification_status === "approved" || log.verification_status === "rejected") && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 px-2 text-xs font-medium text-primary hover:bg-primary/10"
-                                        onClick={() => {
-                                          setRecallComment("");
-                                          setRecallDialog({ open: true, log: log });
-                                        }}
-                                      >
-                                        Recall
-                                      </Button>
-                                    )}
+                                    {log.verification_status === "approved" || log.verification_status === "rejected" ? (
+                                      <div className="relative inline-block text-left">
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8"
+                                          aria-expanded={taskHistoryRowMenuKey === log.id}
+                                          aria-label="Task actions"
+                                          onClick={() =>
+                                            setTaskHistoryRowMenuKey((prev) => (prev === log.id ? null : log.id))
+                                          }
+                                        >
+                                          <MoreVertical className="h-4 w-4" />
+                                        </Button>
+                                        {taskHistoryRowMenuKey === log.id && (
+                                          <div className="option-panel absolute right-0 z-10 mt-1 w-44 rounded-md border bg-background p-1 shadow-md">
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="w-full justify-start font-medium"
+                                              onClick={() => {
+                                                setTaskHistoryRowMenuKey(null);
+                                                setRecallComment("");
+                                                setRecallDialog({ open: true, log: log });
+                                              }}
+                                            >
+                                              Recall
+                                            </Button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : null}
                                   </TableCell>
                                 </TableRow>
                               ))}
