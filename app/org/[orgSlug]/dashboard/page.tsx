@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, CheckSquare, Clock, Flame, Sparkles, TrendingUp, ChevronDown, CheckCircle2, CircleDashed } from 'lucide-react';
+import { AlertCircle, CheckSquare, Clock, Flame, Sparkles, TrendingUp, ChevronDown, CheckCircle2, CircleDashed, Crown } from 'lucide-react';
 import { format } from 'date-fns';
 import { getCurrentTimeInTimezone } from '@/lib/utils/timezone';
 import { rankForTotalXp, RANK_TIERS } from '@/lib/gamification/xp-rules';
@@ -8,6 +8,7 @@ import { DashboardSkyBg } from '@/components/dashboard/dashboard-sky-bg';
 import { ScrollableCardList } from '@/components/dashboard/scrollable-card-list';
 import { XpProgressBar } from '@/components/dashboard/xp-progress-bar';
 import { TaskListItem } from '@/components/dashboard/task-list-item';
+import { MonthlyCelebration } from '@/components/dashboard/monthly-celebration';
 
 const morningMessages = [
   "Let's make today incredibly productive.",
@@ -86,6 +87,29 @@ export default async function DashboardPage({
     .eq('status', 'completed')
     .order('date_completed', { ascending: false });
 
+  // Fetch real profile photo from employee_documents
+  const { data: profileDoc } = await supabase
+    .from('employee_documents')
+    .select('file_url')
+    .eq('user_id', user.id)
+    .eq('doc_type', 'photo')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // Fetch top performer status from leaderboard
+  // Get the most recent month's ranking
+  const { data: leaderboardEntry } = await supabase
+    .from('leaderboard')
+    .select('rank, month')
+    .eq('user_id', user.id)
+    .order('month', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const isTopPerformer = leaderboardEntry?.rank === 1;
+  const latestRankingMonth = leaderboardEntry?.month || '';
+
   // Fetch Gamification
   const { data: gamification } = await supabase
     .from('user_gamification')
@@ -131,9 +155,11 @@ export default async function DashboardPage({
   const xpProgressPct = nextTier && nextGoalXp > 0 ? Math.min(100, Math.round((totalXp / nextGoalXp) * 100)) : 100;
 
   const displayTasks = todayTasks || [];
+  const profilePhotoUrl = profileDoc?.file_url || `https://api.dicebear.com/7.x/notionists/svg?seed=${userData?.full_name || 'Hero'}&backgroundColor=e2e8f0`;
 
   return (
     <div className="relative min-h-full pb-12">
+      <MonthlyCelebration isTopPerformer={isTopPerformer} month={latestRankingMonth} />
       <DashboardSkyBg currentHour={currentHour} />
       
       <div className="mx-auto flex w-full max-w-[1600px] flex-col md:flex-row relative z-10 gap-8">
@@ -145,8 +171,13 @@ export default async function DashboardPage({
             
             {/* Circular Placeholder */}
             <div className="absolute top-0 left-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full border-[6px] border-white bg-slate-100 shadow-xl backdrop-blur-sm">
+              {isTopPerformer && (
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20 animate-bounce">
+                  <Crown className="h-8 w-8 text-yellow-500 fill-yellow-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]" />
+                </div>
+              )}
               <img 
-                src={`https://api.dicebear.com/7.x/notionists/svg?seed=${userData?.full_name || 'Hero'}&backgroundColor=e2e8f0`} 
+                src={profilePhotoUrl} 
                 alt="Profile" 
                 className="h-full w-full object-cover"
               />
