@@ -8,10 +8,16 @@
  * - CRON_SECRET: generate locally (e.g. `openssl rand -hex 32`), set in Vercel → Env → Production; Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`.
  * - Or any scheduler: GET/POST with header `Authorization: Bearer <CRON_SECRET>`
  *
+ * Protected Vercel deployments (SSO): add header `x-vercel-protection-bypass: <secret>` from
+ * Dashboard → Protection bypass for automation. See Reference Docs/PERIODIC_TASKS_ARCHITECTURE.md.
+ *
  * Immediate assign on create: POST `/api/manager/periodic-tasks/materialize` (session) after save.
  *
  * Example (local):
  *   curl -s -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/periodic-tasks
+ *
+ * Example (protected production — both headers):
+ *   curl -s -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" -H "Authorization: Bearer $CRON_SECRET" 'https://YOUR.vercel.app/api/cron/periodic-tasks'
  *
  * Env: CRON_SECRET, NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
  */

@@ -300,6 +300,17 @@ export interface ManagerPeriodicTask {
 - See [PERIODIC_TASKS_ARCHITECTURE.md](PERIODIC_TASKS_ARCHITECTURE.md) and Vercel [protection bypass for automation](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation)
 - Confirm **Cron Jobs** in the Vercel project and server logs return JSON `{ "ok": true, ... }`
 
+**Working `curl` against a protected production URL** (use your real host and export both secrets first):
+
+```bash
+export CRON_SECRET='...'   # same as Vercel env CRON_SECRET
+export VERCEL_AUTOMATION_BYPASS_SECRET='...'   # Protection bypass secret from Vercel dashboard
+curl -s \
+  -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  'https://YOUR-PROJECT.vercel.app/api/cron/periodic-tasks'
+```
+
 ---
 
 ## Migration Guide

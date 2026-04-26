@@ -97,7 +97,37 @@ Assume template is **enabled** on create and **instant** `POST /api/manager/peri
 - **`CRON_SECRET`:** Generate (e.g. `openssl rand -hex 32`), set in Vercel env; Vercel sends `Authorization: Bearer <CRON_SECRET>` on cron invocations. Same variable must match what the route checks.  
 - **`SUPABASE_SERVICE_ROLE_KEY`** and **`NEXT_PUBLIC_SUPABASE_URL`:** Required on the server for cron and for **`/api/manager/periodic-tasks/materialize`**.
 
-**Deployment protection:** If Vercel SSO / protection blocks unauthenticated requests to the deployment URL, **scheduled cron may never reach your route** until you allow automation (e.g. [protection bypass](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation)) or relax protection for production.
+### Deployment protection (SSO / password) and bypass for automation
+
+If the browser shows **“Authentication Required”** (Vercel) when opening the deployment, **unauthenticated** `curl` to `/api/cron/periodic-tasks` is blocked **before** your Next.js code runs. `CRON_SECRET` alone cannot fix that.
+
+**Option A — [Protection bypass for automation](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation)** (Vercel Dashboard → project → *Deployment Protection* / *Advanced* → add a bypass secret)
+
+1. Create a bypass secret in the dashboard (Vercel may expose it as the system env **`VERCEL_AUTOMATION_BYPASS_SECRET`** on deployments—see [system environment variables](https://vercel.com/docs/environment-variables/system-environment-variables#VERCEL_AUTOMATION_BYPASS_SECRET)).
+2. For **manual `curl` or external schedulers** hitting a **protected** production URL, send **both**:
+   - **`x-vercel-protection-bypass: <your-bypass-secret>`** (header or query param—[docs](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation))
+   - **`Authorization: Bearer <CRON_SECRET>`** (your app’s check—[cron docs](https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs))
+
+**Example `curl` (protected production):**
+
+```bash
+curl -s \
+  -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  'https://YOUR-PROJECT.vercel.app/api/cron/periodic-tasks'
+```
+
+Replace the first variable with the **same** secret value shown in the dashboard (or export it locally for testing). Query-param style is also supported if a tool cannot set headers:
+
+`.../api/cron/periodic-tasks?x-vercel-protection-bypass=YOUR_SECRET`
+
+**Option B — `vercel curl`** (CLI logged into the team): [Vercel CLI curl](https://vercel.com/docs/cli/curl) can reach protected deployments without hand-assembling the bypass.
+
+**Option C — Do not protect production** (or only protect preview): simplest for cron, but weaker access control.
+
+**Vercel-managed Cron:** After enabling bypass automation, confirm in **Cron Jobs → View logs** that invocations return **200** and JSON `{ "ok": true, ... }`. If they still show the auth HTML page, ensure bypass is enabled for the project and redeploy if Vercel requires it after rotating secrets.
+
+**Plan note:** Protection bypass for automation is part of Vercel’s **Advanced Deployment Protection** offering; availability depends on your Vercel plan. If the UI shows an upgrade gate, use **Option B/C** or an external scheduler until bypass is available.
 
 ---
 
@@ -136,4 +166,4 @@ curl -s -H "Authorization: Bearer $CRON_SECRET" "http://localhost:3000/api/cron/
 
 ---
 
-*Last updated: aligns with instant materialize on periodic **create**, shared `materializePeriodicTemplates`, and Hobby-safe daily Vercel cron.*
+*Last updated: adds Vercel **protection bypass for automation** (`x-vercel-protection-bypass` + `CRON_SECRET`), `vercel curl`, and plan notes.*
