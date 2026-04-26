@@ -58,6 +58,12 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
     return isNumeric ? "Enter Number" : "Submit Task";
   };
 
+  const dueDateLabel = (task: Task) => {
+    if (task.type === "daily") return "—";
+    if (!task.due_date) return "—";
+    return format(new Date(`${task.due_date}T12:00:00`), "dd MMM yyyy");
+  };
+
   return (
     <div className="option-panel overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <Table>
@@ -65,6 +71,7 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
           <TableRow className="bg-slate-50/80">
             <TableHead>Task Name</TableHead>
             <TableHead>Task Description</TableHead>
+            <TableHead>Due</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Assigned At</TableHead>
             <TableHead>Submitted At</TableHead>
@@ -74,7 +81,7 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
         <TableBody>
           {tasks.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
+              <TableCell colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
                 {emptyMessage}
               </TableCell>
             </TableRow>
@@ -98,6 +105,9 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
                   <p className="text-sm text-muted-foreground line-clamp-2">
                     {task.description || "-"}
                   </p>
+                </TableCell>
+                <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                  {dueDateLabel(task)}
                 </TableCell>
                 <TableCell>{getStatusBadge(taskLog)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">

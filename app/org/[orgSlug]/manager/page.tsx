@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils/cn";
 import { ManagerDocumentsTab } from "@/components/manager/manager-documents-tab";
 import { ManagerSalaryTab } from "@/components/manager/manager-salary-tab";
 import { ManagerCalendarTab } from "@/components/manager/manager-calendar-tab";
+import { ManagerEmployeeRatingsTab } from "@/components/manager/manager-employee-ratings-tab";
 import { markResourceNotificationsRead } from "@/lib/notifications/mark-resource-read";
 import { requestNotificationsBellRefresh } from "@/lib/notifications/refresh-bell";
 
@@ -902,15 +903,38 @@ export default function ManagerPage() {
           String(actionDialog.item.id)
         );
 
+        const mgrC = comment.trim() || null;
+        const isEarly = Boolean(
+          (actionDialog.item as { is_late_request?: boolean; clock_in_time?: string; clock_out_time?: string | null })
+            .clock_in_time && (actionDialog.item as { clock_out_time?: string | null }).clock_out_time
+        );
+        const attendanceTitle = isEarly
+          ? `Early clock-out ${actionDialog.action === "approve" ? "approved" : "rejected"}`
+          : `Late clock-in ${actionDialog.action === "approve" ? "approved" : "rejected"}`;
+
         await supabase
           .from('notifications')
           .insert({
             organization_id: user.organization_id,
             user_id: actionDialog.item.user_id,
             type: 'late_request',
-            title: `Late Clock-In ${actionDialog.action === 'approve' ? 'Approved' : 'Rejected'}`,
-            message: `Your late clock-in request has been ${actionDialog.action === 'approve' ? 'approved' : 'rejected'}${comment ? `: ${comment}` : ''}`,
+            title: attendanceTitle,
+            message: isEarly
+              ? `Your early clock-out request has been ${
+                  actionDialog.action === "approve" ? "approved" : "rejected"
+                }${mgrC ? `: ${mgrC}` : ""}`
+              : `Your late clock-in request has been ${
+                  actionDialog.action === "approve" ? "approved" : "rejected"
+                }${mgrC ? `: ${mgrC}` : ""}`,
+            link: `/org/${orgSlug}/attendance`,
+            metadata: {
+              actionable: false,
+              resource_type: "attendance",
+              resource_id: String(actionDialog.item.id),
+              manager_comment: mgrC,
+            },
           });
+        requestNotificationsBellRefresh();
       } else if (actionDialog.type === 'leave') {
         const { error } = await supabase
           .from('leaves')
@@ -930,6 +954,7 @@ export default function ManagerPage() {
           String(actionDialog.item.id)
         );
 
+        const leaveMgrC = comment.trim() || null;
         await supabase
           .from('notifications')
           .insert({
@@ -937,8 +962,18 @@ export default function ManagerPage() {
             user_id: actionDialog.item.user_id,
             type: 'leave_approval',
             title: `Leave ${actionDialog.action === 'approve' ? 'Approved' : 'Rejected'}`,
-            message: `Your leave request has been ${actionDialog.action === 'approve' ? 'approved' : 'rejected'}${comment ? `: ${comment}` : ''}`,
+            message: `Your leave request has been ${
+              actionDialog.action === 'approve' ? 'approved' : 'rejected'
+            }${leaveMgrC ? `: ${leaveMgrC}` : ''}`,
+            link: `/org/${orgSlug}/leaves`,
+            metadata: {
+              actionable: false,
+              resource_type: "leave",
+              resource_id: String(actionDialog.item.id),
+              manager_comment: leaveMgrC,
+            },
           });
+        requestNotificationsBellRefresh();
       }
 
       toast({
@@ -1076,6 +1111,7 @@ export default function ManagerPage() {
               <TabsTrigger value="team" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Team Members <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
               <TabsTrigger value="documents" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Documents <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
               <TabsTrigger value="salary" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Salary <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{teamMembers.length}</span></TabsTrigger>
+              <TabsTrigger value="ratings" className="manager-side-trigger justify-between rounded-lg px-3 py-2">Employee ratings</TabsTrigger>
               <TabsTrigger value="task-assignment" className="manager-side-trigger justify-between rounded-lg px-3 py-2">
                 <span>Task Assignment</span>
                 <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold">{managedTeamTasks.length}</span>
@@ -2153,6 +2189,10 @@ export default function ManagerPage() {
 
         <TabsContent value="salary" className="space-y-4">
           <ManagerSalaryTab currentUser={user} teamMembers={teamMembers} />
+        </TabsContent>
+
+        <TabsContent value="ratings" className="space-y-4">
+          {user && <ManagerEmployeeRatingsTab currentUser={user} teamMembers={teamMembers} />}
         </TabsContent>
 
         <TabsContent value="task-assignment" className="space-y-4">

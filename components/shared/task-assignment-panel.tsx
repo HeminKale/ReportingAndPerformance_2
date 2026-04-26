@@ -155,15 +155,23 @@ export function TaskAssignmentPanel({
         });
         return false;
       }
-      return true;
-    }
-    if (isManager || (!isEmployee && taskForm.assignmentType === "specific")) {
+    } else if (isManager || (!isEmployee && taskForm.assignmentType === "specific")) {
       if (!taskForm.assignedTo || !assigneeOk(taskForm.assignedTo)) {
         toast({
           title: "Error",
           description: isManager
             ? "Select a team member to assign this task"
             : "Select an employee for a specific assignment",
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+    if (taskForm.type === "weekly" || taskForm.type === "monthly") {
+      if (!taskForm.dueDate?.trim()) {
+        toast({
+          title: "Error",
+          description: "Due date is required for weekly and monthly tasks",
           variant: "destructive",
         });
         return false;
@@ -225,8 +233,15 @@ export function TaskAssignmentPanel({
       if (taskForm.type === "weekly" && taskForm.dayOfWeek) {
         baseRow.day_of_week = parseInt(taskForm.dayOfWeek, 10);
       }
-      if (taskForm.type === "monthly" && taskForm.dueDate) {
+      if (taskForm.type === "daily") {
+        baseRow.due_date = null;
+      } else if (
+        (taskForm.type === "weekly" || taskForm.type === "monthly") &&
+        taskForm.dueDate
+      ) {
         baseRow.due_date = taskForm.dueDate;
+      } else {
+        baseRow.due_date = null;
       }
 
       if (isManager) {
@@ -296,8 +311,10 @@ export function TaskAssignmentPanel({
       } else {
         taskData.day_of_week = null;
       }
-      if (taskForm.type === "monthly" && taskForm.dueDate) {
-        taskData.due_date = taskForm.dueDate;
+      if (taskForm.type === "daily") {
+        taskData.due_date = null;
+      } else if (taskForm.type === "weekly" || taskForm.type === "monthly") {
+        taskData.due_date = taskForm.dueDate || null;
       } else {
         taskData.due_date = null;
       }
@@ -402,7 +419,7 @@ export function TaskAssignmentPanel({
                 }
               </p>
             )}
-            {t.type === "monthly" && t.due_date && <p>Due: {t.due_date}</p>}
+            {t.due_date && t.type !== "daily" && <p>Due: {t.due_date}</p>}
           </div>
         </div>
       </div>
@@ -419,8 +436,11 @@ export function TaskAssignmentPanel({
     </div>
   );
 
+  const taskDueCellText = (t: Task) =>
+    t.type === "daily" ? "—" : t.due_date || "—";
+
   const renderTaskDataRows = (list: Task[], showEmployeeColumn: boolean) => {
-    const colSpan = showEmployeeColumn ? 7 : 6;
+    const colSpan = showEmployeeColumn ? 8 : 7;
     return list.map((t) => {
       const isExpanded = expandedTaskRows.has(t.id);
       const employee = userName(t.assigned_to);
@@ -446,6 +466,9 @@ export function TaskAssignmentPanel({
             </TableCell>
             <TableCell className="max-w-md">
               <p className="text-sm text-muted-foreground truncate">{t.description || "-"}</p>
+            </TableCell>
+            <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+              {taskDueCellText(t)}
             </TableCell>
             <TableCell>
               <span
@@ -528,6 +551,7 @@ export function TaskAssignmentPanel({
                         <TableHead>Task Name</TableHead>
                         <TableHead>Task Type</TableHead>
                         <TableHead>Task Description</TableHead>
+                        <TableHead>Due</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Created at</TableHead>
                       </TableRow>
@@ -584,6 +608,7 @@ export function TaskAssignmentPanel({
                               <TableHead>Task Name</TableHead>
                               <TableHead>Task Type</TableHead>
                               <TableHead>Task Description</TableHead>
+                              <TableHead>Due</TableHead>
                               <TableHead>Status</TableHead>
                               <TableHead>Created at</TableHead>
                             </TableRow>
@@ -689,6 +714,7 @@ export function TaskAssignmentPanel({
                               <TableHead>Task Name</TableHead>
                               <TableHead>Task Type</TableHead>
                               <TableHead>Task Description</TableHead>
+                              <TableHead>Due</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -722,10 +748,13 @@ export function TaskAssignmentPanel({
                                         {t.description || "-"}
                                       </p>
                                     </TableCell>
+                                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                                      {taskDueCellText(t)}
+                                    </TableCell>
                                   </TableRow>
                                   {isExpanded && (
                                     <TableRow>
-                                      <TableCell colSpan={4} className="bg-muted/30">
+                                      <TableCell colSpan={5} className="bg-muted/30">
                                         {renderExpandedTaskPanel(t)}
                                       </TableCell>
                                     </TableRow>
@@ -797,7 +826,11 @@ export function TaskAssignmentPanel({
               <Select
                 value={taskForm.type}
                 onValueChange={(value: "daily" | "weekly" | "monthly") =>
-                  setTaskForm({ ...taskForm, type: value })
+                  setTaskForm((prev) => ({
+                    ...prev,
+                    type: value,
+                    dueDate: value === "daily" ? "" : prev.dueDate,
+                  }))
                 }
               >
                 <SelectTrigger>
@@ -851,14 +884,17 @@ export function TaskAssignmentPanel({
               </div>
             )}
 
-            {taskForm.type === "monthly" && (
+            {(taskForm.type === "weekly" || taskForm.type === "monthly") && (
               <div className="space-y-2">
-                <Label htmlFor="dueDate">Due Date</Label>
+                <Label htmlFor="dueDate">
+                  Due date <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="dueDate"
                   type="date"
                   value={taskForm.dueDate}
                   onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
+                  required
                 />
               </div>
             )}
@@ -1066,7 +1102,8 @@ export function TaskAssignmentPanel({
                 !taskForm.title ||
                 (isManager &&
                   taskDialog.mode === "create" &&
-                  taskForm.assignedToIds.length === 0)
+                  taskForm.assignedToIds.length === 0) ||
+                ((taskForm.type === "weekly" || taskForm.type === "monthly") && !taskForm.dueDate?.trim())
               }
             >
               {submitting ? "Saving..." : taskDialog.mode === "create" ? "Create Task" : "Update Task"}
