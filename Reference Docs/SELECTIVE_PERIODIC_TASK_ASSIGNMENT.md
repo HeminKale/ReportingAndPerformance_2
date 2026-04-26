@@ -6,6 +6,8 @@ This feature allows managers to assign periodic tasks to **selected team members
 
 **Implementation Date**: April 14, 2026
 
+**See also:** [PERIODIC_TASKS_ARCHITECTURE.md](PERIODIC_TASKS_ARCHITECTURE.md) — full lifecycle (cron, instant materialize on create, Vercel Hobby limits, `CRON_SECRET`, scenarios).
+
 ---
 
 ## Key Features
@@ -95,23 +97,25 @@ The periodic tasks table displays:
 - **Enabled**: Toggle to enable/disable automation
 - **Actions**: Edit and delete buttons
 
-### 3. Cron Job Execution
+### 3. Materialization (cron + instant on create)
 
-**File**: `app/api/cron/periodic-tasks/route.ts`
+Shared logic lives in **`lib/cron/periodic-tasks-materialize.ts`** (`materializePeriodicTemplates`). Both paths insert `tasks` rows and **`manager_periodic_dispatches`** so the same period is never duplicated.
 
-**Logic**:
-1. Fetch all enabled periodic task templates
-2. For each template:
-   - Check if `assigned_user_ids` is set and has values
-   - **If yes**: Query only those specific user IDs (verify they're still direct reports)
-   - **If no/empty**: Query all direct reports of the manager
-3. Create one task per selected/all member(s)
-4. Log dispatch to prevent duplicates
+**A) Scheduled cron** — `app/api/cron/periodic-tasks/route.ts`  
+- **Auth:** `Authorization: Bearer <CRON_SECRET>` or `x-cron-secret` (same value as env).  
+- Loads **all enabled** templates org-wide, then runs materialization for each due period.
 
-**Validation**:
-- Verifies selected users still report to the manager
-- Verifies selected users are in the same organization
-- Skips task creation if no valid members found
+**B) Instant bootstrap (create only)** — `POST /api/manager/periodic-tasks/materialize`  
+- After an **enabled** template is **created**, the UI calls this route with `{ "templateId": "<uuid>" }` (session cookie).  
+- Materializes the **current period** if it matches today’s rules (e.g. weekly only on the chosen weekday). **Edit** does not trigger this.  
+- Requires **`SUPABASE_SERVICE_ROLE_KEY`** on the server (same as cron).
+
+**Per-template member resolution** (unchanged):
+1. If `assigned_user_ids` is set and non-empty → only those user IDs, verified still direct reports in the same org.
+2. If `NULL` or empty → all direct reports of the manager.
+3. Skips task creation if no valid members found.
+
+Details: [PERIODIC_TASKS_ARCHITECTURE.md](PERIODIC_TASKS_ARCHITECTURE.md).
 
 ---
 
@@ -177,9 +181,15 @@ The periodic tasks table displays:
    - `components/shared/task-assignment-panel.tsx`
    - Passes `assignableUsers` to periodic tasks tab
 
-5. **Cron Job**
-   - `app/api/cron/periodic-tasks/route.ts`
-   - Conditional logic for selective vs. all member assignment
+5. **Cron route**
+   - `app/api/cron/periodic-tasks/route.ts` — auth + calls shared materialize
+
+6. **Shared materialize + instant API**
+   - `lib/cron/periodic-tasks-materialize.ts`
+   - `app/api/manager/periodic-tasks/materialize/route.ts`
+
+7. **Vercel schedule**
+   - `vercel.json` — Hobby plan: at most once per day (see architecture doc)
 
 ### Type Definitions
 
@@ -211,7 +221,7 @@ export interface ManagerPeriodicTask {
 | Feature | Normal Tasks | Periodic Tasks |
 |---------|-------------|----------------|
 | **Assignment** | Required - must select members | Optional - empty = all members |
-| **When Created** | Immediately on save | By cron job on schedule |
+| **When Created** | Immediately on save | Enabled **create**: instant materialize if the current period is due; then ongoing runs via **cron** (see architecture doc) |
 | **Selection UI** | Checkboxes | Checkboxes (same as normal) |
 | **"All Members" Option** | Admin only (common tasks) | Leave selection empty |
 | **Edit After Creation** | Edit individual task | Edit template (affects future) |
@@ -279,6 +289,28 @@ export interface ManagerPeriodicTask {
 - Click "Clear (assign to all)" button
 - Verify the database shows `NULL` (not `[]`)
 
+### Issue: Cron never runs / `curl` returns HTML “Authentication Required”
+
+**Possible Causes**:
+1. Vercel **Deployment Protection** (SSO) blocks anonymous requests before they reach Next.js
+2. `CRON_SECRET` or `vercel.json` cron not configured on **Production**
+3. Hobby plan: invalid schedule (more than once per day)
+
+**Solution**:
+- See [PERIODIC_TASKS_ARCHITECTURE.md](PERIODIC_TASKS_ARCHITECTURE.md) and Vercel [protection bypass for automation](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation)
+- Confirm **Cron Jobs** in the Vercel project and server logs return JSON `{ "ok": true, ... }`
+
+**Working `curl` against a protected production URL** (use your real host and export both secrets first):
+
+```bash
+export CRON_SECRET='...'   # same as Vercel env CRON_SECRET
+export VERCEL_AUTOMATION_BYPASS_SECRET='...'   # Protection bypass secret from Vercel dashboard
+curl -s \
+  -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  'https://YOUR-PROJECT.vercel.app/api/cron/periodic-tasks'
+```
+
 ---
 
 ## Migration Guide
@@ -301,11 +333,11 @@ export interface ManagerPeriodicTask {
 
 ## API Reference
 
-### Cron Endpoint
+### Cron endpoint
 
 **URL**: `/api/cron/periodic-tasks`  
 **Method**: `GET` or `POST`  
-**Auth**: Requires `CRON_SECRET` header
+**Auth**: `Authorization: Bearer <CRON_SECRET>` or header `x-cron-secret: <CRON_SECRET>`
 
 **Response**:
 ```json
@@ -317,6 +349,29 @@ export interface ManagerPeriodicTask {
   "at": "2026-04-14T10:00:00.000Z"
 }
 ```
+
+### Manager instant materialize (after create)
+
+**URL**: `/api/manager/periodic-tasks/materialize`  
+**Method**: `POST`  
+**Auth**: Logged-in user (session cookie). Caller must be **manager** or **admin** and own the template (`manager_id`).
+
+**Body**:
+```json
+{ "templateId": "uuid-of-manager_periodic_tasks-row" }
+```
+
+**Response** (example):
+```json
+{
+  "ok": true,
+  "templatesProcessed": 1,
+  "taskRowsCreated": 3,
+  "skipped": 0
+}
+```
+
+Server must have **`SUPABASE_SERVICE_ROLE_KEY`** (writes `manager_periodic_dispatches` and `tasks` like cron).
 
 ### Database Queries
 
@@ -399,6 +454,7 @@ Potential improvements for future versions:
 
 ## Related Features
 
+- **[Periodic tasks architecture](PERIODIC_TASKS_ARCHITECTURE.md)**: Cron, instant create, period keys, Vercel Hobby
 - **Normal Task Assignment**: Similar checkbox UI for immediate task creation
 - **Daily Periodic Monthly Rollup**: Numeric daily tasks can roll up to monthly
 - **Task Verification**: Managers verify completed tasks from team members
@@ -416,6 +472,6 @@ For questions or issues:
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: April 14, 2026  
+**Document Version**: 1.1  
+**Last Updated**: April 26, 2026  
 **Feature Status**: Production Ready

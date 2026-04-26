@@ -43,9 +43,26 @@ Add these in Vercel Project Settings > Environment Variables:
 NEXT_PUBLIC_SUPABASE_URL=your_production_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_production_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_production_service_role_key
+CRON_SECRET=<generate e.g. openssl rand -hex 32; required for /api/cron/periodic-tasks and used by Vercel Cron>
 ```
 
 Make sure to add them for all environments (Production, Preview, Development).
+
+#### Periodic tasks (manager templates → employee `tasks`)
+
+- **`vercel.json`** in the app root registers a **production** cron hitting `/api/cron/periodic-tasks`. On **Vercel Hobby**, only **once-per-day** schedules are allowed (see file for the cron expression).
+- **`CRON_SECRET`** must match in Vercel env and in whatever calls the route manually; Vercel Cron sends `Authorization: Bearer <CRON_SECRET>` ([securing cron jobs](https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs)).
+- **`SUPABASE_SERVICE_ROLE_KEY`** is also required for **`POST /api/manager/periodic-tasks/materialize`** (instant assign after creating an enabled periodic template).
+
+**If Deployment Protection (SSO / password) is on:** requests can be blocked at Vercel’s edge before your API runs. Then either:
+
+1. Enable **[Protection bypass for automation](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation)** in the project (add a secret; Vercel may set **`VERCEL_AUTOMATION_BYPASS_SECRET`** on deployments). For **manual `curl`**, send **both** headers:
+   - `x-vercel-protection-bypass: <same secret>`
+   - `Authorization: Bearer <CRON_SECRET>`
+2. Use **`vercel curl`** ([CLI](https://vercel.com/docs/cli/curl)) while authenticated.
+3. Or do not protect **production** (simplest; weakest).
+
+Full reference: [PERIODIC_TASKS_ARCHITECTURE.md](PERIODIC_TASKS_ARCHITECTURE.md).
 
 #### Step 4: Deploy
 
