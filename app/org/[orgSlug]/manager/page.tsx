@@ -1649,9 +1649,19 @@ export default function ManagerPage() {
 
         <TabsContent value="attendance-report" className="space-y-4">
           <Tabs defaultValue="current" className="space-y-4">
-            <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
-              <TabsTrigger value="current">Current ({currentAttendanceReportItems.length})</TabsTrigger>
-              <TabsTrigger value="history">History ({historyAttendanceReportItems.length})</TabsTrigger>
+            <TabsList className="flex h-auto w-full justify-start gap-6 rounded-none border-b border-slate-200 bg-transparent p-0 mb-4">
+              <TabsTrigger 
+                value="current"
+                className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+              >
+                Current ({currentAttendanceReportItems.length})
+              </TabsTrigger>
+              <TabsTrigger 
+                value="history"
+                className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+              >
+                History ({historyAttendanceReportItems.length})
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="current" className="space-y-4">
@@ -1830,11 +1840,19 @@ export default function ManagerPage() {
                 className="min-w-[160px] flex-1 max-w-md"
               />
               <div className="flex items-center gap-3 ml-auto">
-                <TabsList className="option-tablist h-auto shrink-0 rounded-xl bg-slate-100 p-1">
-                  <TabsTrigger value="closure-requests">
+                <TabsList className="flex h-auto justify-start gap-4 rounded-none border-b border-slate-200 bg-transparent p-0">
+                  <TabsTrigger 
+                    value="closure-requests"
+                    className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  >
                     Closure Requests ({filteredClosureRequests.length})
                   </TabsTrigger>
-                  <TabsTrigger value="mistakes-tracker">Mistakes</TabsTrigger>
+                  <TabsTrigger 
+                    value="mistakes-tracker"
+                    className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                  >
+                    Mistakes
+                  </TabsTrigger>
                 </TabsList>
                 <Button type="button" className="shrink-0" onClick={openCreateMistakeDialog}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -2046,9 +2064,19 @@ export default function ManagerPage() {
                 onChange={(e) => setLeavesDateFilter(e.target.value)}
                 className="w-44"
               />
-              <TabsList className="option-tablist h-auto rounded-xl bg-slate-100 p-1">
-                <TabsTrigger value="current">Current ({currentLeaveItems.length})</TabsTrigger>
-                <TabsTrigger value="history">History ({historyLeaveItems.length})</TabsTrigger>
+              <TabsList className="flex h-auto justify-start gap-6 rounded-none border-b border-slate-200 bg-transparent p-0">
+                <TabsTrigger 
+                  value="current"
+                  className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
+                  Current ({currentLeaveItems.length})
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="history"
+                  className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
+                  History ({historyLeaveItems.length})
+                </TabsTrigger>
               </TabsList>
             </div>
 

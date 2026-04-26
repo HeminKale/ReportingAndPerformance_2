@@ -505,14 +505,23 @@ export function TaskAssignmentPanel({
             className="space-y-4"
           >
             <div className="flex w-full flex-wrap items-center gap-3">
-              <TabsList className="flex h-auto flex-wrap gap-1">
-                <TabsTrigger value="current">
+              <TabsList className="flex h-auto justify-start gap-6 rounded-none border-b border-slate-200 bg-transparent p-0">
+                <TabsTrigger 
+                  value="current"
+                  className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
                   Current ({currentAssignmentTasks.length})
                 </TabsTrigger>
-                <TabsTrigger value="history">
+                <TabsTrigger 
+                  value="history"
+                  className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
                   History ({historyAssignmentTasks.length})
                 </TabsTrigger>
-                <TabsTrigger value="periodic">
+                <TabsTrigger 
+                  value="periodic"
+                  className="relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground shadow-none transition-none hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
                   Periodic tasks ({managerPeriodicTasks.length})
                 </TabsTrigger>
               </TabsList>
