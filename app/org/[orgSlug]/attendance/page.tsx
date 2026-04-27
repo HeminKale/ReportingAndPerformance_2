@@ -448,19 +448,17 @@ export default function AttendancePage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="option-surface p-6 md:p-8">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
+          <div className="h-8 w-1/4 rounded-lg bg-muted" />
+          <div className="h-64 rounded-2xl bg-muted" />
         </div>
       </div>
     );
   }
 
-  const { from: rangeFrom, to: rangeTo } = getEffectiveHistoryRange();
   const totalHoursDecimal = sumAttendanceHours(attendanceHistory);
   const totalHoursDisplay = formatTotalHours(totalHoursDecimal);
-  const usingDefaultMonthRange = !historyDateFrom && !historyDateTo;
 
   const attendanceRequestRejected = Boolean(
     attendance?.is_late_request && attendance.approval_status === "rejected"
@@ -469,25 +467,26 @@ export default function AttendancePage() {
     attendanceRequestRejected || attendance?.approval_status === "pending";
 
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col p-8">
-      <div className="mb-6 shrink-0">
-        <h1 className="text-3xl font-bold">Attendance</h1>
+    <div className="option-surface flex min-h-0 w-full flex-1 flex-col gap-6 p-6 md:p-8">
+      <div className="shrink-0">
+        <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
+        <p className="mt-1 text-muted-foreground">Clock in, clock out, and review your hours</p>
       </div>
 
       <div className="grid min-h-0 w-full flex-1 gap-6 md:grid-cols-2 md:items-stretch md:min-h-[calc(100dvh-11rem)]">
-        <Card className="flex h-full min-h-0 flex-col">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle>Clock In/Out</CardTitle>
+        <Card className="flex h-full min-h-0 flex-col rounded-2xl border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-200/40">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-slate-100/80 pb-4">
+            <CardTitle className="text-lg font-semibold">Clock In/Out</CardTitle>
             <CardDescription>
-              {format(new Date(), 'EEEE, MMMM d, yyyy')}
+              {format(new Date(), "EEEE, MMMM d, yyyy")}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col space-y-6">
-            <div className="flex items-center justify-center p-8 bg-muted rounded-lg">
+            <div className="flex items-center justify-center rounded-xl border border-slate-200/80 bg-gradient-to-b from-slate-50/90 to-slate-100/50 p-8 shadow-inner ring-1 ring-slate-200/30">
               <div className="text-center">
-                <Clock className="h-16 w-16 mx-auto mb-4 text-primary" />
-                <div className="text-4xl font-bold mb-2">
-                  {user && formatInUserTimezone(new Date(), user.timezone, 'h:mm:ss a')}
+                <Clock className="mx-auto mb-4 h-16 w-16 text-primary drop-shadow-sm" />
+                <div className="mb-2 text-4xl font-bold tabular-nums tracking-tight text-slate-900">
+                  {user && formatInUserTimezone(new Date(), user.timezone, "h:mm:ss a")}
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {user?.timezone}
@@ -500,8 +499,8 @@ export default function AttendancePage() {
                 <div
                   className={
                     attendanceRequestRejected
-                      ? "flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4"
-                      : "flex items-center justify-between rounded-lg bg-green-50 p-4"
+                      ? "flex items-start justify-between gap-3 rounded-xl border border-amber-200/90 bg-amber-50/90 p-4 shadow-sm ring-1 ring-amber-200/30"
+                      : "flex items-center justify-between rounded-xl border border-emerald-200/70 bg-emerald-50/80 p-4 shadow-sm ring-1 ring-emerald-200/25"
                   }
                 >
                   <div className="flex items-start gap-3">
@@ -557,7 +556,7 @@ export default function AttendancePage() {
                 </div>
 
                 {attendance.clock_out_time ? (
-                  <div className="flex items-center gap-3 rounded-lg bg-blue-50 p-4">
+                  <div className="flex items-center gap-3 rounded-xl border border-sky-200/70 bg-sky-50/80 p-4 shadow-sm ring-1 ring-sky-200/25">
                     <CheckCircle className="h-5 w-5 text-blue-600" />
                     <div>
                       <p className="font-medium">Clocked Out</p>
@@ -570,8 +569,8 @@ export default function AttendancePage() {
                   <Button
                     onClick={handleClockOut}
                     disabled={actionLoading || clockOutDisabledByApproval}
-                    className="w-full"
-                    variant="destructive"
+                    variant="outline"
+                    className="w-full border-destructive/50 bg-transparent text-destructive hover:bg-destructive/10"
                     title={
                       attendanceRequestRejected
                         ? "Clock in/out is not available while your request is rejected for today."
@@ -586,7 +585,8 @@ export default function AttendancePage() {
               <Button
                 onClick={handleClockIn}
                 disabled={actionLoading}
-                className="w-full"
+                variant="outline"
+                className="w-full border-primary/50 bg-transparent text-primary hover:bg-primary/10"
                 size="lg"
               >
                 {actionLoading ? "Processing..." : "Clock In"}
@@ -594,8 +594,8 @@ export default function AttendancePage() {
             )}
 
             {user && isAfterCutoff(user.timezone, clockInCutoff) && !attendance && (
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800">
+              <div className="rounded-xl border border-amber-200/80 bg-amber-50/80 p-4 shadow-sm ring-1 ring-amber-200/25">
+                <p className="text-sm text-amber-900/90">
                   It's past {clockInCutoff}. You'll need to provide a reason for late clock-in.
                 </p>
               </div>
@@ -603,9 +603,9 @@ export default function AttendancePage() {
           </CardContent>
         </Card>
 
-        <Card className="flex h-full min-h-0 flex-col">
-          <CardHeader className="shrink-0">
-            <CardTitle>Attendance History</CardTitle>
+        <Card className="flex h-full min-h-0 flex-col rounded-2xl border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-200/40">
+          <CardHeader className="shrink-0 border-b border-slate-100/80 pb-4">
+            <CardTitle className="text-lg font-semibold">Attendance History</CardTitle>
           </CardHeader>
           <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden pt-0">
             <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
@@ -632,9 +632,11 @@ export default function AttendancePage() {
                 </div>
               </div>
               <div className="flex flex-col items-start gap-1 sm:items-end shrink-0">
-                <div className="inline-flex w-fit max-w-full items-baseline gap-2 rounded-md border border-border px-3 py-1.5">
+                <div className="inline-flex w-fit max-w-full items-baseline gap-2 rounded-lg border border-slate-200/80 bg-slate-50/80 px-3 py-1.5 shadow-sm ring-1 ring-slate-200/30">
                   <span className="text-sm text-muted-foreground">Total Hours:</span>
-                  <span className="text-sm font-medium tabular-nums">{totalHoursDisplay}</span>
+                  <span className="text-sm font-semibold tabular-nums text-slate-900">
+                    {totalHoursDisplay}
+                  </span>
                 </div>
               </div>
             </div>
@@ -646,8 +648,11 @@ export default function AttendancePage() {
             ) : (
               <div className="space-y-3 pb-2">
                 {attendanceHistory.map((item) => (
-                  <div key={item.id} className="border rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-slate-200/80 bg-white/90 p-3.5 shadow-sm transition-shadow hover:shadow-md"
+                  >
+                    <div className="mb-2 flex items-center justify-between">
                       <p className="font-medium">{format(new Date(item.date), "EEE, MMM d, yyyy")}</p>
                       <span className={`text-xs px-2 py-1 rounded ${
                         item.approval_status === "approved"
