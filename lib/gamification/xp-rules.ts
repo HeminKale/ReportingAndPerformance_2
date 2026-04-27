@@ -56,7 +56,7 @@ export const RANK_TIERS: RankTier[] = [
 ];
 
 export function rankForTotalXp(totalXp: number): { rankName: string; nextTier: RankTier | null } {
-  let rankName = "Rookie";
+  let rankName = "Starter";
   let nextTier: RankTier | null = RANK_TIERS[0] ?? null;
   for (const tier of RANK_TIERS) {
     if (totalXp >= tier.minXp) {

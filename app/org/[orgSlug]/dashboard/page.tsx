@@ -217,6 +217,8 @@ export default async function DashboardPage({
               nextGoalXp={nextGoalXp} 
               xpProgressPct={xpProgressPct} 
               nextTierExists={!!nextTier} 
+              rankName={rankName}
+              nextRankName={nextTier?.rankName || null}
             />
             
             {/* Streak Split Card */}
@@ -238,8 +240,13 @@ export default async function DashboardPage({
             <div className="grid grid-cols-4 gap-3">
               {earnedRankTiers.map((tier) => (
                 <div key={tier.id} className="flex flex-col items-center gap-1 group">
-                  <div className="h-12 w-12 flex items-center justify-center rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 shadow-sm text-2xl transition-transform group-hover:scale-110">
-                    {tier.badgeName.split(' ')[0]}
+                  <div className="h-14 w-14 flex items-center justify-center rounded-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-sm transition-transform group-hover:scale-110 overflow-hidden">
+                    <img 
+                      src={`/assets/badges/${tier.rankName}.png`} 
+                      alt={tier.rankName} 
+                      className="h-10 w-10 object-contain"
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                    />
                   </div>
                   <span className="text-[9px] font-bold text-slate-500 text-center leading-tight">{tier.rankName}</span>
                 </div>
