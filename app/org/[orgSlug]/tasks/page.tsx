@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils/cn";
 import type { Task, TaskLog, User } from "@/lib/types/database";
 const TASK_SUB_TAB_LIST = "inline-flex h-auto w-auto flex-wrap items-center justify-start gap-0 rounded-none border-0 bg-transparent p-0";
 const TASK_SUB_TAB_TRIGGER = "rounded-none border-b-2 border-transparent px-4 py-2 text-sm font-semibold text-slate-600 shadow-none transition-colors hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none";
+const ADD_TASK_BUTTON_CLASS =
+  "rounded-xl border-primary/50 bg-transparent px-4 py-2 text-sm font-semibold text-primary shadow-none hover:bg-primary/10";
 
 
 
@@ -408,7 +410,8 @@ export default function TasksPage() {
                   <Button
                     type="button"
                     size="sm"
-                    className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                    variant="outline"
+                    className={ADD_TASK_BUTTON_CLASS}
                     onClick={() => setAddTaskPanelOpen(true)}
                   >
                     + Add Task
@@ -548,7 +551,13 @@ export default function TasksPage() {
                   </TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-2">
-                  <Button type="button" size="sm" className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90" onClick={() => setAddTaskPanelOpen(true)}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className={ADD_TASK_BUTTON_CLASS}
+                    onClick={() => setAddTaskPanelOpen(true)}
+                  >
                     + Add Task
                   </Button>
                   <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50/90 p-1">
@@ -623,7 +632,13 @@ export default function TasksPage() {
                   </TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-2">
-                  <Button type="button" size="sm" className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90" onClick={() => setAddTaskPanelOpen(true)}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className={ADD_TASK_BUTTON_CLASS}
+                    onClick={() => setAddTaskPanelOpen(true)}
+                  >
                     + Add Task
                   </Button>
                   <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50/90 p-1">
