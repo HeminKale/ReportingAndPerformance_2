@@ -536,10 +536,10 @@ export default function AttendancePage() {
     attendanceRequestRejected || attendance?.approval_status === "pending";
 
   return (
-    <div className="option-surface flex min-h-0 w-full flex-1 flex-col gap-4 p-6 md:p-8">
-      <h1 className="shrink-0 text-3xl font-bold tracking-tight">Attendance</h1>
+    <div className="option-surface flex min-h-0 w-full flex-1 flex-col gap-3 pt-4 px-6 pb-6 md:pt-6 md:px-8 md:pb-8">
+      <h1 className="shrink-0 text-2xl font-bold tracking-tight">Attendance</h1>
 
-      <div className="grid min-h-0 w-full flex-1 gap-6 md:grid-cols-2 md:items-stretch md:min-h-[calc(100dvh-9.5rem)]">
+      <div className="grid min-h-0 w-full flex-1 gap-6 md:grid-cols-2 md:items-stretch md:min-h-[calc(100dvh-8rem)]">
         <Card className="flex h-full min-h-0 flex-col rounded-2xl border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-200/40">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-slate-100/80 pb-4">
             <CardTitle className="text-lg font-semibold">Clock In/Out</CardTitle>
@@ -671,42 +671,38 @@ export default function AttendancePage() {
         </Card>
 
         <Card className="flex h-full min-h-0 flex-col rounded-2xl border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-200/40">
-          <CardHeader className="shrink-0 border-b border-slate-100/80 pb-4">
-            <CardTitle className="text-lg font-semibold">Attendance History</CardTitle>
-          </CardHeader>
-          <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden pt-0">
-            <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-              <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
-                <div className="space-y-2">
-                  <Label htmlFor="historyDateFrom">From</Label>
-                  <Input
-                    id="historyDateFrom"
-                    type="date"
-                    value={historyDateFrom}
-                    onChange={(e) => setHistoryDateFrom(e.target.value)}
-                    className="w-full sm:w-40"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="historyDateTo">To</Label>
-                  <Input
-                    id="historyDateTo"
-                    type="date"
-                    value={historyDateTo}
-                    onChange={(e) => setHistoryDateTo(e.target.value)}
-                    className="w-full sm:w-40"
-                  />
-                </div>
+          <CardHeader className="shrink-0 border-b border-slate-100/80 pb-3 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <CardTitle className="text-lg font-semibold shrink-0">History</CardTitle>
+            <div className="flex flex-wrap items-center gap-3 md:justify-end">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="historyDateFrom" className="text-xs text-muted-foreground whitespace-nowrap">From</Label>
+                <Input
+                  id="historyDateFrom"
+                  type="date"
+                  value={historyDateFrom}
+                  onChange={(e) => setHistoryDateFrom(e.target.value)}
+                  className="h-8 w-[120px] text-xs px-2"
+                />
               </div>
-              <div className="flex flex-col items-start gap-1 sm:items-end shrink-0">
-                <div className="inline-flex w-fit max-w-full items-baseline gap-2 rounded-lg border border-slate-200/80 bg-slate-50/80 px-3 py-1.5 shadow-sm ring-1 ring-slate-200/30">
-                  <span className="text-sm text-muted-foreground">Total Hours:</span>
-                  <span className="text-sm font-semibold tabular-nums text-slate-900">
-                    {totalHoursDisplay}
-                  </span>
-                </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="historyDateTo" className="text-xs text-muted-foreground whitespace-nowrap">To</Label>
+                <Input
+                  id="historyDateTo"
+                  type="date"
+                  value={historyDateTo}
+                  onChange={(e) => setHistoryDateTo(e.target.value)}
+                  className="h-8 w-[120px] text-xs px-2"
+                />
+              </div>
+              <div className="inline-flex items-center gap-1.5 rounded-md border border-slate-200/80 bg-slate-50/80 px-2.5 py-1 shadow-sm">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total:</span>
+                <span className="text-xs font-bold tabular-nums text-slate-900 whitespace-nowrap">
+                  {totalHoursDisplay}
+                </span>
               </div>
             </div>
+          </CardHeader>
+          <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden pt-4">
             <div className="min-h-0 flex-1 overflow-y-auto pr-1">
             {attendanceHistory.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
