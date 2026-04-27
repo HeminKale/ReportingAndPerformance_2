@@ -1,6 +1,6 @@
 "use client";
 
-import { useDopamine } from "@/components/dashboard/animation-manager";
+
 import { perTaskAssignmentXp } from "@/lib/gamification/xp-rules";
 import type { Task, TaskLog, TaskPriority } from "@/lib/types/database";
 
@@ -13,23 +13,17 @@ export function TaskListItem({
   log: TaskLog | null | undefined;
   dotColor: string;
 }) {
-  const { triggerXpGain } = useDopamine();
 
   const isApproved = log?.verification_status === "approved";
 
   const priority = (task.priority ?? "medium") as TaskPriority;
   const taskXp = perTaskAssignmentXp(priority, task.assignment_xp_override);
 
-  const handleClick = (e: React.MouseEvent) => {
-    if (!isApproved) {
-      triggerXpGain(e.clientX, e.clientY, taskXp);
-    }
-  };
+
 
   return (
     <div
-      onClick={handleClick}
-      className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white/80 p-4 shadow-sm transition-colors hover:border-blue-100 group"
+      className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white/80 p-4 shadow-sm transition-colors hover:border-blue-100 group"
     >
       <div className="flex min-w-0 flex-1 items-center gap-4">
         <div

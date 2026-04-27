@@ -21,17 +21,30 @@ export function MonthlyCelebration({
   const supabase = createClient();
 
   useEffect(() => {
-    // Only show if top performer AND they haven't seen it yet for this month
-    if (isTopPerformer && month && !celebrationSeenAt && leaderboardId) {
+    // Use a local storage key as a fallback in case the database update fails or is slow
+    const localSeenKey = `celebration-seen-${leaderboardId}`;
+    const hasSeenLocally = typeof window !== 'undefined' && localStorage.getItem(localSeenKey);
+
+    // Only show if top performer AND they haven't seen it yet for this month (DB or locally)
+    if (isTopPerformer && month && !celebrationSeenAt && leaderboardId && !hasSeenLocally) {
       setShow(true);
       triggerLevelUp("Member", "Top Performer of the Month!");
       
+      // Immediately set local storage to prevent double-firing on hot reload or fast navigation
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(localSeenKey, 'true');
+      }
+
       // Mark as seen in database
       const markAsSeen = async () => {
-        await supabase
-          .from('leaderboard')
-          .update({ celebration_seen_at: new Date().toISOString() })
-          .eq('id', leaderboardId);
+        try {
+          await supabase
+            .from('leaderboard')
+            .update({ celebration_seen_at: new Date().toISOString() })
+            .eq('id', leaderboardId);
+        } catch (e) {
+          console.error("Failed to mark celebration as seen", e);
+        }
       };
       
       markAsSeen();
