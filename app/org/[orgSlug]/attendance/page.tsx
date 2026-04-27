@@ -467,13 +467,10 @@ export default function AttendancePage() {
     attendanceRequestRejected || attendance?.approval_status === "pending";
 
   return (
-    <div className="option-surface flex min-h-0 w-full flex-1 flex-col gap-6 p-6 md:p-8">
-      <div className="shrink-0">
-        <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
-        <p className="mt-1 text-muted-foreground">Clock in, clock out, and review your hours</p>
-      </div>
+    <div className="option-surface flex min-h-0 w-full flex-1 flex-col gap-4 p-6 md:p-8">
+      <h1 className="shrink-0 text-3xl font-bold tracking-tight">Attendance</h1>
 
-      <div className="grid min-h-0 w-full flex-1 gap-6 md:grid-cols-2 md:items-stretch md:min-h-[calc(100dvh-11rem)]">
+      <div className="grid min-h-0 w-full flex-1 gap-6 md:grid-cols-2 md:items-stretch md:min-h-[calc(100dvh-9.5rem)]">
         <Card className="flex h-full min-h-0 flex-col rounded-2xl border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-200/40">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-slate-100/80 pb-4">
             <CardTitle className="text-lg font-semibold">Clock In/Out</CardTitle>

@@ -204,13 +204,8 @@ export default function LeavesPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Leave Management</h1>
-          <p className="text-muted-foreground">
-            Request and manage your leaves
-          </p>
-        </div>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h1 className="text-3xl font-bold">Leave Management</h1>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Request Leave
