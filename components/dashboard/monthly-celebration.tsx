@@ -3,40 +3,58 @@
 import { useEffect, useState } from "react";
 import { useDopamine } from "./animation-manager";
 import { Trophy, Star } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 export function MonthlyCelebration({ 
   isTopPerformer, 
-  month 
+  month,
+  celebrationSeenAt,
+  leaderboardId
 }: { 
   isTopPerformer: boolean; 
-  month: string 
+  month: string;
+  celebrationSeenAt: string | null;
+  leaderboardId?: string;
 }) {
   const { triggerLevelUp } = useDopamine();
   const [show, setShow] = useState(false);
+  const supabase = createClient();
 
   useEffect(() => {
-    if (isTopPerformer && month) {
-      const key = `celebration-seen-${month}`;
-      const seen = localStorage.getItem(key);
-      if (!seen) {
-        setShow(true);
-        triggerLevelUp("Member", "Top Performer of the Month!");
-        localStorage.setItem(key, "true");
-        
-        // Custom celebration flourish
-        const interval = setInterval(() => {
-          window.dispatchEvent(new CustomEvent("taskos-xp-ripple", { detail: { amount: 100 } }));
-        }, 500);
-        
-        setTimeout(() => {
-          clearInterval(interval);
-          setShow(false);
-        }, 5000);
-      }
+    // Only show if top performer AND they haven't seen it yet for this month
+    if (isTopPerformer && month && !celebrationSeenAt && leaderboardId) {
+      setShow(true);
+      triggerLevelUp("Member", "Top Performer of the Month!");
+      
+      // Mark as seen in database
+      const markAsSeen = async () => {
+        await supabase
+          .from('leaderboard')
+          .update({ celebration_seen_at: new Date().toISOString() })
+          .eq('id', leaderboardId);
+      };
+      
+      markAsSeen();
+      
+      // Custom celebration flourish
+      const interval = setInterval(() => {
+        window.dispatchEvent(new CustomEvent("taskos-xp-ripple", { detail: { amount: 100 } }));
+      }, 500);
+      
+      setTimeout(() => {
+        clearInterval(interval);
+        setShow(false);
+      }, 5000);
     }
-  }, [isTopPerformer, month]);
+  }, [isTopPerformer, month, celebrationSeenAt, leaderboardId]);
 
   if (!show) return null;
+
+  // Robust date parsing for "YYYY-MM" or "YYYY-MM-DD"
+  const dateObj = new Date(month.includes('-') && month.split('-').length === 2 ? month + "-01" : month);
+  const formattedDate = isNaN(dateObj.getTime()) 
+    ? "the Month" 
+    : dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[110] flex items-center justify-center bg-yellow-400/10 backdrop-blur-md animate-in fade-in duration-1000">
@@ -50,7 +68,7 @@ export function MonthlyCelebration({
           CONGRATULATIONS!
         </h1>
         <p className="mt-4 text-2xl font-bold text-slate-800">
-          You are the #1 Performer for {new Date(month + "-01").toLocaleString('default', { month: 'long', year: 'numeric' })}!
+          You are the #1 Performer for {formattedDate}!
         </p>
       </div>
     </div>

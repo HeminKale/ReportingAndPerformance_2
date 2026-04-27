@@ -488,7 +488,20 @@
     animation: ghost-evaporate 2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
   }
 
-  .animate-float-up {
-    animation: float-up-fade 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  @keyframes clock-rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .animate-clock-hour {
+    animation: clock-rotate 43200s linear infinite;
+  }
+
+  .animate-clock-minute {
+    animation: clock-rotate 3600s linear infinite;
+  }
+
+  .animate-clock-second {
+    animation: clock-rotate 60s linear infinite;
   }
 }

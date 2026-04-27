@@ -101,7 +101,7 @@ export default async function DashboardPage({
   // Get the most recent month's ranking
   const { data: leaderboardEntry } = await supabase
     .from('leaderboard')
-    .select('rank, month')
+    .select('rank, month, celebration_seen_at')
     .eq('user_id', user.id)
     .order('month', { ascending: false })
     .limit(1)
@@ -109,6 +109,7 @@ export default async function DashboardPage({
 
   const isTopPerformer = leaderboardEntry?.rank === 1;
   const latestRankingMonth = leaderboardEntry?.month || '';
+  const celebrationSeenAt = leaderboardEntry?.celebration_seen_at || null;
 
   // Fetch Gamification
   const { data: gamification } = await supabase
@@ -159,7 +160,12 @@ export default async function DashboardPage({
 
   return (
     <div className="relative min-h-full pb-12">
-      <MonthlyCelebration isTopPerformer={isTopPerformer} month={latestRankingMonth} />
+      <MonthlyCelebration 
+        isTopPerformer={isTopPerformer} 
+        month={latestRankingMonth} 
+        celebrationSeenAt={celebrationSeenAt}
+        leaderboardId={leaderboardEntry?.id}
+      />
       <DashboardSkyBg currentHour={currentHour} />
       
       <div className="mx-auto flex w-full max-w-[1600px] flex-col md:flex-row relative z-10 gap-8">
@@ -170,17 +176,19 @@ export default async function DashboardPage({
           <div className="relative flex flex-col rounded-[2.5rem] bg-white/80 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.08)] p-8 pt-16">
             
             {/* Circular Placeholder */}
-            <div className="absolute top-0 left-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full border-[6px] border-white bg-slate-100 shadow-xl backdrop-blur-sm">
+            <div className="absolute top-0 left-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 z-20">
               {isTopPerformer && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20 animate-bounce">
-                  <Crown className="h-8 w-8 text-yellow-500 fill-yellow-500 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]" />
+                <div className="absolute -top-7 left-1/2 -translate-x-1/2 z-30 animate-bounce">
+                  <Crown className="h-10 w-10 text-yellow-500 fill-yellow-500 drop-shadow-[0_0_15px_rgba(234,179,8,0.6)]" />
                 </div>
               )}
-              <img 
-                src={profilePhotoUrl} 
-                alt="Profile" 
-                className="h-full w-full object-cover"
-              />
+              <div className="h-full w-full overflow-hidden rounded-full border-[4px] border-white bg-slate-100 shadow-xl backdrop-blur-sm">
+                <img 
+                  src={profilePhotoUrl} 
+                  alt="Profile" 
+                  className="h-full w-full object-cover"
+                />
+              </div>
             </div>
 
             {/* Greeting & Profile Info */}

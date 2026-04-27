@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
 import { format, parse, parseISO, startOfMonth } from "date-fns";
 import { getCurrentTimeInTimezone, isAfterCutoff, formatInUserTimezone } from "@/lib/utils/timezone";
-import { AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, Star } from "lucide-react";
 import type { Attendance, TaskLog, User } from "@/lib/types/database";
 import {
   getLogForTaskDate,
@@ -43,6 +43,75 @@ function formatTotalHours(decimalHours: number): string {
     return `${h}h`;
   }
   return `${h}h ${m}m`;
+}
+
+function AnimatedClock({ timezone }: { timezone: string }) {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Calculate rotations based on current time in the given timezone
+  const getRotations = () => {
+    const zonedTime = new Date(new Date().toLocaleString("en-US", { timeZone: timezone }));
+    const seconds = zonedTime.getSeconds();
+    const minutes = zonedTime.getMinutes();
+    const hours = zonedTime.getHours() % 12;
+
+    return {
+      sec: seconds * 6,
+      min: minutes * 6 + seconds * 0.1,
+      hour: hours * 30 + minutes * 0.5,
+    };
+  };
+
+  const { sec, min, hour } = getRotations();
+
+  return (
+    <div className="relative mx-auto mb-6 h-32 w-32 flex items-center justify-center rounded-full border-[3px] border-white/80 bg-white/40 backdrop-blur-md shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),inset_0_2px_10px_rgba(255,255,255,1)] ring-1 ring-slate-200/50">
+      {/* Clock Face Details */}
+      {[...Array(12)].map((_, i) => (
+        <div
+          key={i}
+          className="absolute w-0.5 bg-slate-300"
+          style={{
+            height: i % 3 === 0 ? '8px' : '4px',
+            transform: `rotate(${i * 30}deg)`,
+            top: i % 3 === 0 ? '4px' : '6px',
+            transformOrigin: '50% 60px',
+          }}
+        />
+      ))}
+
+      {/* Hour Hand */}
+      <div 
+        className="absolute w-1 h-10 bg-slate-800 rounded-full origin-bottom shadow-sm transition-transform duration-500 ease-out"
+        style={{ bottom: '50%', transform: `rotate(${hour}deg)` }}
+      />
+      
+      {/* Minute Hand */}
+      <div 
+        className="absolute w-1 h-14 bg-slate-500 rounded-full origin-bottom shadow-sm transition-transform duration-500 ease-out"
+        style={{ bottom: '50%', transform: `rotate(${min}deg)` }}
+      />
+      
+      {/* Second Hand */}
+      <div 
+        className="absolute w-0.5 h-16 bg-red-500 rounded-full origin-bottom shadow-xs transition-transform duration-100 linear"
+        style={{ bottom: '50%', transform: `rotate(${sec}deg)` }}
+      />
+      
+      {/* Center Pin */}
+      <div className="absolute h-2.5 w-2.5 rounded-full bg-slate-900 border-2 border-white shadow-sm z-10" />
+      
+      {/* Outer Glow */}
+      <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-primary/5 to-transparent pointer-events-none" />
+    </div>
+  );
 }
 
 export default function AttendancePage() {
@@ -479,15 +548,16 @@ export default function AttendancePage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col space-y-6">
-            <div className="flex items-center justify-center rounded-xl border border-slate-200/80 bg-gradient-to-b from-slate-50/90 to-slate-100/50 p-8 shadow-inner ring-1 ring-slate-200/30">
+            <div className="flex items-center justify-center rounded-2xl border border-white/60 bg-gradient-to-b from-white/80 to-slate-50/50 p-10 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.05),inset_0_2px_10px_rgba(255,255,255,0.8)] backdrop-blur-sm ring-1 ring-white/40">
               <div className="text-center">
-                <Clock className="mx-auto mb-4 h-16 w-16 text-primary drop-shadow-sm" />
-                <div className="mb-2 text-4xl font-bold tabular-nums tracking-tight text-slate-900">
+                {user && <AnimatedClock timezone={user.timezone || 'Asia/Kolkata'} />}
+                <div className="mb-2 text-4xl font-black tabular-nums tracking-tighter text-slate-900 drop-shadow-sm">
                   {user && formatInUserTimezone(new Date(), user.timezone, "h:mm:ss a")}
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {user?.timezone}
-                </p>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100/80 border border-slate-200/50 text-[10px] font-bold uppercase tracking-widest text-slate-500 shadow-sm">
+                   <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
+                   {user?.timezone}
+                </div>
               </div>
             </div>
 
