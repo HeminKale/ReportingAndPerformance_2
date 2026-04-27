@@ -20,7 +20,7 @@ export function XpProgressBar({ totalXp, nextGoalXp, xpProgressPct, nextTierExis
   const [animatedPct, setAnimatedPct] = useState(xpProgressPct);
 
   // Hook to track previous values
-  const prevXpRef = useRef<number>();
+  const prevXpRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     prevXpRef.current = totalXp;
   }, [totalXp]);
