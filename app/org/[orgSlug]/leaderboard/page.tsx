@@ -106,14 +106,20 @@ export default function LeaderboardPage() {
     }
 
     const firstDay = `${selectedMonth}-01`;
-    const { data } = await supabase
+    // `leaderboard` has two FKs to `users` (user_id, decided_by); unqualified `users(*)` is ambiguous and can fail in PostgREST.
+    const { data, error } = await supabase
       .from("leaderboard")
-      .select("*, users(*)")
+      .select("*, users!user_id(*)")
       .eq("organization_id", userData?.organization_id)
       .eq("month", firstDay)
       .order("rank", { ascending: true });
 
-    setLeaderboard((data as any) || []);
+    if (error) {
+      console.error("[Leaderboard] monthly fetch:", error);
+      setLeaderboard([]);
+    } else {
+      setLeaderboard((data as any) || []);
+    }
     setLoading(false);
   };
 

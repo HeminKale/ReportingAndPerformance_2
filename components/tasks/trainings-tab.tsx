@@ -140,10 +140,10 @@ export function TrainingsTab({ user }: { user: User | null }) {
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
             <Button
-              variant="ghost"
-              className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 font-semibold"
+              variant="outline"
+              className="border-primary/50 bg-transparent font-semibold text-primary hover:bg-primary/10"
             >
-              + Add Training
+              + New Training
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">

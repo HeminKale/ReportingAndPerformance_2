@@ -212,9 +212,9 @@ export function EnquiriesTab({ user }: { user: User | null }) {
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
               <Button
-                variant="ghost"
+                variant="outline"
                 onClick={handleOpenNew}
-                className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 font-semibold"
+                className="border-primary/50 bg-transparent font-semibold text-primary hover:bg-primary/10"
               >
                 + New Enquiry
               </Button>
