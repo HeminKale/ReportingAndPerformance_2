@@ -211,9 +211,6 @@ export default function LeaderboardPage() {
           <h1 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 drop-shadow-sm mb-3">
             Hall of Fame
           </h1>
-          <p className="text-slate-600 font-medium max-w-lg mx-auto">
-            Celebrating excellence and commitment. Our top performers for the month.
-          </p>
         </div>
 
         <Tabs defaultValue="monthly" className="space-y-8">
@@ -231,13 +228,25 @@ export default function LeaderboardPage() {
                  <p className="text-slate-700 font-bold">Rankings for {displayMonth}</p>
               </div>
               <div className="flex items-center gap-2">
-                <Input
-                  type="month"
-                  className="w-44 bg-white/80 rounded-xl border-slate-200 focus:ring-blue-500"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                />
-              </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-44 bg-white/80 rounded-xl border-slate-200 flex justify-between px-4 font-bold text-slate-700">
+                    {displayMonth}
+                    <CalendarIcon className="h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2 rounded-2xl bg-white/90 backdrop-blur-xl border-slate-200 shadow-xl" align="end">
+                  <div className="grid grid-cols-1 gap-2">
+                     <Input
+                        type="month"
+                        className="border-none bg-slate-50 rounded-xl focus-visible:ring-0"
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                      />
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
             </div>
 
             {loading ? (
@@ -413,18 +422,20 @@ export default function LeaderboardPage() {
                        <p className="font-bold text-slate-800">{user.full_name}</p>
                        <p className="text-xs text-slate-500 truncate">{rating?.comments || "Consistent performance."}</p>
                     </div>
-                    <div className="flex-shrink-0">
-                      {rating ? (
-                        <Badge className={cn(
-                          "px-3 py-1 font-bold rounded-full",
-                          rating.performance === 'excellent' && "bg-emerald-100 text-emerald-700 border-emerald-200",
-                          rating.performance === 'very_good' && "bg-blue-100 text-blue-700 border-blue-200",
-                          rating.performance === 'good' && "bg-sky-100 text-sky-700 border-sky-200",
-                          rating.performance === 'average' && "bg-slate-100 text-slate-700 border-slate-200",
-                          (rating.performance === 'poor' || rating.performance === 'very_poor') && "bg-red-100 text-red-700 border-red-200"
-                        )}>{dailyPerformanceLabel(rating.performance)}</Badge>
-                      ) : <Badge variant="outline" className="text-slate-300 border-slate-200">Pending</Badge>}
-                    </div>
+                      <div className="flex-shrink-0">
+                        {rating ? (
+                          <Badge className={cn(
+                            "px-4 py-1.5 font-black rounded-full text-xs tracking-wider shadow-sm border-2 uppercase",
+                            rating.performance === 'excellent' && "bg-emerald-500 text-white border-emerald-400 hover:bg-emerald-600 shadow-emerald-200",
+                            rating.performance === 'very_good' && "bg-blue-500 text-white border-blue-400 hover:bg-blue-600 shadow-blue-200",
+                            rating.performance === 'good' && "bg-sky-500 text-white border-sky-400 hover:bg-sky-600 shadow-sky-200",
+                            rating.performance === 'average' && "bg-slate-500 text-white border-slate-400 hover:bg-slate-600 shadow-slate-200",
+                            (rating.performance === 'poor' || rating.performance === 'very_poor') && "bg-red-500 text-white border-red-400 hover:bg-red-600 shadow-red-200"
+                          )}>
+                            {dailyPerformanceLabel(rating.performance)}
+                          </Badge>
+                        ) : <Badge variant="outline" className="text-slate-300 border-slate-200 px-4 py-1.5">Pending</Badge>}
+                      </div>
                   </div>
                 ))}
               </div>
