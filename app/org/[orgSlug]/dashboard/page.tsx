@@ -101,7 +101,7 @@ export default async function DashboardPage({
   // Get the most recent month's ranking
   const { data: leaderboardEntry } = await supabase
     .from('leaderboard')
-    .select('rank, month, celebration_seen_at')
+    .select('id, rank, month, celebration_seen_at')
     .eq('user_id', user.id)
     .order('month', { ascending: false })
     .limit(1)
