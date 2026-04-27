@@ -45,16 +45,13 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="option-surface min-h-screen p-4 md:p-6 lg:p-8">
-      <div className="max-w-[1600px] mx-auto space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Calendar</h1>
-          <p className="text-muted-foreground mt-1">
-            Leaves, attendance, and task completion by day
-          </p>
-        </div>
+    <div className="option-surface flex min-h-screen flex-1 flex-col p-4 md:p-6 lg:p-8">
+      <div className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-4">
+        <h1 className="shrink-0 text-3xl font-bold tracking-tight">Calendar</h1>
 
-        <EmployeeCalendarPanel subjectUserId={subjectUserId} />
+        <div className="w-full min-h-[calc(100dvh-7.5rem)] flex-1 md:min-h-[calc(100dvh-6.5rem)]">
+          <EmployeeCalendarPanel subjectUserId={subjectUserId} />
+        </div>
       </div>
     </div>
   );
