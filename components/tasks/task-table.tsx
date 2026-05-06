@@ -20,9 +20,10 @@ interface TaskTableProps {
   /** Shown in the table body when there are zero rows (headers still visible). */
   emptyMessage?: string;
   hideDueColumn?: boolean;
+  hideFrequencyColumn?: boolean;
 }
 
-export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks found", hideDueColumn = false }: TaskTableProps) {
+export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks found", hideDueColumn = false, hideFrequencyColumn = false }: TaskTableProps) {
   const [openMenuTaskId, setOpenMenuTaskId] = useState<string | null>(null);
 
   const getStatusBadge = (taskLog?: TaskLog) => {
@@ -73,6 +74,7 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
           <TableRow className="bg-slate-50/80">
             <TableHead>Task Name</TableHead>
             <TableHead>Priority</TableHead>
+            {!hideFrequencyColumn && <TableHead>Frequency</TableHead>}
             {!hideDueColumn && <TableHead>Due</TableHead>}
             <TableHead>Status</TableHead>
             <TableHead>Assigned At</TableHead>
@@ -83,7 +85,14 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
         <TableBody>
           {tasks.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={hideDueColumn ? 6 : 7} className="py-12 text-center text-sm text-muted-foreground">
+              <TableCell
+                colSpan={
+                  7 +
+                  (hideDueColumn ? -1 : 0) +
+                  (hideFrequencyColumn ? -1 : 0)
+                }
+                className="py-12 text-center text-sm text-muted-foreground"
+              >
                 {emptyMessage}
               </TableCell>
             </TableRow>
@@ -106,6 +115,11 @@ export function TaskTable({ tasks, onSubmit, onView, emptyMessage = "No tasks fo
                 <TableCell>
                   <PriorityBadge priority={task.priority ?? "medium"} size="sm" />
                 </TableCell>
+                {!hideFrequencyColumn && (
+                  <TableCell className="text-sm text-muted-foreground">
+                    {task.source_manager_periodic_task_id ? "Periodic" : "Once"}
+                  </TableCell>
+                )}
                 {!hideDueColumn && (
                   <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                     {dueDateLabel(task)}

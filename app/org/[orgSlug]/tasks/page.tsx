@@ -36,6 +36,7 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [taskViewMode, setTaskViewMode] = useState<"list" | "board">("list");
   const [taskPeriod, setTaskPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
+  const [taskListScope, setTaskListScope] = useState<"today" | "pastDue">("today");
   const [historyFilters, setHistoryFilters] = useState({
     daily: { date: '', taskName: '' },
     weekly: { date: '', taskName: '' },
@@ -255,6 +256,10 @@ export default function TasksPage() {
   const weeklyFreshTasks = weeklyTasks.filter((t) => !isPendingApprovalTask(t));
   const monthlyFreshTasks = monthlyTasks.filter((t) => !isPendingApprovalTask(t));
 
+  const dailyFreshPastDue = dailyFreshTasks.filter((t) => !isAssignedToday(t));
+  const weeklyFreshPastDue = weeklyFreshTasks.filter((t) => !isAssignedToday(t));
+  const monthlyFreshPastDue = monthlyFreshTasks.filter((t) => !isAssignedToday(t));
+
   const dailyCurrentTodayCount = dailyTasks.filter(isAssignedToday).length;
   const weeklyCurrentTodayCount = weeklyTasks.filter(isAssignedToday).length;
   const monthlyCurrentTodayCount = monthlyTasks.filter(isAssignedToday).length;
@@ -407,6 +412,22 @@ export default function TasksPage() {
                   </TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-2">
+                  <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50/90 p-0.5 text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setTaskListScope("today")}
+                      className={cn("rounded-md px-3 py-1.5 transition-colors", taskListScope === "today" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}
+                    >
+                      Today
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTaskListScope("pastDue")}
+                      className={cn("rounded-md px-3 py-1.5 transition-colors", taskListScope === "pastDue" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}
+                    >
+                      Past due items {dailyFreshPastDue.length > 0 && <span className="ml-1 rounded-full bg-rose-100 px-1.5 text-rose-700">{dailyFreshPastDue.length}</span>}
+                    </button>
+                  </div>
                   <Button
                     type="button"
                     size="sm"
@@ -443,8 +464,14 @@ export default function TasksPage() {
               {/* Current sub-tab */}
               <TabsContent value="current" className="mt-0 data-[state=inactive]:hidden">
                 <div className="flex flex-col gap-4 p-5">
-                  {/* Active Tasks Table */}
-                  <TaskTable tasks={dailyFreshTasks} onSubmit={handleSubmit} onView={handleView} hideDueColumn />
+                  {/* Active Tasks Table — scope-switched */}
+                  <TaskTable
+                    tasks={taskListScope === "pastDue" ? dailyFreshPastDue : dailyFreshTasks}
+                    onSubmit={handleSubmit}
+                    onView={handleView}
+                    hideDueColumn
+                    emptyMessage={taskListScope === "pastDue" ? "No past due items — great job staying on top of things!" : "No tasks for today."}
+                  />
 
                   {/* Monthly Numeric Summary cards */}
                   {dailyFreshTasks.some((t) => t.is_numeric_task && t.linked_monthly_task_id) && user && (
@@ -551,6 +578,22 @@ export default function TasksPage() {
                   </TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-2">
+                  <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50/90 p-0.5 text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setTaskListScope("today")}
+                      className={cn("rounded-md px-3 py-1.5 transition-colors", taskListScope === "today" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}
+                    >
+                      Today
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTaskListScope("pastDue")}
+                      className={cn("rounded-md px-3 py-1.5 transition-colors", taskListScope === "pastDue" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}
+                    >
+                      Past due items {weeklyFreshPastDue.length > 0 && <span className="ml-1 rounded-full bg-rose-100 px-1.5 text-rose-700">{weeklyFreshPastDue.length}</span>}
+                    </button>
+                  </div>
                   <Button
                     type="button"
                     size="sm"
@@ -570,7 +613,12 @@ export default function TasksPage() {
 
               <TabsContent value="current" className="mt-0 data-[state=inactive]:hidden">
                 <div className="flex flex-col gap-4 p-5">
-                  <TaskTable tasks={weeklyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
+                  <TaskTable
+                    tasks={taskListScope === "pastDue" ? weeklyFreshPastDue : weeklyFreshTasks}
+                    onSubmit={handleSubmit}
+                    onView={handleView}
+                    emptyMessage={taskListScope === "pastDue" ? "No past due items — great job staying on top of things!" : "No tasks for today."}
+                  />
 
                   {weeklyPendingApprovalTasks.length > 0 && (
                     <details className="group rounded-xl border border-slate-200 bg-slate-50/50">
@@ -632,6 +680,22 @@ export default function TasksPage() {
                   </TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-2">
+                  <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50/90 p-0.5 text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setTaskListScope("today")}
+                      className={cn("rounded-md px-3 py-1.5 transition-colors", taskListScope === "today" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}
+                    >
+                      Today
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTaskListScope("pastDue")}
+                      className={cn("rounded-md px-3 py-1.5 transition-colors", taskListScope === "pastDue" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}
+                    >
+                      Past due items {monthlyFreshPastDue.length > 0 && <span className="ml-1 rounded-full bg-rose-100 px-1.5 text-rose-700">{monthlyFreshPastDue.length}</span>}
+                    </button>
+                  </div>
                   <Button
                     type="button"
                     size="sm"
@@ -651,7 +715,12 @@ export default function TasksPage() {
 
               <TabsContent value="current" className="mt-0 data-[state=inactive]:hidden">
                 <div className="flex flex-col gap-4 p-5">
-                  <TaskTable tasks={monthlyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
+                  <TaskTable
+                    tasks={taskListScope === "pastDue" ? monthlyFreshPastDue : monthlyFreshTasks}
+                    onSubmit={handleSubmit}
+                    onView={handleView}
+                    emptyMessage={taskListScope === "pastDue" ? "No past due items — great job staying on top of things!" : "No tasks for today."}
+                  />
 
                   {monthlyPendingApprovalTasks.length > 0 && (
                     <details className="group rounded-xl border border-slate-200 bg-slate-50/50">
