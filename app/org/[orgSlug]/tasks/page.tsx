@@ -13,6 +13,7 @@ import { TaskAssignmentPanel } from "@/components/shared/task-assignment-panel";
 import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
 import { getCurrentTimeInTimezone } from "@/lib/utils/timezone";
+import { getTasksDueForUserOnDate } from "@/lib/gamification/due-tasks";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { ChevronDown, Filter, LayoutGrid, List } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
@@ -220,30 +221,27 @@ export default function TasksPage() {
 
   const isAssignedToday = (task: Task) => getAssignedDay(task.created_at) === today;
 
+  /** Same “due today” rules as gamification / dashboard (daily = every day after created_at; weekly DOW; monthly due_date). Weekday uses user TZ, not browser local. */
   const pieChartTasks = useMemo(() => {
-    const currentDayOfWeek = new Date().getDay();
-    return currentTasks.filter((task) => {
-      // Recalled tasks always affect the rings regardless of date
-      if (task.taskLog?.verification_status === "recalled") return true;
+    if (!user) return [];
+    const tz = user.timezone || "Asia/Kolkata";
+    const weekday = getCurrentTimeInTimezone(tz).getDay();
 
-      // Periodic tasks (materialized by cron) and common tasks repeat on a schedule.
-      // Their created_at is the cron run date, which may differ from today due to timezone
-      // offsets or tasks carried over from previous days. Use schedule fields instead.
-      const isScheduled = task.source_manager_periodic_task_id != null || task.is_common_task;
+    const dueToday = getTasksDueForUserOnDate(
+      currentTasks as Task[],
+      user.id,
+      today,
+      weekday
+    );
 
-      if (task.type === "daily") {
-        // All daily scheduled tasks are always due today; one-off tasks only if assigned today
-        return isScheduled || isAssignedToday(task);
+    const byId = new Map(dueToday.map((t) => [t.id, t]));
+    for (const task of currentTasks) {
+      if (task.taskLog?.verification_status === "recalled" && !byId.has(task.id)) {
+        byId.set(task.id, task);
       }
-      if (task.type === "weekly") {
-        return task.day_of_week === currentDayOfWeek || isAssignedToday(task);
-      }
-      if (task.type === "monthly") {
-        return task.due_date === today || isAssignedToday(task);
-      }
-      return false;
-    });
-  }, [currentTasks, today]);
+    }
+    return Array.from(byId.values());
+  }, [currentTasks, today, user]);
 
   // Prepared for Phase 2 (Current/History sub-tabs + history accordion).
   const dailyHistoryTasks = historyTasks.filter(t => t.type === 'daily');
