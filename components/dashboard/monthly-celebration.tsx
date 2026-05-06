@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useDopamine } from "./animation-manager";
 import { Trophy, Star } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 
 export function MonthlyCelebration({ 
   isTopPerformer, 
@@ -18,7 +17,6 @@ export function MonthlyCelebration({
 }) {
   const { triggerLevelUp } = useDopamine();
   const [show, setShow] = useState(false);
-  const supabase = createClient();
 
   useEffect(() => {
     // Use a local storage key as a fallback in case the database update fails or is slow
@@ -38,10 +36,15 @@ export function MonthlyCelebration({
       // Mark as seen in database
       const markAsSeen = async () => {
         try {
-          await supabase
-            .from('leaderboard')
-            .update({ celebration_seen_at: new Date().toISOString() })
-            .eq('id', leaderboardId);
+          const res = await fetch("/api/leaderboard/celebration-seen", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ leaderboardId }),
+          });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            console.error("Failed to mark celebration as seen", data?.error || res.statusText);
+          }
         } catch (e) {
           console.error("Failed to mark celebration as seen", e);
         }
