@@ -221,7 +221,7 @@ export default async function DashboardPage({
   /** Productive work: same windows as streak punctuality — clock-in on/before org cutoff (default 9:15) and clock-out on/after 5 PM. Status only meaningful after clock-out. */
   let productiveWorkComplete = false;
   let productiveWorkStatusLabel = 'Pending';
-  let productiveWorkSubLabel = 'Evaluates after clock-out';
+  let productiveWorkSubLabel = "";
   if (attendance?.clock_out_time && attendance.clock_in_time) {
     const inOk = localHM(attendance.clock_in_time, userTimezone) <= clockInCutoffForQuest;
     const outOk = localHM(attendance.clock_out_time, userTimezone) >= CLOCK_OUT_END;
@@ -388,9 +388,6 @@ export default async function DashboardPage({
               <div className="relative rounded-2xl border border-emerald-100 bg-emerald-50/50 p-5 shadow-sm">
                 <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-bold text-emerald-600 shadow-sm">+{XP_PUNCTUALITY_BUNDLE} XP</div>
                 <p className="font-bold text-emerald-900">Productive work</p>
-                <p className="mt-1 text-xs text-emerald-800/80">
-                  Clock in by {clockInCutoffForQuest} · Clock out at {CLOCK_OUT_END} or later · Status updates when you clock out
-                </p>
                 <div className="mt-3 flex flex-col gap-1">
                    <div className="flex items-center gap-2">
                      {productiveWorkComplete ? (
@@ -401,7 +398,9 @@ export default async function DashboardPage({
                        <><CircleDashed className="h-4 w-4 text-emerald-400" /><span className="text-sm font-bold text-emerald-500">{productiveWorkStatusLabel}</span></>
                      )}
                    </div>
-                   <span className="text-[11px] font-medium text-emerald-800/70">{productiveWorkSubLabel}</span>
+                   {productiveWorkSubLabel ? (
+                     <span className="text-[11px] font-medium text-emerald-800/70">{productiveWorkSubLabel}</span>
+                   ) : null}
                 </div>
               </div>
 
