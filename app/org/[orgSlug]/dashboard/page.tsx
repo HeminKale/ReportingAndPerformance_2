@@ -47,6 +47,9 @@ const clockOutMessages = [
   "Tomorrow is another day, but tonight is yours."
 ];
 
+/** Always refetch Supabase-backed data on each visit (including client nav from other tabs). */
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardPage({
   params,
 }: {
