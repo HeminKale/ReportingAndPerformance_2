@@ -8,6 +8,7 @@ import {
   XP_PUNCTUALITY_BUNDLE,
   XP_PENDING_TASK_EACH,
   XP_ALL_TASKS_COMPLETED_BONUS,
+  XP_ZERO_MISTAKES_BONUS,
   perTaskAssignmentXp,
 } from "@/lib/gamification/xp-rules";
 import {
@@ -161,7 +162,9 @@ export async function runDailyGamificationClose(
     taskXpSum += perTaskAssignmentXp(p, override ?? null);
   }
 
-  const totalXp = punctualityXp + pendingXp + allDoneXp + taskXpSum;
+  const zeroMistakesXp = (mistakes?.length ?? 0) === 0 ? XP_ZERO_MISTAKES_BONUS : 0;
+
+  const totalXp = punctualityXp + pendingXp + allDoneXp + taskXpSum + zeroMistakesXp;
 
   const meta = {
     punctualityXp,
@@ -169,6 +172,7 @@ export async function runDailyGamificationClose(
     pendingXp,
     allDoneXp,
     taskXpSum,
+    zeroMistakesXp,
     streakOk,
   };
 

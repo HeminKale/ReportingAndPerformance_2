@@ -3,7 +3,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { CheckSquare, Sparkles, TrendingUp, CheckCircle2, CircleDashed } from 'lucide-react';
 import { format } from 'date-fns';
 import { getCurrentTimeInTimezone } from '@/lib/utils/timezone';
-import { rankForTotalXp, RANK_TIERS, XP_TRAINING_COMPLETED } from '@/lib/gamification/xp-rules';
+import {
+  rankForTotalXp,
+  RANK_TIERS,
+  XP_TRAINING_COMPLETED,
+  XP_ALL_TASKS_COMPLETED_BONUS,
+  XP_PUNCTUALITY_BUNDLE,
+  XP_ZERO_MISTAKES_BONUS,
+} from '@/lib/gamification/xp-rules';
 import { DashboardSkyBg } from '@/components/dashboard/dashboard-sky-bg';
 import { ScrollableCardList } from '@/components/dashboard/scrollable-card-list';
 import { XpProgressBar } from '@/components/dashboard/xp-progress-bar';
@@ -241,6 +248,7 @@ export default async function DashboardPage({
 
             {/* XP Progress */}
             <XpProgressBar 
+              userId={user.id}
               totalXp={totalXp} 
               nextGoalXp={nextGoalXp} 
               xpProgressPct={xpProgressPct} 
@@ -331,7 +339,7 @@ export default async function DashboardPage({
             <div className="flex flex-col gap-4">
               
               <div className="relative rounded-2xl border border-blue-100 bg-blue-50/50 p-5 shadow-sm">
-                <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-bold text-blue-600 shadow-sm">+8 XP</div>
+                <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-bold text-blue-600 shadow-sm">+{XP_ALL_TASKS_COMPLETED_BONUS} XP</div>
                 <p className="font-bold text-blue-900">Complete today's tasks</p>
                 <div className="mt-3 flex items-center gap-2">
                    {todayQuestPct === 100 ? (
@@ -343,7 +351,7 @@ export default async function DashboardPage({
               </div>
 
               <div className="relative rounded-2xl border border-emerald-100 bg-emerald-50/50 p-5 shadow-sm">
-                <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-bold text-emerald-600 shadow-sm">+5 XP</div>
+                <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-bold text-emerald-600 shadow-sm">+{XP_PUNCTUALITY_BUNDLE} XP</div>
                 <p className="font-bold text-emerald-900">Timely clock in</p>
                 <div className="mt-3 flex items-center gap-2">
                    {attendance?.clock_in_time ? (
@@ -355,7 +363,7 @@ export default async function DashboardPage({
               </div>
 
               <div className="relative rounded-2xl border border-fuchsia-100 bg-fuchsia-50/50 p-5 shadow-sm">
-                <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-bold text-fuchsia-600 shadow-sm">+10 XP</div>
+                <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-bold text-fuchsia-600 shadow-sm">+{XP_ZERO_MISTAKES_BONUS} XP</div>
                 <p className="font-bold text-fuchsia-900">Zero mistakes</p>
                 <div className="mt-3 flex items-center gap-2">
                    <CircleDashed className="h-4 w-4 text-fuchsia-400" /><span className="text-sm font-bold text-fuchsia-500">Evaluating at EOD</span>

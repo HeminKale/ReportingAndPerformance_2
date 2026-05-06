@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { cn } from "@/lib/utils/cn";
+import { useEffect, useRef, useState } from "react";
 import { useDopamine } from "./animation-manager";
 
 interface XpProgressBarProps {
+  userId: string;
   totalXp: number;
   nextGoalXp: number;
   xpProgressPct: number;
@@ -13,81 +13,75 @@ interface XpProgressBarProps {
   nextRankName: string | null;
 }
 
-export function XpProgressBar({ 
-  totalXp, 
-  nextGoalXp, 
-  xpProgressPct, 
+export function XpProgressBar({
+  userId,
+  totalXp,
+  nextGoalXp,
+  xpProgressPct,
   nextTierExists,
   rankName,
-  nextRankName
+  nextRankName,
 }: XpProgressBarProps) {
   const { triggerXpGain, triggerXpLoss } = useDopamine();
 
-  // Use local state to allow visual incrementing
   const [currentXp, setCurrentXp] = useState(totalXp);
   const [isRippling, setIsRippling] = useState(false);
-  const [animatedPct, setAnimatedPct] = useState(xpProgressPct);
+  const [animatedPct, setAnimatedPct] = useState(0);
 
-  // Hook to track previous values
-  const prevXpRef = useRef<number | undefined>(undefined);
-  useEffect(() => {
-    prevXpRef.current = totalXp;
-  }, [totalXp]);
+  // Key is user-scoped so multiple users on the same device don't bleed state.
+  const lsKey = `taskos-xp-last-seen-${userId}`;
 
-  // Handle XP changes from server
+  // Track whether we've already processed the current totalXp on this mount.
+  const processedXpRef = useRef<number | null>(null);
+
+  // On mount + whenever totalXp changes, compare against persisted last-seen.
   useEffect(() => {
-    const prevXp = prevXpRef.current;
-    
-    if (prevXp !== undefined && totalXp !== prevXp) {
-      const delta = totalXp - prevXp;
-      
-      if (delta > 0) {
-        // Trigger gain animation from center
-        triggerXpGain(window.innerWidth / 2, window.innerHeight / 2, delta);
-      } else if (delta < 0) {
-        // Trigger loss animation
-        triggerXpLoss(Math.abs(delta), "Penalty");
-      }
+    if (processedXpRef.current === totalXp) return;
+    processedXpRef.current = totalXp;
+
+    const stored = typeof window !== "undefined" ? localStorage.getItem(lsKey) : null;
+    const lastSeen = stored !== null ? parseInt(stored, 10) : null;
+
+    if (lastSeen === null) {
+      // First visit on this device — seed without animating to avoid a spurious burst.
+      if (typeof window !== "undefined") localStorage.setItem(lsKey, String(totalXp));
+    } else if (totalXp > lastSeen) {
+      const delta = totalXp - lastSeen;
+      triggerXpGain(window.innerWidth / 2, window.innerHeight / 2, delta);
+      if (typeof window !== "undefined") localStorage.setItem(lsKey, String(totalXp));
+    } else if (totalXp < lastSeen) {
+      const delta = lastSeen - totalXp;
+      triggerXpLoss(delta, "Penalty");
+      if (typeof window !== "undefined") localStorage.setItem(lsKey, String(totalXp));
     }
-    
-    // Always sync with the server value
+
     setCurrentXp(totalXp);
-    setAnimatedPct(xpProgressPct);
-  }, [totalXp, xpProgressPct, triggerXpGain, triggerXpLoss]);
+    // Slight delay so the bar grows visibly after mount.
+    setTimeout(() => setAnimatedPct(xpProgressPct), 300);
+  }, [totalXp, xpProgressPct, lsKey, triggerXpGain, triggerXpLoss]);
 
   useEffect(() => {
-    // Initial mount growth animation
-    const timer = setTimeout(() => {
-      setAnimatedPct(xpProgressPct);
-    }, 500);
-
-    const handleRipple = (e: CustomEvent<{ amount: number }>) => {
+    const handleRipple = () => {
       setIsRippling(true);
-      
-      // Only handle the visual ripple effect here, actual state comes from props
       setTimeout(() => setIsRippling(false), 800);
     };
-
-    window.addEventListener("taskos-xp-ripple", handleRipple as EventListener);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("taskos-xp-ripple", handleRipple as EventListener);
-    };
-  }, [xpProgressPct, nextTierExists, nextGoalXp]);
+    window.addEventListener("taskos-xp-ripple", handleRipple);
+    return () => window.removeEventListener("taskos-xp-ripple", handleRipple);
+  }, []);
 
   return (
     <div className="mb-8 flex items-center gap-4">
       {/* Current Badge (Left) */}
       <div className="flex h-14 w-14 shrink-0 items-center justify-center">
         {rankName !== "Starter" ? (
-          <img 
-            src={`/assets/badges/${rankName}.png`} 
-            alt={rankName} 
+          <img
+            src={`/assets/badges/${rankName}.png`}
+            alt={rankName}
             className="h-full w-full object-contain drop-shadow-md"
-            onError={(e) => (e.currentTarget.style.display = 'none')}
+            onError={(e) => (e.currentTarget.style.display = "none")}
           />
         ) : (
-          <div className="h-full w-full" /> 
+          <div className="h-full w-full" />
         )}
       </div>
 
@@ -98,7 +92,6 @@ export function XpProgressBar({
           <span>{nextTierExists ? `${nextGoalXp} XP` : "MAX"}</span>
         </div>
         <div className="relative h-3 overflow-hidden rounded-full bg-slate-200/50 shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] transition-all">
-          {/* ---- Ripple overlay – animated independently to avoid flicker ---- */}
           {isRippling && (
             <div className="pointer-events-none absolute inset-0 z-10 animate-liquid-ripple" />
           )}
@@ -106,7 +99,6 @@ export function XpProgressBar({
             className="h-full rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 shadow-sm transition-all duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)] relative"
             style={{ width: `${animatedPct}%` }}
           >
-            {/* Inner Shimmer effect */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
           </div>
         </div>
@@ -115,11 +107,11 @@ export function XpProgressBar({
       {/* Next Badge (Right) */}
       <div className="flex h-14 w-14 shrink-0 items-center justify-center">
         {nextRankName && (
-          <img 
-            src={`/assets/badges/${nextRankName}_unrevealed.png`} 
-            alt="Next Rank" 
+          <img
+            src={`/assets/badges/${nextRankName}_unrevealed.png`}
+            alt="Next Rank"
             className="h-full w-full object-contain opacity-40 grayscale"
-            onError={(e) => (e.currentTarget.style.display = 'none')}
+            onError={(e) => (e.currentTarget.style.display = "none")}
           />
         )}
       </div>
