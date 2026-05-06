@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckSquare, Sparkles, TrendingUp, CheckCircle2, CircleDashed } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { getCurrentTimeInTimezone } from '@/lib/utils/timezone';
 import {
   rankForTotalXp,
@@ -150,10 +151,15 @@ export default async function DashboardPage({
     .eq('user_id', user.id)
     .maybeSingle();
 
-  // Split tasks into today-assigned vs past-assigned
-  const getAssignedDay = (d: string) => format(new Date(d), 'yyyy-MM-dd');
-  const tasksAssignedToday = (todayTasks || []).filter(t => getAssignedDay(t.created_at) === today);
-  const tasksAssignedPast  = (todayTasks || []).filter(t => getAssignedDay(t.created_at) < today);
+  // Split tasks into today-assigned vs past-assigned (calendar day in user TZ — matches DB `created_at AT TIME ZONE tz`)
+  const getAssignedDayInUserTz = (createdAt: string) =>
+    formatInTimeZone(parseISO(createdAt), userTimezone, 'yyyy-MM-dd');
+  const tasksAssignedToday = (todayTasks || []).filter(
+    (t) => getAssignedDayInUserTz(t.created_at) === today
+  );
+  const tasksAssignedPast = (todayTasks || []).filter(
+    (t) => getAssignedDayInUserTz(t.created_at) < today
+  );
 
   // Fetch logs for past-assigned tasks to detect approved-completion
   const pastTaskIds = tasksAssignedPast.map(t => t.id);
