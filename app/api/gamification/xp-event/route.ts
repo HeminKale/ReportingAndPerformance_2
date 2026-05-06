@@ -75,7 +75,7 @@ export async function POST(request: Request) {
 
     // Verify the caller is a manager/admin in the same org
     const { data: caller } = await admin
-      .from("profiles")
+      .from("users")
       .select("role, organization_id")
       .eq("id", user.id)
       .maybeSingle();
