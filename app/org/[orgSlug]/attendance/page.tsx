@@ -16,7 +16,7 @@ import { AlertTriangle, CheckCircle, Clock, Star } from "lucide-react";
 import type { Attendance, TaskLog, User } from "@/lib/types/database";
 import {
   getLogForTaskDate,
-  getTasksDueForUserOnDate,
+  getTasksDueForClockOutOnDate,
   isApprovedCompletedBefore,
   isTaskLogRejectedOrRecalled,
 } from "@/lib/gamification/due-tasks";
@@ -388,7 +388,7 @@ export default function AttendancePage() {
         .or(`assigned_to.eq.${user.id},is_common_task.eq.true`)
         .eq("is_active", true);
 
-      const dueToday = getTasksDueForUserOnDate(allActiveTasks || [], user.id, today, weekday);
+      const dueToday = getTasksDueForClockOutOnDate(allActiveTasks || [], user.id, today, weekday);
       const dueIds = dueToday.map((t) => t.id);
       const { data: todayTaskLogs } =
         dueIds.length > 0

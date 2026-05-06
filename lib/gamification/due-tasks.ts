@@ -1,4 +1,4 @@
-import { format, parseISO } from "date-fns";
+import { format, getISOWeek, getISOWeekYear, parseISO } from "date-fns";
 import type { Task, TaskLog } from "@/lib/types/database";
 
 /**
@@ -35,6 +35,63 @@ export function getTasksDueForUserOnDate(
   return tasks.filter(
     (t) => taskAppliesToUser(t, userId) && isTaskDueOnDate(t, dateStr, weekday)
   );
+}
+
+function isMaterializedFromPeriodic(task: Task): boolean {
+  return task.source_manager_periodic_task_id != null;
+}
+
+/** yyyy-MM-dd interpreted at midday for stable ISO week (aligned with `periodKeyForTemplate` weekly keys). */
+function isoWeekYearAndWeekForDateStr(dateStr: string): { wy: number; wk: number } {
+  const d = parseISO(`${dateStr}T12:00:00`);
+  return { wy: getISOWeekYear(d), wk: getISOWeek(d) };
+}
+
+function createdCalendarDaySameISOWeekAs(
+  createdAtIso: string,
+  clockOutDateStr: string
+): boolean {
+  const createdDay = format(parseISO(createdAtIso), "yyyy-MM-dd");
+  const a = isoWeekYearAndWeekForDateStr(createdDay);
+  const b = isoWeekYearAndWeekForDateStr(clockOutDateStr);
+  return a.wy === b.wy && a.wk === b.wk;
+}
+
+/**
+ * Tasks that must be satisfied before clock-out for `dateStr`.
+ *
+ * **Base rules** (`isTaskDueOnDate`): dailies due every day from assignment onward; weeklies when
+ * `day_of_week` matches JS `getDay()` (Sun=0); monthlies when `due_date === dateStr` (exact YYYY-MM-DD).
+ *
+ * **Manual tasks** (`source_manager_periodic_task_id` null): no extra row filters — a single weekly
+ * row stays due every matching weekday; a single daily stays due daily.
+ *
+ * **Materialized periodic rows** (cron creates new `tasks` rows per period): without narrowing, many
+ * historical **daily** / **weekly** rows would still match “due today” and block clock-out. We keep only:
+ * - **daily**: row whose `created_at` calendar day equals `dateStr` (today’s instance).
+ * - **weekly**: row whose `created_at` falls in the **same ISO week** as `dateStr` (this week’s instance).
+ * - **monthly**: unchanged — `due_date === dateStr` already selects at most the row for this calendar
+ *   month/day (each materialized month has its own `due_date`).
+ */
+export function getTasksDueForClockOutOnDate(
+  tasks: Task[],
+  userId: string,
+  dateStr: string,
+  weekday: number
+): Task[] {
+  const base = getTasksDueForUserOnDate(tasks, userId, dateStr, weekday);
+  return base.filter((t) => {
+    if (!isMaterializedFromPeriodic(t)) return true;
+
+    if (t.type === "daily") {
+      const createdDay = format(parseISO(t.created_at), "yyyy-MM-dd");
+      return createdDay === dateStr;
+    }
+    if (t.type === "weekly") {
+      return createdCalendarDaySameISOWeekAs(t.created_at, dateStr);
+    }
+    return true;
+  });
 }
 
 /** Log row for this user/task/date (unique in DB; pick latest if multiple). */
