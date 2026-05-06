@@ -53,7 +53,7 @@ export default function ManagerPage() {
   const [historySearchTerm, setHistorySearchTerm] = useState("");
   const [historyDateFilter, setHistoryDateFilter] = useState("");
   const [historyToDateFilter, setHistoryToDateFilter] = useState("");
-  const [managerActiveTab, setManagerActiveTab] = useState("manager-tasks");
+  const [managerActiveTab, setManagerActiveTab] = useState("task-assignment");
   const [tasksSubView, setTasksSubView] = useState<"regular" | "shared" | "history">("regular");
   const [regularEmployeeFilter, setRegularEmployeeFilter] = useState("");
   const [regularTaskFilter, setRegularTaskFilter] = useState("");
@@ -1178,6 +1178,16 @@ export default function ManagerPage() {
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">Manager Panel</h2>
             </div>
             <TabsList className="flex h-auto flex-col gap-1.5 bg-transparent p-0">
+              <TabsTrigger
+                value="task-assignment"
+                className={cn(
+                  "group flex w-full items-center justify-between gap-2 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-300 shadow-none",
+                  "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                  "data-[state=active]:translate-x-1 data-[state=active]:scale-[1.02] data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-[0_8px_16px_-4px_rgba(0,0,0,0.1),0_4px_8px_-2px_rgba(0,0,0,0.05)] data-[state=active]:ring-1 data-[state=active]:ring-slate-200/50"
+                )}
+              >
+                <span>Task Assignment</span>
+              </TabsTrigger>
               <div className="flex w-full flex-col gap-1.5">
                 <TabsTrigger 
                   value="manager-tasks" 
@@ -1249,7 +1259,6 @@ export default function ManagerPage() {
                 { value: "documents", label: "Documents" },
                 { value: "salary", label: "Salary" },
                 { value: "ratings", label: "Employee Ratings" },
-                { value: "task-assignment", label: "Task Assignment" },
               ].map((tab) => (
                 <TabsTrigger 
                   key={tab.value}
