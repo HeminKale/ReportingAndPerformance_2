@@ -10,14 +10,18 @@ import {
   XP_ALL_TASKS_COMPLETED_BONUS,
   XP_PUNCTUALITY_BUNDLE,
   XP_ZERO_MISTAKES_BONUS,
+  CLOCK_OUT_END,
+  STREAK_CLOCK_IN_CUTOFF_DEFAULT,
 } from '@/lib/gamification/xp-rules';
+import { localHM } from '@/lib/calendar/calendar-utils';
+import { streakClockInCutoffFromOrg } from '@/lib/gamification/streak-conditions';
 import { DashboardSkyBg } from '@/components/dashboard/dashboard-sky-bg';
 import { ScrollableCardList } from '@/components/dashboard/scrollable-card-list';
 import { XpProgressBar } from '@/components/dashboard/xp-progress-bar';
 import { MonthlyCelebration } from '@/components/dashboard/monthly-celebration';
 import { DashboardTasksCard } from '@/components/dashboard/dashboard-tasks-card';
 import { ProfilePhotoUpload } from '@/components/dashboard/profile-photo-upload';
-import type { TaskLog } from '@/lib/types/database';
+import type { Organization, TaskLog } from '@/lib/types/database';
 
 const morningMessages = [
   "Let's make today incredibly productive.",
@@ -60,6 +64,18 @@ export default async function DashboardPage({
     .select('*')
     .eq('id', user.id)
     .single();
+
+  let clockInCutoffForQuest = STREAK_CLOCK_IN_CUTOFF_DEFAULT;
+  if (userData?.organization_id) {
+    const { data: orgRow } = await supabase
+      .from('organizations')
+      .select('settings')
+      .eq('id', userData.organization_id)
+      .maybeSingle();
+    clockInCutoffForQuest = streakClockInCutoffFromOrg(
+      (orgRow?.settings ?? null) as Organization['settings'] | null
+    );
+  }
 
   const userTimezone = userData?.timezone || 'Asia/Kolkata';
   const nowUserTime = getCurrentTimeInTimezone(userTimezone);
@@ -199,6 +215,22 @@ export default async function DashboardPage({
   const nextGoalXp = nextTier?.minXp ?? RANK_TIERS[RANK_TIERS.length - 1]!.minXp;
   const xpProgressPct = nextTier && nextGoalXp > 0 ? Math.min(100, Math.round((totalXp / nextGoalXp) * 100)) : 100;
 
+  /** Productive work: same windows as streak punctuality — clock-in on/before org cutoff (default 9:15) and clock-out on/after 5 PM. Status only meaningful after clock-out. */
+  let productiveWorkComplete = false;
+  let productiveWorkStatusLabel = 'Pending';
+  let productiveWorkSubLabel = 'Evaluates after clock-out';
+  if (attendance?.clock_out_time && attendance.clock_in_time) {
+    const inOk = localHM(attendance.clock_in_time, userTimezone) <= clockInCutoffForQuest;
+    const outOk = localHM(attendance.clock_out_time, userTimezone) >= CLOCK_OUT_END;
+    productiveWorkComplete = inOk && outOk;
+    productiveWorkStatusLabel = productiveWorkComplete ? 'Completed' : 'Not met';
+    productiveWorkSubLabel = productiveWorkComplete
+      ? 'On-time arrival and full day'
+      : 'Clock-in or clock-out outside the productive window';
+  } else if (attendance?.clock_out_time) {
+    productiveWorkStatusLabel = 'Not met';
+    productiveWorkSubLabel = 'Clock-in record missing for today';
+  }
 
   return (
     <div className="relative min-h-full pb-12">
@@ -352,13 +384,21 @@ export default async function DashboardPage({
 
               <div className="relative rounded-2xl border border-emerald-100 bg-emerald-50/50 p-5 shadow-sm">
                 <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-bold text-emerald-600 shadow-sm">+{XP_PUNCTUALITY_BUNDLE} XP</div>
-                <p className="font-bold text-emerald-900">Timely clock in</p>
-                <div className="mt-3 flex items-center gap-2">
-                   {attendance?.clock_in_time ? (
-                     <><CheckCircle2 className="h-4 w-4 text-emerald-500" /><span className="text-sm font-bold text-emerald-600">Completed</span></>
-                   ) : (
-                     <><CircleDashed className="h-4 w-4 text-emerald-400" /><span className="text-sm font-bold text-emerald-500">Pending</span></>
-                   )}
+                <p className="font-bold text-emerald-900">Productive work</p>
+                <p className="mt-1 text-xs text-emerald-800/80">
+                  Clock in by {clockInCutoffForQuest} · Clock out at {CLOCK_OUT_END} or later · Status updates when you clock out
+                </p>
+                <div className="mt-3 flex flex-col gap-1">
+                   <div className="flex items-center gap-2">
+                     {productiveWorkComplete ? (
+                       <><CheckCircle2 className="h-4 w-4 text-emerald-500" /><span className="text-sm font-bold text-emerald-600">{productiveWorkStatusLabel}</span></>
+                     ) : productiveWorkStatusLabel === 'Not met' ? (
+                       <><CircleDashed className="h-4 w-4 text-amber-500" /><span className="text-sm font-bold text-amber-700">{productiveWorkStatusLabel}</span></>
+                     ) : (
+                       <><CircleDashed className="h-4 w-4 text-emerald-400" /><span className="text-sm font-bold text-emerald-500">{productiveWorkStatusLabel}</span></>
+                     )}
+                   </div>
+                   <span className="text-[11px] font-medium text-emerald-800/70">{productiveWorkSubLabel}</span>
                 </div>
               </div>
 
