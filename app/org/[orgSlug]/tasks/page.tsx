@@ -220,9 +220,30 @@ export default function TasksPage() {
 
   const isAssignedToday = (task: Task) => getAssignedDay(task.created_at) === today;
 
-  // Pass all active (non-history) tasks to the rings so the denominator always
-  // reflects the true total, including recurring tasks whose created_at predates today.
-  const pieChartTasks = currentTasks;
+  const pieChartTasks = useMemo(() => {
+    const currentDayOfWeek = new Date().getDay();
+    return currentTasks.filter((task) => {
+      // Recalled tasks always affect the rings regardless of date
+      if (task.taskLog?.verification_status === "recalled") return true;
+
+      // Periodic tasks (materialized by cron) and common tasks repeat on a schedule.
+      // Their created_at is the cron run date, which may differ from today due to timezone
+      // offsets or tasks carried over from previous days. Use schedule fields instead.
+      const isScheduled = task.source_manager_periodic_task_id != null || task.is_common_task;
+
+      if (task.type === "daily") {
+        // All daily scheduled tasks are always due today; one-off tasks only if assigned today
+        return isScheduled || isAssignedToday(task);
+      }
+      if (task.type === "weekly") {
+        return task.day_of_week === currentDayOfWeek || isAssignedToday(task);
+      }
+      if (task.type === "monthly") {
+        return task.due_date === today || isAssignedToday(task);
+      }
+      return false;
+    });
+  }, [currentTasks, today]);
 
   // Prepared for Phase 2 (Current/History sub-tabs + history accordion).
   const dailyHistoryTasks = historyTasks.filter(t => t.type === 'daily');
@@ -421,9 +442,14 @@ export default function TasksPage() {
                   <button
                     type="button"
                     onClick={() => setTaskListScope("pastDue")}
-                    className={cn(taskListScope === "pastDue" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE)}
+                    className={cn(taskListScope === "pastDue" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE, "flex items-center gap-1.5")}
                   >
                     Past due items
+                    {dailyFreshPastDue.length > 0 && (
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-100 px-1 text-[10px] font-bold text-rose-700">
+                        {dailyFreshPastDue.length}
+                      </span>
+                    )}
                   </button>
                   <Button
                     type="button"
@@ -590,9 +616,14 @@ export default function TasksPage() {
                   <button
                     type="button"
                     onClick={() => setTaskListScope("pastDue")}
-                    className={cn(taskListScope === "pastDue" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE)}
+                    className={cn(taskListScope === "pastDue" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE, "flex items-center gap-1.5")}
                   >
                     Past due items
+                    {weeklyFreshPastDue.length > 0 && (
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-100 px-1 text-[10px] font-bold text-rose-700">
+                        {weeklyFreshPastDue.length}
+                      </span>
+                    )}
                   </button>
                   <Button
                     type="button"
@@ -695,9 +726,14 @@ export default function TasksPage() {
                   <button
                     type="button"
                     onClick={() => setTaskListScope("pastDue")}
-                    className={cn(taskListScope === "pastDue" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE)}
+                    className={cn(taskListScope === "pastDue" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE, "flex items-center gap-1.5")}
                   >
                     Past due items
+                    {monthlyFreshPastDue.length > 0 && (
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-100 px-1 text-[10px] font-bold text-rose-700">
+                        {monthlyFreshPastDue.length}
+                      </span>
+                    )}
                   </button>
                   <Button
                     type="button"
