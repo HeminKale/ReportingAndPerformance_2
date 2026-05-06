@@ -1270,15 +1270,31 @@ export default function ManagerPage() {
         <TabsContent value="manager-tasks" className="space-y-4">
           {tasksSubView === "regular" && (
             <div className="space-y-4">
-              {/* Toolbar: scope toggle + filters */}
+              {/* Toolbar: filters left, scope toggle right */}
               <div className="flex flex-wrap items-center gap-3">
-                <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50/90 p-0.5 text-xs font-semibold">
+                <div className="flex flex-wrap gap-3 flex-1 min-w-0">
+                  <Input
+                    placeholder="Filter by employee name..."
+                    value={regularEmployeeFilter}
+                    onChange={(e) => setRegularEmployeeFilter(e.target.value)}
+                    className="max-w-xs flex-1 min-w-[160px]"
+                  />
+                  <Input
+                    placeholder="Filter by task name..."
+                    value={regularTaskFilter}
+                    onChange={(e) => setRegularTaskFilter(e.target.value)}
+                    className="max-w-xs flex-1 min-w-[160px]"
+                  />
+                </div>
+                <div className="ml-auto shrink-0 flex items-end gap-6">
                   <button
                     type="button"
                     onClick={() => setRegularTasksScope("today")}
                     className={cn(
-                      "rounded-md px-4 py-1.5 transition-colors",
-                      regularTasksScope === "today" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                      "rounded-none border-b-2 pb-1 text-xs font-semibold transition-colors",
+                      regularTasksScope === "today"
+                        ? "border-[#000435] text-[#000435]"
+                        : "border-transparent text-slate-500 hover:text-slate-800"
                     )}
                   >
                     Today
@@ -1287,25 +1303,15 @@ export default function ManagerPage() {
                     type="button"
                     onClick={() => setRegularTasksScope("all")}
                     className={cn(
-                      "rounded-md px-4 py-1.5 transition-colors",
-                      regularTasksScope === "all" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                      "rounded-none border-b-2 pb-1 text-xs font-semibold transition-colors",
+                      regularTasksScope === "all"
+                        ? "border-[#000435] text-[#000435]"
+                        : "border-transparent text-slate-500 hover:text-slate-800"
                     )}
                   >
                     All
                   </button>
                 </div>
-                <Input
-                  placeholder="Filter by employee name..."
-                  value={regularEmployeeFilter}
-                  onChange={(e) => setRegularEmployeeFilter(e.target.value)}
-                  className="max-w-xs flex-1 min-w-[160px]"
-                />
-                <Input
-                  placeholder="Filter by task name..."
-                  value={regularTaskFilter}
-                  onChange={(e) => setRegularTaskFilter(e.target.value)}
-                  className="max-w-xs flex-1 min-w-[160px]"
-                />
               </div>
 
               {/* Render the active scope */}
@@ -1329,11 +1335,11 @@ export default function ManagerPage() {
                       return (
                         <details key={employeeName} className="group rounded-lg border">
                           <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row items-center gap-3">
-                            <span className="min-w-0 shrink-0 text-left text-sm font-semibold text-slate-800">
+                            <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-slate-800">
                               {employeeName}
                             </span>
-                            <div className="flex min-w-0 flex-1 items-center gap-2" title={`${submittedCount} of ${total} submitted`}>
-                              <div className="relative h-2 min-w-[60px] flex-1 overflow-hidden rounded-full bg-slate-100">
+                            <div className="flex w-1/3 max-w-[33.333%] shrink-0 items-center justify-end gap-2" title={`${submittedCount} of ${total} submitted`}>
+                              <div className="relative h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-100">
                                 <div
                                   className="absolute inset-y-0 left-0 rounded-full bg-emerald-500 transition-all duration-500"
                                   style={{ width: `${progressPct}%` }}
@@ -1342,7 +1348,7 @@ export default function ManagerPage() {
                               <span className="shrink-0 tabular-nums text-xs text-slate-500">{submittedCount}/{total}</span>
                             </div>
                             <ChevronDown
-                              className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                              className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
                               aria-hidden
                             />
                           </summary>

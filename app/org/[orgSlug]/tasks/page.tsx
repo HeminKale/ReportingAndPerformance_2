@@ -21,6 +21,8 @@ const TASK_SUB_TAB_LIST = "inline-flex h-auto w-auto flex-wrap items-center just
 const TASK_SUB_TAB_TRIGGER = "rounded-none border-b-2 border-transparent px-4 py-2 text-sm font-semibold text-slate-600 shadow-none transition-colors hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none";
 const ADD_TASK_BUTTON_CLASS =
   "rounded-xl border-primary/50 bg-transparent px-4 py-2 text-sm font-semibold text-primary shadow-none hover:bg-primary/10";
+const SCOPE_TAB_ACTIVE = "rounded-none border-b-2 border-[#000435] pb-1 text-xs font-semibold text-[#000435] transition-colors";
+const SCOPE_TAB_IDLE = "rounded-none border-b-2 border-transparent pb-1 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-800";
 
 
 
@@ -411,23 +413,21 @@ export default function TasksPage() {
                     History ({dailyHistoryTasks.length})
                   </TabsTrigger>
                 </TabsList>
-                <div className="flex items-center gap-2">
-                  <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50/90 p-0.5 text-xs font-semibold">
-                    <button
-                      type="button"
-                      onClick={() => setTaskListScope("today")}
-                      className={cn("rounded-md px-3 py-1.5 transition-colors", taskListScope === "today" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}
-                    >
-                      Today
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTaskListScope("pastDue")}
-                      className={cn("rounded-md px-3 py-1.5 transition-colors", taskListScope === "pastDue" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}
-                    >
-                      Past due items {dailyFreshPastDue.length > 0 && <span className="ml-1 rounded-full bg-rose-100 px-1.5 text-rose-700">{dailyFreshPastDue.length}</span>}
-                    </button>
-                  </div>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setTaskListScope("today")}
+                    className={cn(taskListScope === "today" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE)}
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTaskListScope("pastDue")}
+                    className={cn(taskListScope === "pastDue" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE)}
+                  >
+                    Past due items {dailyFreshPastDue.length > 0 && <span className="ml-1 rounded-full bg-rose-100 px-1.5 text-rose-700">{dailyFreshPastDue.length}</span>}
+                  </button>
                   <Button
                     type="button"
                     size="sm"
@@ -577,23 +577,21 @@ export default function TasksPage() {
                     History ({weeklyHistoryTasks.length})
                   </TabsTrigger>
                 </TabsList>
-                <div className="flex items-center gap-2">
-                  <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50/90 p-0.5 text-xs font-semibold">
-                    <button
-                      type="button"
-                      onClick={() => setTaskListScope("today")}
-                      className={cn("rounded-md px-3 py-1.5 transition-colors", taskListScope === "today" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}
-                    >
-                      Today
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTaskListScope("pastDue")}
-                      className={cn("rounded-md px-3 py-1.5 transition-colors", taskListScope === "pastDue" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}
-                    >
-                      Past due items {weeklyFreshPastDue.length > 0 && <span className="ml-1 rounded-full bg-rose-100 px-1.5 text-rose-700">{weeklyFreshPastDue.length}</span>}
-                    </button>
-                  </div>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setTaskListScope("today")}
+                    className={cn(taskListScope === "today" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE)}
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTaskListScope("pastDue")}
+                    className={cn(taskListScope === "pastDue" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE)}
+                  >
+                    Past due items {weeklyFreshPastDue.length > 0 && <span className="ml-1 rounded-full bg-rose-100 px-1.5 text-rose-700">{weeklyFreshPastDue.length}</span>}
+                  </button>
                   <Button
                     type="button"
                     size="sm"
@@ -679,23 +677,21 @@ export default function TasksPage() {
                     History ({monthlyHistoryTasks.length})
                   </TabsTrigger>
                 </TabsList>
-                <div className="flex items-center gap-2">
-                  <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50/90 p-0.5 text-xs font-semibold">
-                    <button
-                      type="button"
-                      onClick={() => setTaskListScope("today")}
-                      className={cn("rounded-md px-3 py-1.5 transition-colors", taskListScope === "today" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}
-                    >
-                      Today
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTaskListScope("pastDue")}
-                      className={cn("rounded-md px-3 py-1.5 transition-colors", taskListScope === "pastDue" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800")}
-                    >
-                      Past due items {monthlyFreshPastDue.length > 0 && <span className="ml-1 rounded-full bg-rose-100 px-1.5 text-rose-700">{monthlyFreshPastDue.length}</span>}
-                    </button>
-                  </div>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setTaskListScope("today")}
+                    className={cn(taskListScope === "today" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE)}
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTaskListScope("pastDue")}
+                    className={cn(taskListScope === "pastDue" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE)}
+                  >
+                    Past due items {monthlyFreshPastDue.length > 0 && <span className="ml-1 rounded-full bg-rose-100 px-1.5 text-rose-700">{monthlyFreshPastDue.length}</span>}
+                  </button>
                   <Button
                     type="button"
                     size="sm"
