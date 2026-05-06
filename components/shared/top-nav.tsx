@@ -32,6 +32,7 @@ const navItems = [
   { title: "Trainings", path: "trainings" },
   { title: "Mistakes", path: "mistakes" },
   { title: "Announcements", path: "announcements" },
+  { title: "XP History", path: "xp-history" },
 ];
 
 /** Primary bar shows this many links; additional routes go under "More". */

@@ -258,9 +258,16 @@ export default function TasksPage() {
   const weeklyFreshTasks = weeklyTasks.filter((t) => !isPendingApprovalTask(t));
   const monthlyFreshTasks = monthlyTasks.filter((t) => !isPendingApprovalTask(t));
 
-  const dailyFreshPastDue = dailyFreshTasks.filter((t) => !isAssignedToday(t));
-  const weeklyFreshPastDue = weeklyFreshTasks.filter((t) => !isAssignedToday(t));
-  const monthlyFreshPastDue = monthlyFreshTasks.filter((t) => !isAssignedToday(t));
+  // Today tab: all tasks assigned today regardless of status
+  const dailyTodayTasks = dailyTasks.filter(isAssignedToday);
+  const weeklyTodayTasks = weeklyTasks.filter(isAssignedToday);
+  const monthlyTodayTasks = monthlyTasks.filter(isAssignedToday);
+
+  // Past due tab: tasks assigned before today that are NOT approved_completed
+  // (currentTasks already excludes past approved_completed, so filtering by !isAssignedToday is sufficient)
+  const dailyFreshPastDue = dailyTasks.filter((t) => !isAssignedToday(t));
+  const weeklyFreshPastDue = weeklyTasks.filter((t) => !isAssignedToday(t));
+  const monthlyFreshPastDue = monthlyTasks.filter((t) => !isAssignedToday(t));
 
   const dailyCurrentTodayCount = dailyTasks.filter(isAssignedToday).length;
   const weeklyCurrentTodayCount = weeklyTasks.filter(isAssignedToday).length;
@@ -466,7 +473,7 @@ export default function TasksPage() {
                 <div className="flex flex-col gap-4 p-5">
                   {/* Active Tasks Table — scope-switched */}
                   <TaskTable
-                    tasks={taskListScope === "pastDue" ? dailyFreshPastDue : dailyFreshTasks}
+                    tasks={taskListScope === "pastDue" ? dailyFreshPastDue : dailyTodayTasks}
                     onSubmit={handleSubmit}
                     onView={handleView}
                     hideDueColumn
@@ -612,7 +619,7 @@ export default function TasksPage() {
               <TabsContent value="current" className="mt-0 data-[state=inactive]:hidden">
                 <div className="flex flex-col gap-4 p-5">
                   <TaskTable
-                    tasks={taskListScope === "pastDue" ? weeklyFreshPastDue : weeklyFreshTasks}
+                    tasks={taskListScope === "pastDue" ? weeklyFreshPastDue : weeklyTodayTasks}
                     onSubmit={handleSubmit}
                     onView={handleView}
                     emptyMessage={taskListScope === "pastDue" ? "No past due items — great job staying on top of things!" : "No tasks for today."}
@@ -712,7 +719,7 @@ export default function TasksPage() {
               <TabsContent value="current" className="mt-0 data-[state=inactive]:hidden">
                 <div className="flex flex-col gap-4 p-5">
                   <TaskTable
-                    tasks={taskListScope === "pastDue" ? monthlyFreshPastDue : monthlyFreshTasks}
+                    tasks={taskListScope === "pastDue" ? monthlyFreshPastDue : monthlyTodayTasks}
                     onSubmit={handleSubmit}
                     onView={handleView}
                     emptyMessage={taskListScope === "pastDue" ? "No past due items — great job staying on top of things!" : "No tasks for today."}

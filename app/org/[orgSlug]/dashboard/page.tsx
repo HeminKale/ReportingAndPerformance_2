@@ -1,14 +1,15 @@
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, CheckSquare, Clock, Flame, Sparkles, TrendingUp, ChevronDown, CheckCircle2, CircleDashed, Crown } from 'lucide-react';
+import { CheckSquare, Sparkles, TrendingUp, CheckCircle2, CircleDashed, Crown } from 'lucide-react';
 import { format } from 'date-fns';
 import { getCurrentTimeInTimezone } from '@/lib/utils/timezone';
 import { rankForTotalXp, RANK_TIERS, XP_TRAINING_COMPLETED } from '@/lib/gamification/xp-rules';
 import { DashboardSkyBg } from '@/components/dashboard/dashboard-sky-bg';
 import { ScrollableCardList } from '@/components/dashboard/scrollable-card-list';
 import { XpProgressBar } from '@/components/dashboard/xp-progress-bar';
-import { TaskListItem } from '@/components/dashboard/task-list-item';
 import { MonthlyCelebration } from '@/components/dashboard/monthly-celebration';
+import { DashboardTasksCard } from '@/components/dashboard/dashboard-tasks-card';
+import type { TaskLog } from '@/lib/types/database';
 
 const morningMessages = [
   "Let's make today incredibly productive.",
@@ -118,10 +119,41 @@ export default async function DashboardPage({
     .eq('user_id', user.id)
     .maybeSingle();
 
+  // Split tasks into today-assigned vs past-assigned
+  const getAssignedDay = (d: string) => format(new Date(d), 'yyyy-MM-dd');
+  const tasksAssignedToday = (todayTasks || []).filter(t => getAssignedDay(t.created_at) === today);
+  const tasksAssignedPast  = (todayTasks || []).filter(t => getAssignedDay(t.created_at) < today);
+
+  // Fetch logs for past-assigned tasks to detect approved-completion
+  const pastTaskIds = tasksAssignedPast.map(t => t.id);
+  let pastTaskLogs: TaskLog[] = [];
+  if (pastTaskIds.length > 0) {
+    const { data: pastLogsData } = await supabase
+      .from('task_logs').select('*')
+      .eq('user_id', user.id).in('task_id', pastTaskIds)
+      .order('submitted_at', { ascending: false });
+    pastTaskLogs = pastLogsData || [];
+  }
+
+  // Past due = past-assigned with no approved-completed log
+  const pastDueTasks = tasksAssignedPast.filter(task =>
+    !pastTaskLogs.some(l =>
+      l.task_id === task.id && l.status === 'completed' && l.verification_status === 'approved'
+    )
+  );
+
   // Computations
   const completedTasks = taskLogs?.filter(log => log.status === 'completed').length || 0;
   const totalTasks = todayTasks?.length || 0;
   const completionPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+  // Quest-specific: only today-assigned tasks
+  const todayAssignedCompleted = (taskLogs || []).filter(l =>
+    tasksAssignedToday.some(t => t.id === l.task_id) && l.status === 'completed'
+  ).length;
+  const todayQuestPct = tasksAssignedToday.length > 0
+    ? Math.round((todayAssignedCompleted / tasksAssignedToday.length) * 100)
+    : 0;
   
   const currentHour = nowUserTime.getHours();
   
@@ -155,7 +187,6 @@ export default async function DashboardPage({
   const nextGoalXp = nextTier?.minXp ?? RANK_TIERS[RANK_TIERS.length - 1]!.minXp;
   const xpProgressPct = nextTier && nextGoalXp > 0 ? Math.min(100, Math.round((totalXp / nextGoalXp) * 100)) : 100;
 
-  const displayTasks = todayTasks || [];
   const profilePhotoUrl = profileDoc?.file_url || `https://api.dicebear.com/7.x/notionists/svg?seed=${userData?.full_name || 'Hero'}&backgroundColor=e2e8f0`;
 
   return (
@@ -193,7 +224,7 @@ export default async function DashboardPage({
 
             {/* Greeting & Profile Info */}
             <div className="text-center mb-6">
-              <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-900">{greetingTime}, {userData?.full_name?.split(' ')[0] || "Hero"}</h2>
+              <h2 className="mt-1 text-2xl font-black tracking-tight" style={{ color: '#000435' }}>{greetingTime}, {userData?.full_name?.split(' ')[0] || "Hero"}</h2>
               <p className="text-sm text-slate-600 mt-2 font-medium italic">"{inspiringMessage}"</p>
             </div>
 
@@ -201,12 +232,12 @@ export default async function DashboardPage({
             <div className="grid gap-3 sm:grid-cols-2 mb-6">
               <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 p-4 border border-blue-100/50 text-center shadow-sm">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600/80">Rank</p>
-                <p className="mt-1 text-xl font-extrabold text-blue-950">{rankName}</p>
+                <p className="mt-1 text-xl font-extrabold" style={{ color: '#000435' }}>{rankName}</p>
                 <p className="text-xs text-blue-700/80 mt-1">{currentRankBadge}</p>
               </div>
               <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-100/50 text-center shadow-sm">
                 <CheckSquare className="mx-auto h-4 w-4 text-emerald-500 mb-1" />
-                <p className="text-xl font-extrabold text-emerald-950">{completionPct}%</p>
+                <p className="text-xl font-extrabold" style={{ color: '#000435' }}>{completionPct}%</p>
                 <p className="text-[10px] uppercase font-bold text-emerald-700/70">Completion</p>
               </div>
             </div>
@@ -225,18 +256,18 @@ export default async function DashboardPage({
             <div className="flex bg-slate-50 border border-slate-100 rounded-xl overflow-hidden shadow-sm">
               <div className="flex-1 py-3 text-center border-r border-slate-200">
                 <p className="text-lg font-black text-slate-800">{streakDays}</p>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Current Streak</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#000435' }}>Current Streak</p>
               </div>
               <div className="flex-1 py-3 text-center">
                 <p className="text-lg font-black text-slate-800">{longestStreak}</p>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Longest Streak</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#000435' }}>Longest Streak</p>
               </div>
             </div>
           </div>
 
           {/* Badges Card */}
           <div className="flex flex-col rounded-[2rem] bg-white/80 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.08)] p-6">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700 mb-4 text-center">Badges</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider mb-4 text-center" style={{ color: '#000435' }}>Badges</h3>
             <div className="grid grid-cols-4 gap-3">
               {earnedRankTiers.map((tier) => (
                 <div key={tier.id} className="flex flex-col items-center gap-1 group">
@@ -260,7 +291,7 @@ export default async function DashboardPage({
           {/* Trainings Completed (Now on Left) */}
           <Card className="rounded-[2.5rem] border-white/40 shadow-xl bg-white/70 backdrop-blur-md">
              <CardHeader className="px-8 pt-8">
-               <CardTitle>Trainings Completed</CardTitle>
+               <CardTitle style={{ color: '#000435' }}>Trainings Completed</CardTitle>
                <CardDescription>
                  Your continuous learning progress
                </CardDescription>
@@ -297,7 +328,7 @@ export default async function DashboardPage({
            
            {/* Daily Quests (Now on Right) */}
            <div className="flex flex-col rounded-[2.5rem] bg-white/70 backdrop-blur-md border border-white/40 shadow-xl p-8">
-            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+            <h3 className="text-lg font-bold mb-6 flex items-center gap-2" style={{ color: '#000435' }}>
               <Sparkles className="h-5 w-5 text-amber-500" /> Daily Quests
             </h3>
             <div className="flex flex-col gap-4">
@@ -306,7 +337,7 @@ export default async function DashboardPage({
                 <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-bold text-blue-600 shadow-sm">+8 XP</div>
                 <p className="font-bold text-blue-900">Complete today's tasks</p>
                 <div className="mt-3 flex items-center gap-2">
-                   {completionPct === 100 ? (
+                   {todayQuestPct === 100 ? (
                      <><CheckCircle2 className="h-4 w-4 text-emerald-500" /><span className="text-sm font-bold text-emerald-600">Completed</span></>
                    ) : (
                      <><CircleDashed className="h-4 w-4 text-blue-400" /><span className="text-sm font-bold text-blue-500">In Progress</span></>
@@ -337,39 +368,13 @@ export default async function DashboardPage({
             </div>
           </div>
 
-           {/* Today's Tasks */}
-           <Card className="rounded-[2.5rem] border-white/40 shadow-xl bg-white/70 backdrop-blur-md">
-             <CardHeader className="px-8 pt-8">
-               <CardTitle>Today's Tasks</CardTitle>
-               <CardDescription>
-                 {format(new Date(), 'MMMM d, yyyy')}
-               </CardDescription>
-             </CardHeader>
-             <CardContent className="px-8 pb-8">
-                {displayTasks.length > 0 ? (
-                  <ScrollableCardList maxHeight="400px">
-                    {displayTasks.map((task) => {
-                      const log = taskLogs?.find(l => l.task_id === task.id);
-                      const isCompleted = log?.status === 'completed';
-                      const isApproved = log?.verification_status === 'approved';
-                      const isSubmitted = isCompleted && log?.verification_status === 'pending';
-                      
-                      let dotColor = "bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.5)]";
-                      if (isApproved) dotColor = "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]";
-                      else if (isSubmitted) dotColor = "bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.5)]";
-
-                      return (
-                        <TaskListItem key={task.id} task={task} log={log} dotColor={dotColor} />
-                      );
-                    })}
-                  </ScrollableCardList>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
-                    <p className="text-sm font-medium text-slate-500">No tasks for today. Enjoy the day!</p>
-                  </div>
-                )}
-             </CardContent>
-           </Card>
+           {/* Tasks Card (Today / Past due tabs) */}
+           <DashboardTasksCard
+             tasksAssignedToday={tasksAssignedToday}
+             taskLogsToday={taskLogs || []}
+             pastDueTasks={pastDueTasks}
+             pastTaskLogs={pastTaskLogs}
+           />
            
         </div>
       </div>
