@@ -74,6 +74,7 @@ export default function ManagerPage() {
   const [teamSearchTerm, setTeamSearchTerm] = useState("");
   const [mistakeSearchTerm, setMistakeSearchTerm] = useState("");
   const [expandedMistakeRows, setExpandedMistakeRows] = useState<Set<string>>(new Set());
+  const [expandedAttendanceRowIds, setExpandedAttendanceRowIds] = useState<Set<string>>(new Set());
   const [certGraphEmployeeFilter, setCertGraphEmployeeFilter] = useState("");
   const [certGraphMode, setCertGraphMode] = useState<"daily" | "monthly">("daily");
   const [selectedCertEmployeeIds, setSelectedCertEmployeeIds] = useState<string[]>([]);
@@ -1155,7 +1156,7 @@ export default function ManagerPage() {
           <CardContent>
             <div className="text-2xl font-bold">
               {taskLogs.filter(log => log.verification_status === 'pending').length +
-                attendanceItems.filter(att => att.approval_status === 'pending').length +
+                attendanceItems.filter(att => att.approval_status === 'pending' && getAttendanceDay(att) === today).length +
                 leaveItems.filter(leave => leave.status === 'pending').length}
             </div>
           </CardContent>
@@ -1231,7 +1232,7 @@ export default function ManagerPage() {
               </div>
 
               {[
-                { value: "attendance-report", label: "Attendance Report", count: attendanceItems.filter((att: any) => att.approval_status === 'pending').length },
+                { value: "attendance-report", label: "Attendance Report", count: attendanceItems.filter((att: any) => att.approval_status === 'pending' && getAttendanceDay(att) === today).length },
                 { value: "mistakes", label: "Track Mistakes", count: allMistakes.filter((m: any) => m.closure_request_pending === true).length },
                 { value: "leaves", label: "Leaves", count: leaveItems.filter((leave: any) => leave.status === 'pending').length },
                 { value: "calendar", label: "Calendar" },
@@ -2017,18 +2018,88 @@ export default function ManagerPage() {
                                     <TableHead>Clock Out</TableHead>
                                     <TableHead>Hours</TableHead>
                                     <TableHead>Tasks Complete</TableHead>
+                                    <TableHead>Status / Action</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {items.map((att: any) => (
-                                    <TableRow key={att.id}>
-                                      <TableCell>{format(new Date(att.date), "dd/MM/yyyy")}</TableCell>
-                                      <TableCell>{att.clock_in_time ? format(new Date(att.clock_in_time), "HH:mm") : "-"}</TableCell>
-                                      <TableCell>{att.clock_out_time ? format(new Date(att.clock_out_time), "HH:mm") : "-"}</TableCell>
-                                      <TableCell>{calculateHours(att.clock_in_time, att.clock_out_time)}</TableCell>
-                                      <TableCell>{getTasksCompleteForDate(userId, getAttendanceDay(att))}</TableCell>
-                                    </TableRow>
-                                  ))}
+                                  {items.map((att: any) => {
+                                    const isPending = att.is_late_request && att.approval_status === 'pending';
+                                    const isExpanded = expandedAttendanceRowIds.has(att.id);
+                                    const toggleRow = () =>
+                                      setExpandedAttendanceRowIds((prev) => {
+                                        const next = new Set(prev);
+                                        if (next.has(att.id)) next.delete(att.id);
+                                        else next.add(att.id);
+                                        return next;
+                                      });
+                                    return (
+                                      <Fragment key={att.id}>
+                                        <TableRow>
+                                          <TableCell>{format(new Date(att.date), "dd/MM/yyyy")}</TableCell>
+                                          <TableCell>{att.clock_in_time ? format(new Date(att.clock_in_time), "HH:mm") : "-"}</TableCell>
+                                          <TableCell>{att.clock_out_time ? format(new Date(att.clock_out_time), "HH:mm") : "-"}</TableCell>
+                                          <TableCell>{calculateHours(att.clock_in_time, att.clock_out_time)}</TableCell>
+                                          <TableCell>{getTasksCompleteForDate(userId, getAttendanceDay(att))}</TableCell>
+                                          <TableCell>
+                                            {isPending ? (
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                onClick={toggleRow}
+                                                title="Review late request"
+                                              >
+                                                {isExpanded ? (
+                                                  <ChevronUp className="h-4 w-4" />
+                                                ) : (
+                                                  <ChevronDown className="h-4 w-4 text-amber-600" />
+                                                )}
+                                              </Button>
+                                            ) : (
+                                              <span className="capitalize text-xs text-muted-foreground">
+                                                {att.approval_status}
+                                              </span>
+                                            )}
+                                          </TableCell>
+                                        </TableRow>
+                                        {isPending && isExpanded && (
+                                          <TableRow>
+                                            <TableCell colSpan={6} className="bg-amber-50/50 py-3">
+                                              <div className="flex flex-wrap items-center gap-3 px-2">
+                                                <span className="text-xs font-semibold text-amber-700">
+                                                  Late request — pending approval
+                                                </span>
+                                                {att.late_reason && (
+                                                  <span className="flex-1 text-xs text-muted-foreground">
+                                                    "{att.late_reason}"
+                                                  </span>
+                                                )}
+                                                <Button
+                                                  size="sm"
+                                                  onClick={() => {
+                                                    toggleRow();
+                                                    setActionDialog({ open: true, type: "attendance", item: att, action: "approve" });
+                                                  }}
+                                                >
+                                                  Approve
+                                                </Button>
+                                                <Button
+                                                  size="sm"
+                                                  variant="destructive"
+                                                  onClick={() => {
+                                                    toggleRow();
+                                                    setActionDialog({ open: true, type: "attendance", item: att, action: "reject" });
+                                                  }}
+                                                >
+                                                  Reject
+                                                </Button>
+                                              </div>
+                                            </TableCell>
+                                          </TableRow>
+                                        )}
+                                      </Fragment>
+                                    );
+                                  })}
                                 </TableBody>
                               </Table>
                             </div>

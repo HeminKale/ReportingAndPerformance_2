@@ -21,8 +21,8 @@ const TASK_SUB_TAB_LIST = "inline-flex h-auto w-auto flex-wrap items-center just
 const TASK_SUB_TAB_TRIGGER = "rounded-none border-b-2 border-transparent px-4 py-2 text-sm font-semibold text-slate-600 shadow-none transition-colors hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none";
 const ADD_TASK_BUTTON_CLASS =
   "rounded-xl border-primary/50 bg-transparent px-4 py-2 text-sm font-semibold text-primary shadow-none hover:bg-primary/10";
-const SCOPE_TAB_ACTIVE = "rounded-none border-b-2 border-[#000435] pb-1 text-xs font-semibold text-[#000435] transition-colors";
-const SCOPE_TAB_IDLE = "rounded-none border-b-2 border-transparent pb-1 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-800";
+const SCOPE_TAB_ACTIVE = "relative rounded-none border-b-2 border-primary bg-transparent px-2 pb-3 pt-2 font-medium text-foreground";
+const SCOPE_TAB_IDLE = "relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground hover:text-foreground";
 
 
 
@@ -220,24 +220,9 @@ export default function TasksPage() {
 
   const isAssignedToday = (task: Task) => getAssignedDay(task.created_at) === today;
 
-  const pieChartTasks = useMemo(() => {
-    const currentDayOfWeek = new Date().getDay();
-    return currentTasks.filter((task) => {
-      // Always include recalled tasks regardless of date so they affect the rings
-      if (task.taskLog?.verification_status === "recalled") return true;
-
-      if (task.type === "daily") {
-        return isAssignedToday(task);
-      }
-      if (task.type === "weekly") {
-        return task.day_of_week === currentDayOfWeek || isAssignedToday(task);
-      }
-      if (task.type === "monthly") {
-        return task.due_date === today || isAssignedToday(task);
-      }
-      return false;
-    });
-  }, [currentTasks, today]);
+  // Pass all active (non-history) tasks to the rings so the denominator always
+  // reflects the true total, including recurring tasks whose created_at predates today.
+  const pieChartTasks = currentTasks;
 
   // Prepared for Phase 2 (Current/History sub-tabs + history accordion).
   const dailyHistoryTasks = historyTasks.filter(t => t.type === 'daily');
@@ -414,26 +399,31 @@ export default function TasksPage() {
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
                 <TabsList className={TASK_SUB_TAB_LIST}>
                   <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
-                    Current ({dailyCurrentTodayCount})
+                    Current
                   </TabsTrigger>
                   <TabsTrigger value="history" className={TASK_SUB_TAB_TRIGGER}>
-                    History ({dailyHistoryTasks.length})
+                    History
                   </TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-4">
                   <button
                     type="button"
                     onClick={() => setTaskListScope("today")}
-                    className={cn(taskListScope === "today" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE)}
+                    className={cn(taskListScope === "today" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE, "flex items-center gap-1.5")}
                   >
                     Today
+                    {dailyTodayTasks.length > 0 && (
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-100 px-1 text-[10px] font-bold text-sky-700">
+                        {dailyTodayTasks.length}
+                      </span>
+                    )}
                   </button>
                   <button
                     type="button"
                     onClick={() => setTaskListScope("pastDue")}
                     className={cn(taskListScope === "pastDue" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE)}
                   >
-                    Past due items {dailyFreshPastDue.length > 0 && <span className="ml-1 rounded-full bg-rose-100 px-1.5 text-rose-700">{dailyFreshPastDue.length}</span>}
+                    Past due items
                   </button>
                   <Button
                     type="button"
@@ -578,26 +568,31 @@ export default function TasksPage() {
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
                 <TabsList className={TASK_SUB_TAB_LIST}>
                   <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
-                    Current ({weeklyCurrentTodayCount})
+                    Current
                   </TabsTrigger>
                   <TabsTrigger value="history" className={TASK_SUB_TAB_TRIGGER}>
-                    History ({weeklyHistoryTasks.length})
+                    History
                   </TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-4">
                   <button
                     type="button"
                     onClick={() => setTaskListScope("today")}
-                    className={cn(taskListScope === "today" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE)}
+                    className={cn(taskListScope === "today" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE, "flex items-center gap-1.5")}
                   >
                     Today
+                    {weeklyTodayTasks.length > 0 && (
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-100 px-1 text-[10px] font-bold text-sky-700">
+                        {weeklyTodayTasks.length}
+                      </span>
+                    )}
                   </button>
                   <button
                     type="button"
                     onClick={() => setTaskListScope("pastDue")}
                     className={cn(taskListScope === "pastDue" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE)}
                   >
-                    Past due items {weeklyFreshPastDue.length > 0 && <span className="ml-1 rounded-full bg-rose-100 px-1.5 text-rose-700">{weeklyFreshPastDue.length}</span>}
+                    Past due items
                   </button>
                   <Button
                     type="button"
@@ -678,26 +673,31 @@ export default function TasksPage() {
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
                 <TabsList className={TASK_SUB_TAB_LIST}>
                   <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
-                    Current ({monthlyCurrentTodayCount})
+                    Current
                   </TabsTrigger>
                   <TabsTrigger value="history" className={TASK_SUB_TAB_TRIGGER}>
-                    History ({monthlyHistoryTasks.length})
+                    History
                   </TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-4">
                   <button
                     type="button"
                     onClick={() => setTaskListScope("today")}
-                    className={cn(taskListScope === "today" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE)}
+                    className={cn(taskListScope === "today" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE, "flex items-center gap-1.5")}
                   >
                     Today
+                    {monthlyTodayTasks.length > 0 && (
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-100 px-1 text-[10px] font-bold text-sky-700">
+                        {monthlyTodayTasks.length}
+                      </span>
+                    )}
                   </button>
                   <button
                     type="button"
                     onClick={() => setTaskListScope("pastDue")}
                     className={cn(taskListScope === "pastDue" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE)}
                   >
-                    Past due items {monthlyFreshPastDue.length > 0 && <span className="ml-1 rounded-full bg-rose-100 px-1.5 text-rose-700">{monthlyFreshPastDue.length}</span>}
+                    Past due items
                   </button>
                   <Button
                     type="button"

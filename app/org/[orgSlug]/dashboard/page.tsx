@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckSquare, Sparkles, TrendingUp, CheckCircle2, CircleDashed, Crown } from 'lucide-react';
+import { CheckSquare, Sparkles, TrendingUp, CheckCircle2, CircleDashed } from 'lucide-react';
 import { format } from 'date-fns';
 import { getCurrentTimeInTimezone } from '@/lib/utils/timezone';
 import { rankForTotalXp, RANK_TIERS, XP_TRAINING_COMPLETED } from '@/lib/gamification/xp-rules';
@@ -9,6 +9,7 @@ import { ScrollableCardList } from '@/components/dashboard/scrollable-card-list'
 import { XpProgressBar } from '@/components/dashboard/xp-progress-bar';
 import { MonthlyCelebration } from '@/components/dashboard/monthly-celebration';
 import { DashboardTasksCard } from '@/components/dashboard/dashboard-tasks-card';
+import { ProfilePhotoUpload } from '@/components/dashboard/profile-photo-upload';
 import type { TaskLog } from '@/lib/types/database';
 
 const morningMessages = [
@@ -88,15 +89,19 @@ export default async function DashboardPage({
     .eq('status', 'completed')
     .order('date_completed', { ascending: false });
 
-  // Fetch real profile photo from employee_documents
-  const { data: profileDoc } = await supabase
-    .from('employee_documents')
-    .select('file_url')
-    .eq('user_id', user.id)
-    .eq('doc_type', 'photo')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Resolve profile photo from users.avatar_url (may be a storage path or a full URL)
+  let profilePhotoUrl = `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(userData?.full_name || 'Hero')}&backgroundColor=e2e8f0`;
+  const avatarStoragePath = userData?.avatar_url && !userData.avatar_url.startsWith('http')
+    ? userData.avatar_url
+    : null;
+  if (avatarStoragePath) {
+    const { data: signedData } = await supabase.storage
+      .from('employee-documents')
+      .createSignedUrl(avatarStoragePath, 60 * 60 * 24 * 7);
+    if (signedData?.signedUrl) profilePhotoUrl = signedData.signedUrl;
+  } else if (userData?.avatar_url?.startsWith('http')) {
+    profilePhotoUrl = userData.avatar_url;
+  }
 
   // Fetch top performer status from leaderboard
   // Get the most recent month's ranking
@@ -187,7 +192,6 @@ export default async function DashboardPage({
   const nextGoalXp = nextTier?.minXp ?? RANK_TIERS[RANK_TIERS.length - 1]!.minXp;
   const xpProgressPct = nextTier && nextGoalXp > 0 ? Math.min(100, Math.round((totalXp / nextGoalXp) * 100)) : 100;
 
-  const profilePhotoUrl = profileDoc?.file_url || `https://api.dicebear.com/7.x/notionists/svg?seed=${userData?.full_name || 'Hero'}&backgroundColor=e2e8f0`;
 
   return (
     <div className="relative min-h-full pb-12">
@@ -206,21 +210,14 @@ export default async function DashboardPage({
           {/* Main Hero Card */}
           <div className="relative flex flex-col rounded-[2.5rem] bg-white/80 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.08)] p-8 pt-16">
             
-            {/* Circular Placeholder */}
-            <div className="absolute top-0 left-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 z-20">
-              {isTopPerformer && (
-                <div className="absolute -top-7 left-1/2 -translate-x-1/2 z-30 animate-bounce">
-                  <Crown className="h-10 w-10 text-yellow-500 fill-yellow-500 drop-shadow-[0_0_15px_rgba(234,179,8,0.6)]" />
-                </div>
-              )}
-              <div className="h-full w-full overflow-hidden rounded-full border-[4px] border-white bg-slate-100 shadow-xl backdrop-blur-sm">
-                <img 
-                  src={profilePhotoUrl} 
-                  alt="Profile" 
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            </div>
+            {/* Profile photo (click to upload) */}
+            <ProfilePhotoUpload
+              userId={user.id}
+              isTopPerformer={isTopPerformer}
+              initialPhotoUrl={profilePhotoUrl}
+              storagePath={avatarStoragePath}
+              userName={userData?.full_name || 'Hero'}
+            />
 
             {/* Greeting & Profile Info */}
             <div className="text-center mb-6">
