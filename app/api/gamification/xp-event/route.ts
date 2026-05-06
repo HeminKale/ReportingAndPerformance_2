@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   applyEnquiryClosedWonXp,
   applyMistakeXp,
+  applyTaskLogApprovedXp,
   applyTrainingCompletedXp,
 } from "@/lib/gamification/xp-events";
 
@@ -61,6 +62,34 @@ export async function POST(request: Request) {
     const r = await applyTrainingCompletedXp(admin, resourceId);
     if (!r.ok) return NextResponse.json({ error: r.error ?? "apply failed" }, { status: 500 });
     return NextResponse.json({ ok: true, duplicate: r.duplicate });
+  }
+
+  if (kind === "task_log_approved") {
+    // Only the manager who approved (verified_by) or any manager in the org may trigger this.
+    const { data: tl } = await admin
+      .from("task_logs")
+      .select("verified_by, organization_id")
+      .eq("id", resourceId)
+      .maybeSingle();
+    if (!tl) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    // Verify the caller is a manager/admin in the same org
+    const { data: caller } = await admin
+      .from("profiles")
+      .select("role, organization_id")
+      .eq("id", user.id)
+      .maybeSingle();
+    const isManagerInOrg =
+      caller &&
+      caller.organization_id === tl.organization_id &&
+      (caller.role === "manager" || caller.role === "admin");
+    if (!isManagerInOrg) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const r = await applyTaskLogApprovedXp(admin, resourceId);
+    if (!r.ok && !r.duplicate) return NextResponse.json({ error: r.error ?? "apply failed" }, { status: 500 });
+    return NextResponse.json({ ok: true, duplicate: r.duplicate, allTasksDone: r.allTasksDone });
   }
 
   if (kind === "enquiry_closed_won") {

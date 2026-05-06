@@ -1,10 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   MISTAKE_XP,
+  XP_ALL_TASKS_COMPLETED_BONUS,
   XP_ENQUIRY_NEW_CLOSED_WON,
   XP_ENQUIRY_RENEWAL_CLOSED_WON,
   XP_TRAINING_COMPLETED,
+  perTaskAssignmentXp,
 } from "@/lib/gamification/xp-rules";
+import type { TaskPriority } from "@/lib/types/database";
 import { bumpUserTotalXp, insertXpLedgerRow } from "@/lib/gamification/ledger";
 
 export async function applyMistakeXp(
@@ -53,6 +56,126 @@ export async function applyTrainingCompletedXp(
   }
   await bumpUserTotalXp(admin, t.user_id, t.organization_id, XP_TRAINING_COMPLETED);
   return { ok: true };
+}
+
+/**
+ * Called immediately when a manager approves a task log.
+ * Writes one ledger row per task_log (idempotent via source_type + source_id).
+ * Also awards the "all tasks done today" bonus when this was the last due task for the day.
+ *
+ * Reject / recall: does NOT reverse XP (task work was done; only mistakes deduct XP).
+ */
+export async function applyTaskLogApprovedXp(
+  admin: SupabaseClient,
+  taskLogId: string
+): Promise<{ ok: boolean; duplicate?: boolean; allTasksDone?: boolean; error?: string }> {
+  const { data: log, error: logErr } = await admin
+    .from("task_logs")
+    .select("*, tasks(*)")
+    .eq("id", taskLogId)
+    .maybeSingle();
+
+  if (logErr || !log) return { ok: false, error: logErr?.message ?? "task_log_not_found" };
+  if (log.verification_status !== "approved") return { ok: false, error: "task_not_approved" };
+  if (log.status !== "completed") return { ok: false, error: "task_not_completed" };
+
+  const task = log.tasks as { priority?: string; assignment_xp_override?: number | null; organization_id: string } | null;
+  if (!task) return { ok: false, error: "task_not_found" };
+
+  const priority = (task.priority ?? "medium") as TaskPriority;
+  const delta = perTaskAssignmentXp(priority, task.assignment_xp_override ?? null);
+
+  const ins = await insertXpLedgerRow(admin, {
+    user_id: log.user_id,
+    organization_id: log.organization_id,
+    delta,
+    reason: `Task approved`,
+    source_type: "task_log_approved",
+    source_id: taskLogId,
+    metadata: { task_id: log.task_id, date: log.date, priority },
+  });
+
+  if (!ins.ok) {
+    if (ins.duplicate) return { ok: true, duplicate: true };
+    return { ok: false, error: ins.message };
+  }
+
+  await bumpUserTotalXp(admin, log.user_id, log.organization_id, delta);
+
+  // Check if all due tasks for this user on this date are now approved.
+  // If yes, grant the all-tasks-completed bonus (once per user-day, idempotent).
+  const dateStr = log.date as string;
+  const userId = log.user_id as string;
+
+  const { data: allTasks } = await admin
+    .from("tasks")
+    .select("id, type, day_of_week, due_date, is_common_task, assigned_to, is_active, created_at")
+    .eq("organization_id", log.organization_id)
+    .or(`assigned_to.eq.${userId},is_common_task.eq.true`)
+    .eq("is_active", true);
+
+  const { data: allLogs } = await admin
+    .from("task_logs")
+    .select("task_id, status, verification_status, submitted_at, updated_at, created_at")
+    .eq("user_id", userId)
+    .eq("date", dateStr);
+
+  const taskList = (allTasks ?? []) as Array<{
+    id: string; type: string; day_of_week: number | null; due_date: string | null;
+    is_common_task: boolean; assigned_to: string | null; is_active: boolean; created_at: string;
+  }>;
+
+  const { format: fmtFn, parseISO: pISO } = await import("date-fns");
+  const weekday = pISO(`${dateStr}T12:00:00`).getDay();
+
+  const dueTasks = taskList.filter((t) => {
+    const appliesToUser = t.is_common_task || t.assigned_to === userId;
+    if (!appliesToUser) return false;
+    const createdDay = fmtFn(pISO(t.created_at), "yyyy-MM-dd");
+    if (dateStr < createdDay) return false;
+    if (t.type === "daily") return true;
+    if (t.type === "weekly") return t.day_of_week !== null && t.day_of_week === weekday;
+    if (t.type === "monthly") return t.due_date === dateStr;
+    return false;
+  });
+
+  if (dueTasks.length === 0) return { ok: true, allTasksDone: false };
+
+  const logMap = new Map<string, { status: string; verification_status: string }>();
+  for (const l of allLogs ?? []) {
+    if (!logMap.has(l.task_id)) logMap.set(l.task_id, l);
+  }
+
+  const allDone = dueTasks.every((t) => {
+    const l = logMap.get(t.id);
+    return (
+      l &&
+      l.status === "completed" &&
+      l.verification_status !== "rejected" &&
+      l.verification_status !== "recalled"
+    );
+  });
+
+  if (!allDone) return { ok: true, allTasksDone: false };
+
+  const bonusSourceId = `${userId}_${dateStr}`;
+  const bonusIns = await insertXpLedgerRow(admin, {
+    user_id: userId,
+    organization_id: log.organization_id,
+    delta: XP_ALL_TASKS_COMPLETED_BONUS,
+    reason: "All due tasks completed",
+    source_type: "all_tasks_day_bonus",
+    source_id: bonusSourceId,
+    metadata: { date: dateStr, task_count: dueTasks.length },
+  });
+
+  if (bonusIns.ok) {
+    await bumpUserTotalXp(admin, userId, log.organization_id, XP_ALL_TASKS_COMPLETED_BONUS);
+    return { ok: true, allTasksDone: true };
+  }
+
+  // duplicate bonus is fine — another approval already granted it
+  return { ok: true, allTasksDone: bonusIns.duplicate };
 }
 
 export async function applyEnquiryClosedWonXp(

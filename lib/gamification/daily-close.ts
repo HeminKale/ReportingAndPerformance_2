@@ -7,9 +7,7 @@ import {
   XP_OFF_WINDOW_CLOCK,
   XP_PUNCTUALITY_BUNDLE,
   XP_PENDING_TASK_EACH,
-  XP_ALL_TASKS_COMPLETED_BONUS,
   XP_ZERO_MISTAKES_BONUS,
-  perTaskAssignmentXp,
 } from "@/lib/gamification/xp-rules";
 import {
   evaluateStreakDay,
@@ -23,7 +21,7 @@ import {
   isApprovedCompletedBefore,
 } from "@/lib/gamification/due-tasks";
 import { bumpUserTotalXp, insertXpLedgerRow } from "@/lib/gamification/ledger";
-import type { Organization, Task, TaskLog, TaskPriority } from "@/lib/types/database";
+import type { Organization, Task, TaskLog } from "@/lib/types/database";
 
 export type DailyCloseInput = {
   userId: string;
@@ -35,10 +33,6 @@ export type DailyCloseInput = {
   clockOutTime: string;
 };
 
-function defaultPriority(p: string | null | undefined): TaskPriority {
-  if (p === "low" || p === "medium" || p === "high") return p;
-  return "medium";
-}
 
 export async function ensureUserGamificationRow(
   admin: SupabaseClient,
@@ -137,6 +131,8 @@ export async function runDailyGamificationClose(
   const outOk = localHM(clockOutTime, timezone) >= CLOCK_OUT_END;
   const punctualityXp = inOk && outOk ? XP_PUNCTUALITY_BUNDLE : XP_OFF_WINDOW_CLOCK;
 
+  // Pending penalty: deducted at clock-out for tasks still not completed.
+  // Per-task and all-tasks-bonus XP is awarded incrementally on manager approval — not here.
   const due = getTasksDueForUserOnDate(taskList, userId, dateStr, weekday);
   let pendingCount = 0;
   for (const t of due) {
@@ -145,33 +141,14 @@ export async function runDailyGamificationClose(
   }
   const pendingXp = XP_PENDING_TASK_EACH * pendingCount;
 
-  const allDone =
-    due.length === 0 ||
-    due.every((t) => {
-      const log = getLogForTaskDate(logs, t.id, userId, dateStr);
-      return isApprovedCompletedBefore(log, clockOutTime);
-    });
-  const allDoneXp = allDone ? XP_ALL_TASKS_COMPLETED_BONUS : 0;
-
-  let taskXpSum = 0;
-  for (const t of due) {
-    const log = getLogForTaskDate(logs, t.id, userId, dateStr);
-    if (!isApprovedCompletedBefore(log, clockOutTime)) continue;
-    const p = defaultPriority((t as Task).priority);
-    const override = (t as Task).assignment_xp_override;
-    taskXpSum += perTaskAssignmentXp(p, override ?? null);
-  }
-
   const zeroMistakesXp = (mistakes?.length ?? 0) === 0 ? XP_ZERO_MISTAKES_BONUS : 0;
 
-  const totalXp = punctualityXp + pendingXp + allDoneXp + taskXpSum + zeroMistakesXp;
+  const totalXp = punctualityXp + pendingXp + zeroMistakesXp;
 
   const meta = {
     punctualityXp,
     pendingCount,
     pendingXp,
-    allDoneXp,
-    taskXpSum,
     zeroMistakesXp,
     streakOk,
   };

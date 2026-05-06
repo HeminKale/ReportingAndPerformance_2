@@ -962,6 +962,15 @@ export default function ManagerPage() {
 
         if (error) throw error;
 
+        if (actionDialog.action === "approve") {
+          void fetch("/api/gamification/xp-event", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ kind: "task_log_approved", resourceId: String(actionDialog.item.id) }),
+          }).catch(() => {});
+        }
+
         await markResourceNotificationsRead(
           supabase,
           user.id,
