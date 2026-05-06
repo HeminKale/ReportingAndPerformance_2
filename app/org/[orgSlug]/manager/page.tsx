@@ -54,6 +54,7 @@ export default function ManagerPage() {
   const [historyDateFilter, setHistoryDateFilter] = useState("");
   const [historyToDateFilter, setHistoryToDateFilter] = useState("");
   const [managerActiveTab, setManagerActiveTab] = useState("manager-tasks");
+  const [tasksSubNavExpanded, setTasksSubNavExpanded] = useState(false);
   const [tasksSubView, setTasksSubView] = useState<"regular" | "shared" | "history">("regular");
   const [regularEmployeeFilter, setRegularEmployeeFilter] = useState("");
   const [regularTaskFilter, setRegularTaskFilter] = useState("");
@@ -1172,33 +1173,73 @@ export default function ManagerPage() {
         </Card>
       </div>
 
-      <Tabs value={managerActiveTab} onValueChange={setManagerActiveTab} className="space-y-6">
+      <Tabs
+        value={managerActiveTab}
+        onValueChange={(v) => {
+          setManagerActiveTab(v);
+          if (v !== "manager-tasks") setTasksSubNavExpanded(false);
+        }}
+        className="space-y-6"
+      >
         <div className="flex flex-col gap-4 xl:flex-row">          <aside className="h-fit flex w-full shrink-0 flex-col rounded-2xl border border-slate-200 bg-slate-50/50 p-2 shadow-sm xl:w-72">
             <div className="px-4 py-3">
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">Manager Panel</h2>
             </div>
             <TabsList className="flex h-auto flex-col gap-1.5 bg-transparent p-0">
+              <TabsTrigger
+                value="task-assignment"
+                className={cn(
+                  "group flex w-full items-center justify-between gap-2 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-300 shadow-none",
+                  "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                  "data-[state=active]:translate-x-1 data-[state=active]:scale-[1.02] data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-[0_8px_16px_-4px_rgba(0,0,0,0.1),0_4px_8px_-2px_rgba(0,0,0,0.05)] data-[state=active]:ring-1 data-[state=active]:ring-slate-200/50"
+                )}
+              >
+                <span>Task Assignment</span>
+              </TabsTrigger>
+
               <div className="flex w-full flex-col gap-1.5">
-                <TabsTrigger 
-                  value="manager-tasks" 
-                  className={cn(
-                    "group flex w-full items-center justify-between gap-2 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-300 shadow-none",
-                    "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
-                    "data-[state=active]:translate-x-1 data-[state=active]:scale-[1.02] data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-[0_8px_16px_-4px_rgba(0,0,0,0.1),0_4px_8px_-2px_rgba(0,0,0,0.05)] data-[state=active]:ring-1 data-[state=active]:ring-slate-200/50"
+                <div className="flex w-full items-stretch gap-1">
+                  <TabsTrigger
+                    value="manager-tasks"
+                    className={cn(
+                      "group flex min-w-0 flex-1 items-center justify-between gap-2 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-300 shadow-none",
+                      "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                      "data-[state=active]:translate-x-1 data-[state=active]:scale-[1.02] data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-[0_8px_16px_-4px_rgba(0,0,0,0.1),0_4px_8px_-2px_rgba(0,0,0,0.05)] data-[state=active]:ring-1 data-[state=active]:ring-slate-200/50"
+                    )}
+                  >
+                    <span>Tasks</span>
+                    {taskLogs.filter((log: any) => log.verification_status === "pending").length > 0 && (
+                      <span
+                        className={cn(
+                          "rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums transition-colors",
+                          "bg-amber-100/80 text-amber-700 group-hover:bg-amber-200",
+                          "group-data-[state=active]:bg-amber-100 group-data-[state=active]:text-amber-700"
+                        )}
+                      >
+                        {taskLogs.filter((log: any) => log.verification_status === "pending").length}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                  {managerActiveTab === "manager-tasks" && (
+                    <button
+                      type="button"
+                      aria-expanded={tasksSubNavExpanded}
+                      aria-label={tasksSubNavExpanded ? "Collapse task views" : "Expand task views"}
+                      className="flex w-10 shrink-0 items-center justify-center rounded-xl border border-transparent text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setTasksSubNavExpanded((open) => !open);
+                      }}
+                    >
+                      <ChevronDown
+                        className={cn("h-4 w-4 transition-transform duration-200", tasksSubNavExpanded && "rotate-180")}
+                        aria-hidden
+                      />
+                    </button>
                   )}
-                >
-                  <span>Tasks</span>
-                  {taskLogs.filter((log: any) => log.verification_status === 'pending').length > 0 && (
-                    <span className={cn(
-                      "rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums transition-colors",
-                      "bg-amber-100/80 text-amber-700 group-hover:bg-amber-200",
-                      "group-data-[state=active]:bg-amber-100 group-data-[state=active]:text-amber-700"
-                    )}>
-                      {taskLogs.filter((log: any) => log.verification_status === 'pending').length}
-                    </span>
-                  )}
-                </TabsTrigger>
-                {managerActiveTab === "manager-tasks" && (
+                </div>
+                {managerActiveTab === "manager-tasks" && tasksSubNavExpanded && (
                   <div className="mx-2 flex flex-col gap-1 border-l-2 border-slate-200/50 pl-3 pb-1">
                     <button
                       type="button"
@@ -1249,7 +1290,6 @@ export default function ManagerPage() {
                 { value: "documents", label: "Documents" },
                 { value: "salary", label: "Salary" },
                 { value: "ratings", label: "Employee Ratings" },
-                { value: "task-assignment", label: "Task Assignment" },
               ].map((tab) => (
                 <TabsTrigger 
                   key={tab.value}
