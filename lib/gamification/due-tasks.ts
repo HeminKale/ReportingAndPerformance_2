@@ -1,4 +1,5 @@
 import { format, getISOWeek, getISOWeekYear, parseISO } from "date-fns";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import type { Task, TaskLog } from "@/lib/types/database";
 
 /**
@@ -41,19 +42,29 @@ function isMaterializedFromPeriodic(task: Task): boolean {
   return task.source_manager_periodic_task_id != null;
 }
 
-/** yyyy-MM-dd interpreted at midday for stable ISO week (aligned with `periodKeyForTemplate` weekly keys). */
-function isoWeekYearAndWeekForDateStr(dateStr: string): { wy: number; wk: number } {
-  const d = parseISO(`${dateStr}T12:00:00`);
-  return { wy: getISOWeekYear(d), wk: getISOWeek(d) };
+/** Calendar day of `created_at` in the org/work TZ — matches `date(timezone(tz, created_at))` in Postgres. */
+function calendarDayInWorkTimezone(createdAtIso: string, workTimezone: string): string {
+  return formatInTimeZone(parseISO(createdAtIso), workTimezone, "yyyy-MM-dd");
+}
+
+function isoWeekYearAndWeekForCalendarDateInTz(
+  ymd: string,
+  workTimezone: string
+): { wy: number; wk: number } {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const wall = new Date(y, m - 1, d, 12, 0, 0, 0);
+  const instant = fromZonedTime(wall, workTimezone);
+  return { wy: getISOWeekYear(instant), wk: getISOWeek(instant) };
 }
 
 function createdCalendarDaySameISOWeekAs(
   createdAtIso: string,
-  clockOutDateStr: string
+  clockOutDateStr: string,
+  workTimezone: string
 ): boolean {
-  const createdDay = format(parseISO(createdAtIso), "yyyy-MM-dd");
-  const a = isoWeekYearAndWeekForDateStr(createdDay);
-  const b = isoWeekYearAndWeekForDateStr(clockOutDateStr);
+  const createdDay = calendarDayInWorkTimezone(createdAtIso, workTimezone);
+  const a = isoWeekYearAndWeekForCalendarDateInTz(createdDay, workTimezone);
+  const b = isoWeekYearAndWeekForCalendarDateInTz(clockOutDateStr, workTimezone);
   return a.wy === b.wy && a.wk === b.wk;
 }
 
@@ -72,23 +83,27 @@ function createdCalendarDaySameISOWeekAs(
  * - **weekly**: row whose `created_at` falls in the **same ISO week** as `dateStr` (this week’s instance).
  * - **monthly**: unchanged — `due_date === dateStr` already selects at most the row for this calendar
  *   month/day (each materialized month has its own `due_date`).
+ *
+ * Both `dateStr` and the materialized `created_at` day must be interpreted in **`workTimezone`** (same
+ * as cron/SQL `timezone(tz, …)`). Browser-local `format(parseISO(created_at))` does **not** match
+ * Supabase SQL and caused clock-out to disagree with diagnostic queries.
  */
 export function getTasksDueForClockOutOnDate(
   tasks: Task[],
   userId: string,
   dateStr: string,
-  weekday: number
+  weekday: number,
+  workTimezone: string
 ): Task[] {
   const base = getTasksDueForUserOnDate(tasks, userId, dateStr, weekday);
   return base.filter((t) => {
     if (!isMaterializedFromPeriodic(t)) return true;
 
     if (t.type === "daily") {
-      const createdDay = format(parseISO(t.created_at), "yyyy-MM-dd");
-      return createdDay === dateStr;
+      return calendarDayInWorkTimezone(t.created_at, workTimezone) === dateStr;
     }
     if (t.type === "weekly") {
-      return createdCalendarDaySameISOWeekAs(t.created_at, dateStr);
+      return createdCalendarDaySameISOWeekAs(t.created_at, dateStr, workTimezone);
     }
     return true;
   });

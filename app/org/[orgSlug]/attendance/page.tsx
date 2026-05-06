@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
-import { format, parse, parseISO, startOfMonth } from "date-fns";
+import { format, getDay, parse, startOfMonth } from "date-fns";
 import { getCurrentTimeInTimezone, isAfterCutoff, formatInUserTimezone } from "@/lib/utils/timezone";
 import { AlertTriangle, CheckCircle, Clock, Star } from "lucide-react";
 import type { Attendance, TaskLog, User } from "@/lib/types/database";
@@ -380,7 +380,10 @@ export default function AttendancePage() {
     setActionLoading(true);
 
     try {
-      const weekday = parseISO(`${today}T12:00:00`).getDay();
+      const tz = user.timezone || "Asia/Kolkata";
+      const clockOutDateStr = format(getCurrentTimeInTimezone(tz), "yyyy-MM-dd");
+      const weekday = getDay(parse(clockOutDateStr, "yyyy-MM-dd", new Date()));
+
       const { data: allActiveTasks } = await supabase
         .from("tasks")
         .select("*")
@@ -388,18 +391,29 @@ export default function AttendancePage() {
         .or(`assigned_to.eq.${user.id},is_common_task.eq.true`)
         .eq("is_active", true);
 
-      const dueToday = getTasksDueForClockOutOnDate(allActiveTasks || [], user.id, today, weekday);
+      const dueToday = getTasksDueForClockOutOnDate(
+        allActiveTasks || [],
+        user.id,
+        clockOutDateStr,
+        weekday,
+        tz
+      );
       const dueIds = dueToday.map((t) => t.id);
       const { data: todayTaskLogs } =
         dueIds.length > 0
-          ? await supabase.from("task_logs").select("*").eq("user_id", user.id).eq("date", today).in("task_id", dueIds)
+          ? await supabase
+              .from("task_logs")
+              .select("*")
+              .eq("user_id", user.id)
+              .eq("date", clockOutDateStr)
+              .in("task_id", dueIds)
           : { data: [] as TaskLog[] };
 
       const logs = (todayTaskLogs || []) as TaskLog[];
       const nowIso = new Date().toISOString();
 
       for (const task of dueToday) {
-        const log = getLogForTaskDate(logs, task.id, user.id, today);
+        const log = getLogForTaskDate(logs, task.id, user.id, clockOutDateStr);
         if (isTaskLogRejectedOrRecalled(log)) {
           toast({
             title: "Cannot clock out",
@@ -414,7 +428,7 @@ export default function AttendancePage() {
 
       let submittedDone = 0;
       for (const task of dueToday) {
-        const log = getLogForTaskDate(logs, task.id, user.id, today);
+        const log = getLogForTaskDate(logs, task.id, user.id, clockOutDateStr);
         if (isApprovedCompletedBefore(log, nowIso)) {
           submittedDone++;
         }
