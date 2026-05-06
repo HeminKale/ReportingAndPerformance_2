@@ -61,7 +61,9 @@ export async function applyTrainingCompletedXp(
 /**
  * Called immediately when a manager approves a task log.
  * Writes one ledger row per task_log (idempotent via source_type + source_id).
- * Also awards the "all tasks done today" bonus when this was the last due task for the day.
+ * Also awards the "Complete today's tasks" bonus (+3) when every task **assigned on this log's
+ * calendar day** is completed and manager-approved — same scope as the dashboard quest (not all
+ * recurring tasks due that day).
  *
  * Reject / recall: does NOT reverse XP (task work was done; only mistakes deduct XP).
  */
@@ -102,8 +104,7 @@ export async function applyTaskLogApprovedXp(
 
   await bumpUserTotalXp(admin, log.user_id, log.organization_id, delta);
 
-  // Check if all due tasks for this user on this date are now approved.
-  // If yes, grant the all-tasks-completed bonus (once per user-day, idempotent).
+  // Bonus (+3): same task set as dashboard "Complete today's tasks" + each log approved.
   const dateStr = log.date as string;
   const userId = log.user_id as string;
 
@@ -126,47 +127,48 @@ export async function applyTaskLogApprovedXp(
   }>;
 
   const { format: fmtFn, parseISO: pISO } = await import("date-fns");
-  const weekday = pISO(`${dateStr}T12:00:00`).getDay();
 
-  const dueTasks = taskList.filter((t) => {
+  // Match dashboard "Complete today's tasks": tasks whose assignment date (created_at day)
+  // equals the task_log calendar date — not every recurring task due that day.
+  const questTasksAssignedOnDate = taskList.filter((t) => {
     const appliesToUser = t.is_common_task || t.assigned_to === userId;
     if (!appliesToUser) return false;
     const createdDay = fmtFn(pISO(t.created_at), "yyyy-MM-dd");
-    if (dateStr < createdDay) return false;
-    if (t.type === "daily") return true;
-    if (t.type === "weekly") return t.day_of_week !== null && t.day_of_week === weekday;
-    if (t.type === "monthly") return t.due_date === dateStr;
-    return false;
+    return createdDay === dateStr;
   });
 
-  if (dueTasks.length === 0) return { ok: true, allTasksDone: false };
+  if (questTasksAssignedOnDate.length === 0) return { ok: true, allTasksDone: false };
 
   const logMap = new Map<string, { status: string; verification_status: string }>();
-  for (const l of allLogs ?? []) {
+  const sortedDayLogs = [...(allLogs ?? [])].sort(
+    (a, b) =>
+      new Date(b.submitted_at || b.updated_at || b.created_at).getTime() -
+      new Date(a.submitted_at || a.updated_at || a.created_at).getTime()
+  );
+  for (const l of sortedDayLogs) {
     if (!logMap.has(l.task_id)) logMap.set(l.task_id, l);
   }
 
-  const allDone = dueTasks.every((t) => {
+  const allQuestDoneApproved = questTasksAssignedOnDate.every((t) => {
     const l = logMap.get(t.id);
     return (
       l &&
       l.status === "completed" &&
-      l.verification_status !== "rejected" &&
-      l.verification_status !== "recalled"
+      l.verification_status === "approved"
     );
   });
 
-  if (!allDone) return { ok: true, allTasksDone: false };
+  if (!allQuestDoneApproved) return { ok: true, allTasksDone: false };
 
   const bonusSourceId = `${userId}_${dateStr}`;
   const bonusIns = await insertXpLedgerRow(admin, {
     user_id: userId,
     organization_id: log.organization_id,
     delta: XP_ALL_TASKS_COMPLETED_BONUS,
-    reason: "All due tasks completed",
+    reason: "Complete today's tasks (all assigned today approved)",
     source_type: "all_tasks_day_bonus",
     source_id: bonusSourceId,
-    metadata: { date: dateStr, task_count: dueTasks.length },
+    metadata: { date: dateStr, task_count: questTasksAssignedOnDate.length },
   });
 
   if (bonusIns.ok) {

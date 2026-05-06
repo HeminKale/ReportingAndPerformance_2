@@ -3,7 +3,6 @@ import { differenceInCalendarDays, parseISO } from "date-fns";
 import { localHM } from "@/lib/calendar/calendar-utils";
 import {
   CLOCK_OUT_END,
-  XP_CLOCK_IN_CUTOFF,
   XP_OFF_WINDOW_CLOCK,
   XP_PUNCTUALITY_BUNDLE,
   XP_PENDING_TASK_EACH,
@@ -127,7 +126,7 @@ export async function runDailyGamificationClose(
 
   const { ok: streakOk } = evaluateStreakDay(streakCtx);
 
-  const inOk = localHM(clockInTime, timezone) <= XP_CLOCK_IN_CUTOFF;
+  const inOk = localHM(clockInTime, timezone) <= streakCutoff;
   const outOk = localHM(clockOutTime, timezone) >= CLOCK_OUT_END;
   const punctualityXp = inOk && outOk ? XP_PUNCTUALITY_BUNDLE : XP_OFF_WINDOW_CLOCK;
 

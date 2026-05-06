@@ -5,11 +5,11 @@
 
 import type { MistakeSeverity, TaskPriority } from "@/lib/types/database";
 
-/** Clock-in must be at or before this local time (HH:mm) for punctuality XP. */
-export const XP_CLOCK_IN_CUTOFF = "09:00";
-
 /** Streak uses org cutoff or this default (HH:mm). */
 export const STREAK_CLOCK_IN_CUTOFF_DEFAULT = "09:15";
+
+/** Same default as streak; daily-close punctuality uses org `clock_in_cutoff` when set (via streakClockInCutoffFromOrg). */
+export const XP_CLOCK_IN_CUTOFF = STREAK_CLOCK_IN_CUTOFF_DEFAULT;
 
 export const CLOCK_OUT_END = "17:00";
 

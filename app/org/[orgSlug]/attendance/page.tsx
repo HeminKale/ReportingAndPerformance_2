@@ -18,6 +18,7 @@ import {
   getLogForTaskDate,
   getTasksDueForUserOnDate,
   isApprovedCompletedBefore,
+  isTaskLogRejectedOrRecalled,
 } from "@/lib/gamification/due-tasks";
 
 function sumAttendanceHours(rows: Attendance[]): number {
@@ -395,19 +396,34 @@ export default function AttendancePage() {
           : { data: [] as TaskLog[] };
 
       const logs = (todayTaskLogs || []) as TaskLog[];
-      let approvedDone = 0;
       const nowIso = new Date().toISOString();
+
       for (const task of dueToday) {
         const log = getLogForTaskDate(logs, task.id, user.id, today);
-        if (isApprovedCompletedBefore(log, nowIso)) {
-          approvedDone++;
+        if (isTaskLogRejectedOrRecalled(log)) {
+          toast({
+            title: "Cannot clock out",
+            description:
+              "One or more tasks were rejected or recalled by your manager. Resubmit those tasks before clocking out.",
+            variant: "destructive",
+          });
+          setActionLoading(false);
+          return;
         }
       }
 
-      if (dueToday.length > 0 && approvedDone < dueToday.length) {
+      let submittedDone = 0;
+      for (const task of dueToday) {
+        const log = getLogForTaskDate(logs, task.id, user.id, today);
+        if (isApprovedCompletedBefore(log, nowIso)) {
+          submittedDone++;
+        }
+      }
+
+      if (dueToday.length > 0 && submittedDone < dueToday.length) {
         toast({
           title: "Cannot clock out",
-          description: `Complete all tasks due today before clocking out (${approvedDone}/${dueToday.length} completed).`,
+          description: `Submit all tasks due today before clocking out (${submittedDone}/${dueToday.length} submitted). Pending manager review is OK.`,
           variant: "destructive",
         });
         setActionLoading(false);

@@ -53,6 +53,7 @@ export function getLogForTaskDate(
   )[0];
 }
 
+/** Work submitted on time for clock-out / streak hooks: `status === completed`, not rejected/recalled; manager approval not required (pending is OK). */
 export function isApprovedCompletedBefore(
   log: TaskLog | undefined,
   clockOutIso: string
@@ -62,6 +63,12 @@ export function isApprovedCompletedBefore(
   const completedAt = log.submitted_at || log.updated_at || log.created_at;
   if (!completedAt) return false;
   return new Date(completedAt).getTime() <= new Date(clockOutIso).getTime();
+}
+
+/** Blocks clock-out until the employee fixes and resubmits after manager reject/recall. */
+export function isTaskLogRejectedOrRecalled(log: TaskLog | undefined): boolean {
+  if (!log) return false;
+  return log.verification_status === "rejected" || log.verification_status === "recalled";
 }
 
 export function countPendingDueTasks(
