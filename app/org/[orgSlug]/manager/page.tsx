@@ -1357,14 +1357,14 @@ export default function ManagerPage() {
                             <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-slate-800">
                               {employeeName}
                             </span>
-                            <div className="flex w-1/3 max-w-[33.333%] shrink-0 items-center justify-end gap-2" title={`${submittedCount} of ${total} submitted`}>
-                              <div className="relative h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-100">
+                            <div className="flex w-1/6 max-w-[16.67%] shrink-0 items-center justify-end gap-1" title={`${submittedCount} of ${total} submitted`}>
+                              <div className="relative h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-100">
                                 <div
                                   className="absolute inset-y-0 left-0 rounded-full bg-emerald-500 transition-all duration-500"
                                   style={{ width: `${progressPct}%` }}
                                 />
                               </div>
-                              <span className="shrink-0 tabular-nums text-xs text-slate-500">{submittedCount}/{total}</span>
+                              <span className="shrink-0 tabular-nums text-[10px] text-slate-500">{submittedCount}/{total}</span>
                             </div>
                             <ChevronDown
                               className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
