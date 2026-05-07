@@ -910,6 +910,16 @@ export default function ManagerPage() {
 
       if (error) throw error;
 
+      void fetch("/api/gamification/xp-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          kind: "task_log_approval_revoked",
+          resourceId: String(log.id),
+        }),
+      }).catch(() => {});
+
       const taskTitle = (log.tasks?.title as string) || "your task";
       await supabase.from("notifications").insert({
         organization_id: user.organization_id,
@@ -960,16 +970,26 @@ export default function ManagerPage() {
           })
           .eq('id', actionDialog.item.id);
 
-        if (error) throw error;
+      if (error) throw error;
 
-        if (actionDialog.action === "approve") {
-          void fetch("/api/gamification/xp-event", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "same-origin",
-            body: JSON.stringify({ kind: "task_log_approved", resourceId: String(actionDialog.item.id) }),
-          }).catch(() => {});
-        }
+      if (actionDialog.action === "approve") {
+        void fetch("/api/gamification/xp-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ kind: "task_log_approved", resourceId: String(actionDialog.item.id) }),
+        }).catch(() => {});
+      } else {
+        void fetch("/api/gamification/xp-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            kind: "task_log_approval_revoked",
+            resourceId: String(actionDialog.item.id),
+          }),
+        }).catch(() => {});
+      }
 
         await markResourceNotificationsRead(
           supabase,

@@ -29,6 +29,28 @@ export async function insertXpLedgerRow(
   return { ok: false, duplicate: false, message: error.message };
 }
 
+/** Removes one ledger row by unique (user_id, source_type, source_id); returns the row's delta for reversing totals. */
+export async function deleteXpLedgerRowBySource(
+  admin: SupabaseClient,
+  userId: string,
+  sourceType: string,
+  sourceId: string
+): Promise<{ deleted: boolean; delta: number }> {
+  const sid = String(sourceId);
+  const { data, error } = await admin
+    .from("xp_ledger")
+    .delete()
+    .eq("user_id", userId)
+    .eq("source_type", sourceType)
+    .eq("source_id", sid)
+    .select("delta");
+  if (error) throw new Error(error.message);
+  const rows = data ?? [];
+  if (rows.length === 0) return { deleted: false, delta: 0 };
+  const delta = rows[0]?.delta ?? 0;
+  return { deleted: true, delta };
+}
+
 function mergeEarnedBadges(
   existing: unknown,
   totalXp: number,

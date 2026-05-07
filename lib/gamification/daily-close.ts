@@ -140,7 +140,8 @@ export async function runDailyGamificationClose(
   }
   const pendingXp = XP_PENDING_TASK_EACH * pendingCount;
 
-  const zeroMistakesXp = (mistakes?.length ?? 0) === 0 ? XP_ZERO_MISTAKES_BONUS : 0;
+  const zeroMistakesXp =
+    (mistakes?.length ?? 0) === 0 && inOk && outOk ? XP_ZERO_MISTAKES_BONUS : 0;
 
   const totalXp = punctualityXp + pendingXp + zeroMistakesXp;
 
@@ -149,6 +150,7 @@ export async function runDailyGamificationClose(
     pendingCount,
     pendingXp,
     zeroMistakesXp,
+    zeroMistakesRequiresOnTimeInOut: true,
     streakOk,
   };
 

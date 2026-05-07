@@ -414,7 +414,7 @@ export default async function DashboardPage({
                 <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-bold text-fuchsia-600 shadow-sm">+{XP_ZERO_MISTAKES_BONUS} XP</div>
                 <p className="font-bold text-fuchsia-900">Zero mistakes</p>
                 <div className="mt-3 flex items-center gap-2">
-                   <CircleDashed className="h-4 w-4 text-fuchsia-400" /><span className="text-sm font-bold text-fuchsia-500">Evaluating at EOD</span>
+                   <CircleDashed className="h-4 w-4 text-fuchsia-400" /><span className="text-sm font-bold text-fuchsia-500">At clock-out if in/out on-time</span>
                 </div>
               </div>
 

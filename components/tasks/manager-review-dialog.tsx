@@ -58,6 +58,16 @@ export function ManagerReviewDialog({ task, taskLog, employee, open, onOpenChang
           credentials: "same-origin",
           body: JSON.stringify({ kind: "task_log_approved", resourceId: String(taskLog.id) }),
         }).catch(() => {});
+      } else {
+        void fetch("/api/gamification/xp-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            kind: "task_log_approval_revoked",
+            resourceId: String(taskLog.id),
+          }),
+        }).catch(() => {});
       }
 
       await markResourceNotificationsRead(supabase, user.id, "task_log", String(taskLog.id));

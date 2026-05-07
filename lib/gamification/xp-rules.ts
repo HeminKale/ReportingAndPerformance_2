@@ -25,8 +25,8 @@ export const MISTAKE_XP: Record<MistakeSeverity, number> = {
 export const XP_PENDING_TASK_EACH = -5;
 /** Bonus when all due tasks are approved/completed before clock-out (or no due tasks). */
 export const XP_ALL_TASKS_COMPLETED_BONUS = 3;
-/** Bonus at daily close when the employee had zero mistake rows for that calendar day. */
-export const XP_ZERO_MISTAKES_BONUS = 10;
+/** Bonus at daily close when the employee had zero mistake rows for that calendar day (gated by punctuality window). */
+export const XP_ZERO_MISTAKES_BONUS = 7;
 
 /** When `assignment_xp_override` is null, award this by task priority. */
 export const PRIORITY_BASE_XP: Record<TaskPriority, number> = {

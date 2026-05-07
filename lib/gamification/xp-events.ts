@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { format, parseISO } from "date-fns";
 import {
   MISTAKE_XP,
   XP_ALL_TASKS_COMPLETED_BONUS,
@@ -7,8 +8,62 @@ import {
   XP_TRAINING_COMPLETED,
   perTaskAssignmentXp,
 } from "@/lib/gamification/xp-rules";
+import { bumpUserTotalXp, deleteXpLedgerRowBySource, insertXpLedgerRow } from "@/lib/gamification/ledger";
 import type { TaskPriority } from "@/lib/types/database";
-import { bumpUserTotalXp, insertXpLedgerRow } from "@/lib/gamification/ledger";
+
+type QuestTaskRow = {
+  id: string;
+  created_at: string;
+  is_common_task: boolean;
+  assigned_to: string | null;
+};
+
+/** Dashboard quest scope: tasks assigned (created) on `dateStr` for this user — same as “Complete today’s tasks”. */
+export function filterQuestTasksAssignedOnDate(
+  tasks: QuestTaskRow[],
+  userId: string,
+  dateStr: string
+): QuestTaskRow[] {
+  return tasks.filter((t) => {
+    const appliesToUser = t.is_common_task || t.assigned_to === userId;
+    if (!appliesToUser) return false;
+    const createdDay = format(parseISO(t.created_at), "yyyy-MM-dd");
+    return createdDay === dateStr;
+  });
+}
+
+function latestLogRowByTaskId(
+  logs: Array<{
+    task_id: string;
+    status: string;
+    verification_status: string;
+    submitted_at: string | null;
+    updated_at: string | null;
+    created_at: string;
+  }>
+): Map<string, { status: string; verification_status: string }> {
+  const logMap = new Map<string, { status: string; verification_status: string }>();
+  const sorted = [...logs].sort(
+    (a, b) =>
+      new Date(b.submitted_at || b.updated_at || b.created_at).getTime() -
+      new Date(a.submitted_at || a.updated_at || a.created_at).getTime()
+  );
+  for (const l of sorted) {
+    if (!logMap.has(l.task_id)) logMap.set(l.task_id, l);
+  }
+  return logMap;
+}
+
+function allQuestTasksApprovedForBonus(
+  questTasks: QuestTaskRow[],
+  logMap: Map<string, { status: string; verification_status: string }>
+): boolean {
+  if (questTasks.length === 0) return false;
+  return questTasks.every((t) => {
+    const l = logMap.get(t.id);
+    return l && l.status === "completed" && l.verification_status === "approved";
+  });
+}
 
 export async function applyMistakeXp(
   admin: SupabaseClient,
@@ -58,6 +113,82 @@ export async function applyTrainingCompletedXp(
   return { ok: true };
 }
 
+export async function reconcileAllTasksDayBonusForDate(
+  admin: SupabaseClient,
+  userId: string,
+  organizationId: string,
+  dateStr: string
+): Promise<{ bonusRemoved: boolean }> {
+  const { data: allTasks } = await admin
+    .from("tasks")
+    .select("id, created_at, is_common_task, assigned_to, is_active")
+    .eq("organization_id", organizationId)
+    .or(`assigned_to.eq.${userId},is_common_task.eq.true`)
+    .eq("is_active", true);
+
+  const questTasks = filterQuestTasksAssignedOnDate((allTasks ?? []) as QuestTaskRow[], userId, dateStr);
+
+  const { data: allLogs } = await admin
+    .from("task_logs")
+    .select("task_id, status, verification_status, submitted_at, updated_at, created_at")
+    .eq("user_id", userId)
+    .eq("date", dateStr);
+
+  const logMap = latestLogRowByTaskId(allLogs ?? []);
+  const allDone = allQuestTasksApprovedForBonus(questTasks, logMap);
+
+  const bonusSourceId = `${userId}_${dateStr}`;
+  if (allDone) {
+    return { bonusRemoved: false };
+  }
+
+  const removed = await deleteXpLedgerRowBySource(admin, userId, "all_tasks_day_bonus", bonusSourceId);
+  if (removed.deleted && removed.delta !== 0) {
+    await bumpUserTotalXp(admin, userId, organizationId, -removed.delta);
+    return { bonusRemoved: true };
+  }
+  return { bonusRemoved: false };
+}
+
+/**
+ * Removes per-task approval XP (ledger row `task_log_approved`) and reconciles the +3 “all tasks
+ * assigned today approved” bonus when recall/reject breaks that condition. Idempotent if no approval
+ * row exists (e.g. reject from pending).
+ *
+ * Re-approve after recall inserts `task_log_approved` again — duplicate guard only applies while the
+ * row still exists; we delete it here so a later approval can grant XP again.
+ */
+export async function revokeTaskLogApprovalXp(
+  admin: SupabaseClient,
+  taskLogId: string
+): Promise<{ ok: boolean; taskXpRemoved?: boolean; bonusRemoved?: boolean; error?: string }> {
+  const { data: log, error } = await admin
+    .from("task_logs")
+    .select("user_id, organization_id, date")
+    .eq("id", taskLogId)
+    .maybeSingle();
+  if (error || !log) return { ok: false, error: error?.message ?? "task_log_not_found" };
+
+  const sid = String(taskLogId);
+  const removed = await deleteXpLedgerRowBySource(admin, log.user_id, "task_log_approved", sid);
+  if (removed.deleted && removed.delta !== 0) {
+    await bumpUserTotalXp(admin, log.user_id, log.organization_id, -removed.delta);
+  }
+
+  const { bonusRemoved } = await reconcileAllTasksDayBonusForDate(
+    admin,
+    log.user_id,
+    log.organization_id,
+    log.date as string
+  );
+
+  return {
+    ok: true,
+    taskXpRemoved: removed.deleted,
+    bonusRemoved,
+  };
+}
+
 /**
  * Called immediately when a manager approves a task log.
  * Writes one ledger row per task_log (idempotent via source_type + source_id).
@@ -65,7 +196,8 @@ export async function applyTrainingCompletedXp(
  * calendar day** is completed and manager-approved — same scope as the dashboard quest (not all
  * recurring tasks due that day).
  *
- * Reject / recall: does NOT reverse XP (task work was done; only mistakes deduct XP).
+ * Recall/reject XP removal is handled by `revokeTaskLogApprovalXp` (triggered from the client when
+ * the manager recalls or rejects).
  */
 export async function applyTaskLogApprovedXp(
   admin: SupabaseClient,
@@ -93,7 +225,7 @@ export async function applyTaskLogApprovedXp(
     delta,
     reason: `Task approved`,
     source_type: "task_log_approved",
-    source_id: taskLogId,
+    source_id: String(taskLogId),
     metadata: { task_id: log.task_id, date: log.date, priority },
   });
 
@@ -104,7 +236,6 @@ export async function applyTaskLogApprovedXp(
 
   await bumpUserTotalXp(admin, log.user_id, log.organization_id, delta);
 
-  // Bonus (+3): same task set as dashboard "Complete today's tasks" + each log approved.
   const dateStr = log.date as string;
   const userId = log.user_id as string;
 
@@ -121,42 +252,15 @@ export async function applyTaskLogApprovedXp(
     .eq("user_id", userId)
     .eq("date", dateStr);
 
-  const taskList = (allTasks ?? []) as Array<{
-    id: string; type: string; day_of_week: number | null; due_date: string | null;
-    is_common_task: boolean; assigned_to: string | null; is_active: boolean; created_at: string;
-  }>;
+  const taskList = (allTasks ?? []) as QuestTaskRow[];
 
-  const { format: fmtFn, parseISO: pISO } = await import("date-fns");
-
-  // Match dashboard "Complete today's tasks": tasks whose assignment date (created_at day)
-  // equals the task_log calendar date — not every recurring task due that day.
-  const questTasksAssignedOnDate = taskList.filter((t) => {
-    const appliesToUser = t.is_common_task || t.assigned_to === userId;
-    if (!appliesToUser) return false;
-    const createdDay = fmtFn(pISO(t.created_at), "yyyy-MM-dd");
-    return createdDay === dateStr;
-  });
+  const questTasksAssignedOnDate = filterQuestTasksAssignedOnDate(taskList, userId, dateStr);
 
   if (questTasksAssignedOnDate.length === 0) return { ok: true, allTasksDone: false };
 
-  const logMap = new Map<string, { status: string; verification_status: string }>();
-  const sortedDayLogs = [...(allLogs ?? [])].sort(
-    (a, b) =>
-      new Date(b.submitted_at || b.updated_at || b.created_at).getTime() -
-      new Date(a.submitted_at || a.updated_at || a.created_at).getTime()
-  );
-  for (const l of sortedDayLogs) {
-    if (!logMap.has(l.task_id)) logMap.set(l.task_id, l);
-  }
+  const logMap = latestLogRowByTaskId(allLogs ?? []);
 
-  const allQuestDoneApproved = questTasksAssignedOnDate.every((t) => {
-    const l = logMap.get(t.id);
-    return (
-      l &&
-      l.status === "completed" &&
-      l.verification_status === "approved"
-    );
-  });
+  const allQuestDoneApproved = allQuestTasksApprovedForBonus(questTasksAssignedOnDate, logMap);
 
   if (!allQuestDoneApproved) return { ok: true, allTasksDone: false };
 
@@ -176,7 +280,6 @@ export async function applyTaskLogApprovedXp(
     return { ok: true, allTasksDone: true };
   }
 
-  // duplicate bonus is fine — another approval already granted it
   return { ok: true, allTasksDone: bonusIns.duplicate };
 }
 
