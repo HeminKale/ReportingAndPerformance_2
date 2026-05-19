@@ -22,15 +22,6 @@ export function AnimationManager({ children }: { children: React.ReactNode }) {
   const [levelUp, setLevelUp] = useState<{ active: boolean; old: string; new: string }>({ active: false, old: "", new: "" });
   const [ghosts, setGhosts] = useState<{ id: string; msg: string; amount: number }[]>([]);
 
-  // Entrance Animation
-  useEffect(() => {
-    // Only run once on mount
-    const timer = setTimeout(() => {
-      triggerXpGain(window.innerWidth / 2, window.innerHeight / 2, 0); // Intro flourish
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
-
   const triggerXpGain = useCallback((x: number, y: number, amount: number) => {
     const id = Math.random().toString(36).substring(7);
     setParticles((p) => [...p, { id, x, y, amount }]);
