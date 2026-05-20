@@ -80,14 +80,13 @@ export function XpProgressBar({
         showBadgeRail ? "gap-3" : "gap-0"
       )}
     >
-      {/* Current badge — identical container to Badges section */}
+      {/* Current badge — exactly matches Badges section container */}
       {showBadgeRail && (
         <div className="group h-14 w-14 shrink-0 flex items-center justify-center rounded-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-sm transition-transform group-hover:scale-110 overflow-hidden">
           {rankName !== "Starter" && (
             <BadgeImage
               src={badgeAssetSrc(rankName)}
               alt={rankName}
-              className="h-10 w-10 object-contain"
             />
           )}
         </div>
@@ -112,16 +111,15 @@ export function XpProgressBar({
         </div>
       </div>
 
-      {/* Next badge — identical container to Badges section, dimmed */}
+      {/* Next badge — exactly matches Badges section container, dimmed */}
       {showBadgeRail && nextRankName && (
         <div
-          className="group h-14 w-14 shrink-0 flex items-center justify-center rounded-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-sm transition-transform group-hover:scale-110 overflow-hidden"
+          className="group h-14 w-14 shrink-0 flex items-center justify-center rounded-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-sm transition-transform group-hover:scale-110 overflow-hidden opacity-40 grayscale"
           title={`Unlock at ${nextGoalXp} XP`}
         >
           <BadgeImage
             src={unrevealedBadgeAssetSrc(nextRankName)}
             alt={`Next rank: ${nextRankName}`}
-            className="h-10 w-10 object-contain opacity-40 grayscale"
             fallbackSrc={badgeAssetSrc(nextRankName)}
           />
         </div>
