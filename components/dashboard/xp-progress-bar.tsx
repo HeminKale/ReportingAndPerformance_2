@@ -77,21 +77,23 @@ export function XpProgressBar({
     <div
       className={cn(
         "mb-8 flex items-center",
-        showBadgeRail ? "gap-3 sm:gap-4" : "gap-0"
+        showBadgeRail ? "gap-3" : "gap-0"
       )}
     >
+      {/* Current badge — identical container to Badges section */}
       {showBadgeRail && (
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center sm:h-[4.5rem] sm:w-[4.5rem]">
+        <div className="group h-14 w-14 shrink-0 flex items-center justify-center rounded-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-sm transition-transform group-hover:scale-110 overflow-hidden">
           {rankName !== "Starter" && (
             <BadgeImage
               src={badgeAssetSrc(rankName)}
               alt={rankName}
-              className="h-full w-full drop-shadow-lg"
+              className="h-10 w-10 object-contain"
             />
           )}
         </div>
       )}
 
+      {/* XP bar */}
       <div className="min-w-0 flex-1">
         <div className="mb-2 flex items-center justify-between text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
           <span>{currentXp} XP</span>
@@ -108,30 +110,20 @@ export function XpProgressBar({
             <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/30 to-transparent" />
           </div>
         </div>
-        {showBadgeRail && nextRankName && (
-          <p className="mt-1.5 text-center text-[9px] font-bold uppercase tracking-wider text-slate-400">
-            Next: {nextRankName}
-          </p>
-        )}
       </div>
 
+      {/* Next badge — identical container to Badges section, dimmed */}
       {showBadgeRail && nextRankName && (
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center sm:h-[4.5rem] sm:w-[4.5rem]">
-          <div
-            className="flex h-full w-full items-center justify-center rounded-2xl bg-white/60 p-1.5 shadow-[0_10px_28px_rgba(15,23,42,0.22)] ring-1 ring-slate-200/70"
-            title={`Unlock at ${nextGoalXp} XP`}
-          >
-            <BadgeImage
-              src={unrevealedBadgeAssetSrc(nextRankName)}
-              alt={`Next rank: ${nextRankName}`}
-              className="h-full w-full opacity-55 grayscale-[35%]"
-              fallbackSrc={
-                nextRankName === "Beginner"
-                  ? "/assets/badges/Beginner__unrevealed.png"
-                  : `/assets/badges/${nextRankName}_unrevealed.png`
-              }
-            />
-          </div>
+        <div
+          className="group h-14 w-14 shrink-0 flex items-center justify-center rounded-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-sm transition-transform group-hover:scale-110 overflow-hidden"
+          title={`Unlock at ${nextGoalXp} XP`}
+        >
+          <BadgeImage
+            src={unrevealedBadgeAssetSrc(nextRankName)}
+            alt={`Next rank: ${nextRankName}`}
+            className="h-10 w-10 object-contain opacity-40 grayscale"
+            fallbackSrc={badgeAssetSrc(nextRankName)}
+          />
         </div>
       )}
     </div>
