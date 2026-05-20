@@ -54,7 +54,7 @@ export function MonthlyCelebration({
       
       // Custom celebration flourish
       const interval = setInterval(() => {
-        window.dispatchEvent(new CustomEvent("taskos-xp-ripple", { detail: { amount: 100 } }));
+        window.dispatchEvent(new CustomEvent("worksphere-xp-ripple", { detail: { amount: 100 } }));
       }, 500);
       
       setTimeout(() => {

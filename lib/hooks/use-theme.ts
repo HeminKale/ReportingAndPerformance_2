@@ -5,7 +5,7 @@ import { createContext, useContext } from "react";
 export type AppTheme = "taskos" | "bloom" | "midnight";
 
 export const APP_THEMES: { value: AppTheme; label: string }[] = [
-  { value: "taskos", label: "TaskOS" },
+  { value: "taskos", label: "Worksphere" },
   { value: "bloom", label: "Bloom" },
   { value: "midnight", label: "Midnight" },
 ];

@@ -505,3 +505,72 @@
     animation: clock-rotate 60s linear infinite;
   }
 }
+
+/* ─── Worksphere Landing Page — Todoist Design System Tokens ─── */
+:root {
+  --ws-paper-white: #fefdfc;
+  --ws-faded-charcoal: #25221e;
+  --ws-subtle-ash: #6f6c69;
+  --ws-dusty-sage: #94928f;
+  --ws-soft-gray: #d7d6d4;
+  --ws-light-peach: #fff6f0;
+  --ws-indigo-cta: #4f46e5;
+  --ws-indigo-hover: #4338ca;
+  --ws-indigo-light: #eef2ff;
+  --ws-success-green: #4c7a45;
+  --ws-shadow-subtle: rgba(37, 34, 30, 0.04) 0px 1px 0px 0px;
+  --ws-shadow-card: rgba(37, 34, 30, 0.06) 0px 4px 16px 0px;
+  --ws-shadow-lg: rgba(37, 34, 30, 0.07) 0px 14px 19px -9px, rgba(37, 34, 30, 0.18) 0px 10px 48px 0px;
+  --ws-radius-btn: 15px;
+  --ws-radius-card: 10px;
+  --ws-radius-badge: 6px;
+  --ws-section-gap: 96px;
+}
+
+/* Landing page smooth scroll */
+.ws-landing {
+  scroll-behavior: smooth;
+  background-color: var(--ws-paper-white);
+  color: var(--ws-faded-charcoal);
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Fade-up animation for landing sections */
+@keyframes ws-fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ws-animate-fade-up {
+  animation: ws-fade-up 0.6s ease-out both;
+}
+
+.ws-animate-fade-up-delay-1 { animation-delay: 0.1s; }
+.ws-animate-fade-up-delay-2 { animation-delay: 0.2s; }
+.ws-animate-fade-up-delay-3 { animation-delay: 0.3s; }
+.ws-animate-fade-up-delay-4 { animation-delay: 0.4s; }
+
+/* Subtle float for hero mock UI */
+@keyframes ws-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+.ws-float { animation: ws-float 4s ease-in-out infinite; }
+
+/* XP bar shimmer */
+@keyframes ws-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+.ws-xp-shimmer {
+  background: linear-gradient(90deg, #4f46e5 0%, #818cf8 40%, #4f46e5 60%, #4f46e5 100%);
+  background-size: 200% auto;
+  animation: ws-shimmer 2.4s linear infinite;
+}
+
+/* Rank badge pulse */
+@keyframes ws-rank-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.3); }
+  50%       { box-shadow: 0 0 0 8px rgba(79, 70, 229, 0); }
+}
+.ws-rank-pulse { animation: ws-rank-pulse 2.5s ease-in-out infinite; }

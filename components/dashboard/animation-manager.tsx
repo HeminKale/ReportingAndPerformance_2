@@ -28,7 +28,7 @@ export function AnimationManager({ children }: { children: React.ReactNode }) {
     setTimeout(() => {
       setParticles((p) => p.filter((part) => part.id !== id));
       // Dispatch event for the XP bar to catch and ripple
-      window.dispatchEvent(new CustomEvent("taskos-xp-ripple", { detail: { amount } }));
+      window.dispatchEvent(new CustomEvent("worksphere-xp-ripple", { detail: { amount } }));
     }, 800); // matches animation duration
   }, []);
 

@@ -29,7 +29,7 @@ export function XpProgressBar({
   const [animatedPct, setAnimatedPct] = useState(0);
 
   // Key is user-scoped so multiple users on the same device don't bleed state.
-  const lsKey = `taskos-xp-last-seen-${userId}`;
+  const lsKey = `worksphere-xp-last-seen-${userId}`;
 
   // Track whether we've already processed the current totalXp on this mount.
   const processedXpRef = useRef<number | null>(null);
@@ -65,8 +65,8 @@ export function XpProgressBar({
       setIsRippling(true);
       setTimeout(() => setIsRippling(false), 800);
     };
-    window.addEventListener("taskos-xp-ripple", handleRipple);
-    return () => window.removeEventListener("taskos-xp-ripple", handleRipple);
+    window.addEventListener("worksphere-xp-ripple", handleRipple);
+    return () => window.removeEventListener("worksphere-xp-ripple", handleRipple);
   }, []);
 
   return (
