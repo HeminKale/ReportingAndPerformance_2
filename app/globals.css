@@ -1,3 +1,4 @@
+@import "../website design/variables.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -506,67 +507,26 @@
   }
 }
 
-/* ─── Worksphere Landing Page — Todoist Canonical Design Tokens ─── */
-/* Exact values from /website design/variables.css */
+/* ─── Worksphere Landing Overrides on top of website design/variables.css ─── */
 :root {
-  /* Colors */
-  --color-faded-charcoal: #25221e;
-  --color-paper-white: #fefdfc;
-  --color-soft-gray: #d7d6d4;
-  --color-light-peach: #fff6f0;
-  --color-subtle-ash: #6f6c69;
-  --color-true-black: #000000;
-  --color-dusty-sage: #94928f;
-  --color-action-red: #e34432;
-  --color-link-orange: #cf3520;
-  --color-accent-blue: #0f66ae;
-  --color-success-green: #4c7a45;
-  --color-badge-green: #446c3d;
-  --color-light-green-tint: #f0f6df;
-
-  /* Worksphere brand adaptation (Todoist red → indigo) */
+  --color-faded-charcoal: #25221e; /* normalize typo from source (#25221) */
+  --color-teal-accent: #497d7c;    /* normalize typo from source (#497d7) */
   --color-indigo-cta: #4f46e5;
   --color-indigo-hover: #4338ca;
   --color-indigo-light: #eef2ff;
-
-  /* Typography scale (from DESIGN.md) */
   --text-display: 55px;
   --leading-display: 1.15;
   --text-h2: 44px;
   --leading-h2: 1.15;
   --text-h3: 38px;
   --leading-h3: 1.28;
-  --text-xl-2: 21px;
-  --leading-xl-2: 1.6;
-  --text-base-2: 16px;
-  --leading-base-2: 1.5;
-  --text-sm-2: 14px;
-  --text-xs: 12px;
-
-  /* Spacing (from DESIGN.md) */
-  --spacing-4: 4px;
-  --spacing-8: 8px;
-  --spacing-12: 12px;
-  --spacing-16: 16px;
-  --spacing-20: 20px;
-  --spacing-24: 24px;
-  --spacing-32: 32px;
-  --spacing-48: 48px;
-  --spacing-64: 64px;
-  --spacing-128: 128px;
-  --section-gap: 64px;
-
-  /* Border radius (from DESIGN.md) */
   --radius-cards: 10px;
   --radius-badges: 6px;
   --radius-images: 15px;
   --radius-buttons: 15px;
   --radius-default: 8px;
-
-  /* Shadows (exact from DESIGN.md) */
-  --shadow-subtle: rgba(37, 34, 30, 0.04) 0px 1px 0px 0px;
-  --shadow-card:   rgba(37, 34, 30, 0.06) 0px 4px 16px 0px;
-  --shadow-lg:     rgba(37, 34, 30, 0.07) 0px 14px 19px -9px, rgba(37, 34, 30, 0.18) 0px 10px 48px 0px;
+  --section-gap: 64px;
+  --shadow-card: rgba(37, 34, 30, 0.06) 0px 4px 16px 0px;
 }
 
 /* Landing page smooth scroll */
@@ -624,3 +584,30 @@
   100% { transform: translateY(0px) rotate(0deg); opacity: 0.6; }
 }
 .ws-star { animation: ws-star-drift var(--dur, 5s) ease-in-out infinite; }
+
+@keyframes ws-slide-in-left {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes ws-slide-in-right {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.ws-slide-left {
+  animation: ws-slide-in-left 0.7s ease-out both;
+}
+
+.ws-slide-right {
+  animation: ws-slide-in-right 0.7s ease-out both;
+}
+
+.ws-card-lift {
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+
+.ws-card-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}

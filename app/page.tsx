@@ -141,7 +141,7 @@ export default async function Home() {
               className="h-1.5 w-1.5 rounded-full"
               style={{ background: "var(--color-badge-green)" }}
             />
-            Now with team leaderboards
+            Simplify planning. Sync calendar. Ship on time.
           </span>
 
           {/* H1 — 55px display spec */}
@@ -155,11 +155,11 @@ export default async function Home() {
               color: "var(--color-faded-charcoal)",
             }}
           >
-            Work hard.
+            Simplify planning.
             <br />
-            Earn XP.
+            Own your calendar.
             <br />
-            <span style={{ color: "var(--color-indigo-cta)" }}>Level up.</span>
+            <span style={{ color: "var(--color-indigo-cta)" }}>Deliver every day.</span>
           </h1>
 
           {/* Body — 21px spec */}
@@ -173,8 +173,8 @@ export default async function Home() {
               color: "var(--color-subtle-ash)",
             }}
           >
-            Worksphere turns your team's daily tasks into a rewarding game — earn XP, climb ranks,
-            hit streaks, and watch productivity soar.
+            Worksphere combines planning, calendar visibility, and gamified execution in one flow.
+            Plan clearly, track deadlines, finish tasks faster, and reward consistent delivery.
           </p>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -212,7 +212,7 @@ export default async function Home() {
               }}
               className="transition-colors hover:bg-black/5"
             >
-              See how it works
+              Explore planning flow
             </a>
           </div>
 
@@ -220,14 +220,14 @@ export default async function Home() {
             className="mt-5 text-xs"
             style={{ color: "var(--color-dusty-sage)", fontSize: "var(--text-sm-2)" }}
           >
-            Trusted by 200+ teams — no credit card required
+            Built for teams that need planning clarity and execution speed
           </p>
         </div>
 
         {/* Right — Browser-chrome framed app mockup */}
-        <div className="relative flex-1 flex justify-center ws-animate-fade-up ws-animate-fade-up-delay-2">
+        <div className="relative flex-1 flex justify-center ws-animate-fade-up ws-animate-fade-up-delay-2 ws-slide-right">
           <div
-            className="ws-float w-full max-w-[380px]"
+            className="ws-float ws-card-lift w-full max-w-[380px]"
             style={{ filter: "drop-shadow(0 24px 48px rgba(37,34,30,0.14))" }}
           >
             {/* Browser chrome frame */}
@@ -401,7 +401,7 @@ export default async function Home() {
         </div>
       </div>
 
-      {/* ══ FEATURE 1 — Tasks that pay you back ══ */}
+      {/* ══ FEATURE 1 — Planning clarity ══ */}
       <section
         id="features"
         className="mx-auto max-w-6xl px-6 flex flex-col lg:flex-row items-start gap-16"
@@ -418,7 +418,7 @@ export default async function Home() {
               color: "var(--color-indigo-cta)",
             }}
           >
-            Task management
+            Planning workspace
           </span>
           {/* H2 — 38px spec */}
           <h2
@@ -431,9 +431,9 @@ export default async function Home() {
               color: "var(--color-faded-charcoal)",
             }}
           >
-            Tasks that
+            Plan smarter.
             <br />
-            pay you back
+            Execute on time.
           </h2>
           <p
             className="mb-6"
@@ -444,8 +444,8 @@ export default async function Home() {
               maxWidth: "380px",
             }}
           >
-            Every task you complete earns XP. High-priority tasks earn more. Finish everything on
-            time and stack a streak bonus. Worksphere makes the daily grind feel like real progress.
+            Turn raw to-dos into an actionable plan with clear priorities, due dates, and ownership.
+            Worksphere keeps your team focused and consistent from first task to final review.
           </p>
           <ul className="space-y-3">
             {[
@@ -474,7 +474,7 @@ export default async function Home() {
 
         {/* Feature Card — exact Todoist spec: Paper White, 10px radius, shadow-subtle */}
         <div
-          className="flex-1 ws-animate-fade-up ws-animate-fade-up-delay-2"
+          className="flex-1 ws-animate-fade-up ws-animate-fade-up-delay-2 ws-slide-right ws-card-lift"
           style={{
             background: "var(--color-paper-white)",
             borderRadius: "var(--radius-cards)",
@@ -560,7 +560,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ══ FEATURE 2 — Climb the ranks ══ */}
+      {/* ══ FEATURE 2 — Calendar visibility ══ */}
       <section
         id="how-it-works"
         style={{ background: "var(--color-light-peach)" }}
@@ -575,7 +575,7 @@ export default async function Home() {
               className="block mb-3 uppercase"
               style={{ fontSize: "var(--text-xs)", fontWeight: 700, letterSpacing: "0.08em", color: "var(--color-indigo-cta)" }}
             >
-              Rank system
+              Shared calendar
             </span>
             <h2
               className="mb-5"
@@ -587,9 +587,9 @@ export default async function Home() {
                 color: "var(--color-faded-charcoal)",
               }}
             >
-              Climb the
+              See workload.
               <br />
-              ranks
+              Balance calendars.
             </h2>
             <p
               className="mb-7"
@@ -600,8 +600,8 @@ export default async function Home() {
                 maxWidth: "360px",
               }}
             >
-              Starting from Rookie, every XP point pushes you closer to the next title.
-              The leaderboard resets monthly — so every employee gets a fresh shot at glory.
+              Align every team member on one calendar timeline. Spot bottlenecks early, rebalance
+              task load, and keep deadlines realistic before execution pressure starts.
             </p>
             {/* Hero Pill Button */}
             <Link
@@ -618,13 +618,13 @@ export default async function Home() {
                 boxShadow: "var(--shadow-lg)",
               }}
             >
-              Start climbing
+              Open calendar view
             </Link>
           </div>
 
           {/* Rank ladder — Feature Card */}
           <div
-            className="flex-1 ws-animate-fade-up ws-animate-fade-up-delay-2"
+            className="flex-1 ws-animate-fade-up ws-animate-fade-up-delay-2 ws-slide-right ws-card-lift"
             style={{
               background: "var(--color-paper-white)",
               borderRadius: "var(--radius-cards)",
@@ -759,7 +759,7 @@ export default async function Home() {
 
         {/* Feature Card — manager panel mockup */}
         <div
-          className="flex-1 ws-animate-fade-up ws-animate-fade-up-delay-2 overflow-hidden"
+          className="flex-1 ws-animate-fade-up ws-animate-fade-up-delay-2 ws-slide-right ws-card-lift overflow-hidden"
           style={{
             borderRadius: "var(--radius-cards)",
             boxShadow: "var(--shadow-subtle)",
@@ -892,6 +892,7 @@ export default async function Home() {
             ].map((t) => (
               <div
                 key={t.name}
+                className="ws-card-lift"
                 style={{
                   background: "var(--color-paper-white)",
                   borderRadius: "var(--radius-cards)",
