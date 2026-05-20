@@ -159,7 +159,7 @@ export default async function Home() {
             <br />
             Own your calendar.
             <br />
-            <span style={{ color: "var(--color-indigo-cta)" }}>Deliver every day.</span>
+            <span style={{ color: "var(--color-indigo-cta)" }}>Stay organized. Deliver every day.</span>
           </h1>
 
           {/* Body — 21px spec */}
@@ -622,71 +622,126 @@ export default async function Home() {
             </Link>
           </div>
 
-          {/* Rank ladder — Feature Card */}
-          <div
-            className="flex-1 ws-animate-fade-up ws-animate-fade-up-delay-2 ws-slide-right ws-card-lift"
-            style={{
-              background: "var(--color-paper-white)",
-              borderRadius: "var(--radius-cards)",
-              boxShadow: "var(--shadow-subtle)",
-              border: "1px solid rgba(37,34,30,0.06)",
-              padding: "var(--spacing-20)",
-            }}
-          >
-            <div className="space-y-2">
-              {[
-                { rank: "Legend",   xp: "10,000+", color: "#b45309", bg: "#fef9ee", active: false },
-                { rank: "Platinum", xp: "7,500+",  color: "#6366f1", bg: "#eef2ff", active: false },
-                { rank: "Gold",     xp: "5,000+",  color: "#d97706", bg: "#fef3c7", active: true  },
-                { rank: "Silver",   xp: "2,500+",  color: "#6b7280", bg: "#f9fafb", active: false },
-                { rank: "Bronze",   xp: "1,000+",  color: "#92400e", bg: "#fff7ed", active: false },
-                { rank: "Rookie",   xp: "0+",      color: "#9ca3af", bg: "#f3f4f6", active: false },
-              ].map((r) => (
-                <div
-                  key={r.rank}
-                  className="flex items-center justify-between rounded-xl px-4 py-3 transition-transform"
+          {/* Calendar + Phone UI visual stack */}
+          <div className="flex-1 ws-animate-fade-up ws-animate-fade-up-delay-2 ws-slide-right">
+            {/* Calendar card */}
+            <div
+              className="ws-card-lift"
+              style={{
+                background: "var(--color-paper-white)",
+                borderRadius: "var(--radius-images)",
+                boxShadow: "var(--shadow-subtle)",
+                border: "1px solid rgba(37,34,30,0.06)",
+                padding: "var(--spacing-20)",
+              }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <p style={{ fontSize: "var(--text-sm-2)", fontWeight: 600, color: "var(--color-faded-charcoal)" }}>
+                  Team Calendar
+                </p>
+                <span
                   style={{
-                    background: r.active ? r.bg : "transparent",
-                    border: `1px solid ${r.active ? r.color + "30" : "transparent"}`,
-                    transform: r.active ? "scale(1.02)" : "scale(1)",
+                    padding: "2px 8px",
+                    borderRadius: "var(--radius-badges)",
+                    background: "var(--color-light-green-tint)",
+                    color: "var(--color-badge-green)",
+                    fontSize: "11px",
+                    fontWeight: 600,
                   }}
                 >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold"
-                      style={{ background: r.bg, color: r.color, border: `2px solid ${r.color}30` }}
-                    >
-                      {r.rank[0]}
-                    </span>
-                    <span
+                  This week
+                </span>
+              </div>
+              <div className="grid grid-cols-7 gap-1.5 mb-2">
+                {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+                  <div key={i} className="text-center" style={{ fontSize: "11px", color: "var(--color-dusty-sage)" }}>
+                    {d}
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1.5">
+                {Array.from({ length: 28 }).map((_, i) => {
+                  const day = i + 1;
+                  const active = [6, 12, 14, 20, 25].includes(day);
+                  return (
+                    <div
+                      key={day}
                       style={{
-                        fontSize: "var(--text-sm-2)",
-                        fontWeight: r.active ? 700 : 500,
-                        color: r.active ? r.color : "var(--color-faded-charcoal)",
+                        height: "30px",
+                        borderRadius: "8px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "11px",
+                        color: active ? "white" : "var(--color-subtle-ash)",
+                        background: active ? "var(--color-indigo-cta)" : "rgba(37,34,30,0.04)",
+                        fontWeight: active ? 700 : 500,
                       }}
                     >
-                      {r.rank}
-                    </span>
-                    {r.active && (
-                      <span
-                        style={{
-                          padding: "2px 6px",
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          background: r.color + "18",
-                          color: r.color,
-                          borderRadius: "4px",
-                        }}
-                      >
-                        You are here
-                      </span>
-                    )}
-                  </div>
-                  <span style={{ fontSize: "var(--text-xs)", color: "var(--color-subtle-ash)" }}>
-                    {r.xp} XP
-                  </span>
+                      {day}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Phone UI card */}
+            <div className="mt-4 flex justify-end">
+              <div
+                className="ws-card-lift"
+                style={{
+                  width: "210px",
+                  borderRadius: "26px",
+                  border: "1px solid rgba(37,34,30,0.10)",
+                  background: "var(--color-paper-white)",
+                  boxShadow: "var(--shadow-lg)",
+                  padding: "12px",
+                }}
+              >
+                <div
+                  style={{
+                    height: "22px",
+                    borderRadius: "999px",
+                    marginBottom: "10px",
+                    background: "rgba(37,34,30,0.06)",
+                    width: "88px",
+                    marginLeft: "auto",
+                    marginRight: "auto",
+                  }}
+                />
+                <div
+                  style={{
+                    borderRadius: "16px",
+                    background: "linear-gradient(135deg, #4338ca 0%, #4f46e5 100%)",
+                    color: "white",
+                    padding: "12px",
+                    marginBottom: "10px",
+                  }}
+                >
+                  <p style={{ fontSize: "11px", opacity: 0.85 }}>Today</p>
+                  <p style={{ fontSize: "13px", fontWeight: 700 }}>Calendar synced</p>
+                  <p style={{ fontSize: "11px", opacity: 0.85 }}>6 tasks aligned with deadlines</p>
                 </div>
-              ))}
+                {[
+                  { title: "Sprint planning", time: "10:30" },
+                  { title: "Client follow-up", time: "12:00" },
+                  { title: "Review backlog", time: "16:00" },
+                ].map((item) => (
+                  <div
+                    key={item.title}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "8px 6px",
+                      borderBottom: "1px solid rgba(37,34,30,0.08)",
+                    }}
+                  >
+                    <span style={{ fontSize: "12px", color: "var(--color-faded-charcoal)" }}>{item.title}</span>
+                    <span style={{ fontSize: "11px", color: "var(--color-dusty-sage)" }}>{item.time}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
