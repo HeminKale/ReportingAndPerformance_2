@@ -68,6 +68,101 @@ const DOCUMENT_TYPE_BY_KEY: Record<DocumentUploadKey, DocumentType> = {
 const SALARY_SLIP_TYPE: DocumentType = "salary_slip";
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+type SalaryFilterMode = "past_6_months" | "this_year" | "custom";
+
+const SALARY_FILTER_LABELS: Record<SalaryFilterMode, string> = {
+  past_6_months: "Past 6 Months",
+  this_year: "This Year",
+  custom: "Custom",
+};
+
+function formatYearMonth(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function parseMonthStart(ym: string) {
+  return new Date(`${ym}-01T12:00:00`);
+}
+
+function lastDayOfMonth(ym: string) {
+  const [y, m] = ym.split("-").map(Number);
+  return new Date(y, m, 0, 23, 59, 59, 999);
+}
+
+function monthInRange(monthIso: string, from: Date, to: Date) {
+  const d = new Date(monthIso);
+  return d >= from && d <= to;
+}
+
+function salaryFilterBounds(
+  mode: SalaryFilterMode,
+  currentYear: number,
+  customFrom: string,
+  customTo: string
+): { from: Date; to: Date } {
+  const now = new Date();
+  if (mode === "past_6_months") {
+    return {
+      from: new Date(now.getFullYear(), now.getMonth() - 5, 1),
+      to: lastDayOfMonth(formatYearMonth(now)),
+    };
+  }
+  if (mode === "this_year") {
+    return {
+      from: new Date(currentYear, 0, 1),
+      to: new Date(currentYear, 11, 31, 23, 59, 59, 999),
+    };
+  }
+  let fromYm = customFrom;
+  let toYm = customTo;
+  if (fromYm > toYm) {
+    [fromYm, toYm] = [toYm, fromYm];
+  }
+  return { from: parseMonthStart(fromYm), to: lastDayOfMonth(toYm) };
+}
+
+function buildChartMonthSlots(
+  mode: SalaryFilterMode,
+  currentYear: number,
+  customFrom: string,
+  customTo: string
+): { ym: string; label: string }[] {
+  const now = new Date();
+  if (mode === "past_6_months") {
+    const slots: { ym: string; label: string }[] = [];
+    for (let i = 5; i >= 0; i -= 1) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      slots.push({
+        ym: formatYearMonth(d),
+        label: d.toLocaleString("en-US", { month: "short" }),
+      });
+    }
+    return slots;
+  }
+  if (mode === "this_year") {
+    return MONTH_LABELS.map((label, index) => ({
+      ym: `${currentYear}-${String(index + 1).padStart(2, "0")}`,
+      label,
+    }));
+  }
+  let fromYm = customFrom;
+  let toYm = customTo;
+  if (fromYm > toYm) {
+    [fromYm, toYm] = [toYm, fromYm];
+  }
+  const slots: { ym: string; label: string }[] = [];
+  let cursor = parseMonthStart(fromYm);
+  const end = parseMonthStart(toYm);
+  while (cursor <= end) {
+    slots.push({
+      ym: formatYearMonth(cursor),
+      label: cursor.toLocaleString("en-US", { month: "short", year: "2-digit" }),
+    });
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+  }
+  return slots;
+}
+
 const emptyFormState = (user: User | null): FormState => ({
   salaryBankAccount: "",
   ifscCode: "",
@@ -180,9 +275,10 @@ export function DocumentsTab({ user, isResigned }: DocumentsTabProps) {
   const supabase = createClient();
   const { toast } = useToast();
   const currentYear = new Date().getFullYear();
-  const currentMonth = `${currentYear}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
-  const [selectedYear, setSelectedYear] = useState(String(currentYear));
-  const [statementRange, setStatementRange] = useState("current_month");
+  const currentMonth = formatYearMonth(new Date());
+  const [salaryFilter, setSalaryFilter] = useState<SalaryFilterMode>("this_year");
+  const [customFromMonth, setCustomFromMonth] = useState(`${currentYear}-01`);
+  const [customToMonth, setCustomToMonth] = useState(currentMonth);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -192,11 +288,6 @@ export function DocumentsTab({ user, isResigned }: DocumentsTabProps) {
   const [alumniDetails, setAlumniDetails] = useState<AlumniDetails | null>(null);
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
   const [formState, setFormState] = useState<FormState>(() => emptyFormState(user));
-
-  const salaryYears = useMemo(
-    () => [currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map(String),
-    [currentYear]
-  );
 
   const fetchData = async () => {
     if (!user) {
@@ -255,44 +346,49 @@ export function DocumentsTab({ user, isResigned }: DocumentsTabProps) {
     return grouped;
   }, [documents]);
 
-  const salaryRows = useMemo(() => {
-    return salaryRecords
-      .filter((row) => row.month.startsWith(`${selectedYear}-`))
-      .map((row) => ({
-        ...row,
-        monthLabel: new Date(row.month).toLocaleString("en-US", { month: "short" }),
-        fixed: Number(row.fixed_salary || 0),
-        incentive: Number(row.incentive || 0),
-      }));
-  }, [salaryRecords, selectedYear]);
-
-  const chartData = useMemo(
-    () =>
-      MONTH_LABELS.map((month, index) => {
-        const monthNumber = String(index + 1).padStart(2, "0");
-        const record = salaryRows.find((row) => row.month.startsWith(`${selectedYear}-${monthNumber}`));
-        return {
-          month,
-          fixed: record?.fixed || 0,
-          incentive: record?.incentive || 0,
-        };
-      }),
-    [salaryRows, selectedYear]
+  const salaryRange = useMemo(
+    () => salaryFilterBounds(salaryFilter, currentYear, customFromMonth, customToMonth),
+    [salaryFilter, currentYear, customFromMonth, customToMonth]
   );
 
-  const statementRecords = useMemo(() => {
-    const recordsWithStatements = salaryRecords.filter((row) => row.salary_statement_url);
-    if (statementRange === "current_month") {
-      return recordsWithStatements.filter((row) => row.month.startsWith(currentMonth));
-    }
-    if (statementRange === "past_6_months") {
-      const cutoff = new Date();
-      cutoff.setMonth(cutoff.getMonth() - 5);
-      cutoff.setDate(1);
-      return recordsWithStatements.filter((row) => new Date(row.month) >= cutoff);
-    }
-    return recordsWithStatements.filter((row) => row.month.startsWith(`${selectedYear}-`));
-  }, [salaryRecords, statementRange, currentMonth, selectedYear]);
+  const filteredSalaryRecords = useMemo(
+    () =>
+      salaryRecords.filter((row) => monthInRange(row.month, salaryRange.from, salaryRange.to)),
+    [salaryRecords, salaryRange]
+  );
+
+  const salaryRows = useMemo(
+    () =>
+      [...filteredSalaryRecords]
+        .sort((a, b) => new Date(b.month).getTime() - new Date(a.month).getTime())
+        .map((row) => ({
+          ...row,
+          monthLabel: new Date(row.month).toLocaleString("en-US", { month: "short" }),
+          fixed: Number(row.fixed_salary || 0),
+          incentive: Number(row.incentive || 0),
+        })),
+    [filteredSalaryRecords]
+  );
+
+  const chartData = useMemo(() => {
+    const slots = buildChartMonthSlots(salaryFilter, currentYear, customFromMonth, customToMonth);
+    return slots.map(({ ym, label }) => {
+      const record = filteredSalaryRecords.find((row) => row.month.startsWith(ym));
+      return {
+        month: label,
+        fixed: Number(record?.fixed_salary || 0),
+        incentive: Number(record?.incentive || 0),
+      };
+    });
+  }, [salaryFilter, currentYear, customFromMonth, customToMonth, filteredSalaryRecords]);
+
+  const statementRecords = useMemo(
+    () =>
+      filteredSalaryRecords
+        .filter((row) => row.salary_statement_url)
+        .sort((a, b) => new Date(b.month).getTime() - new Date(a.month).getTime()),
+    [filteredSalaryRecords]
+  );
 
   const uploadDocument = async (docType: DocumentType, file: File | null, options?: { allowMany?: boolean }) => {
     if (!user || !file) return;
@@ -424,18 +520,16 @@ export function DocumentsTab({ user, isResigned }: DocumentsTabProps) {
   };
 
   const handleStatementAction = async () => {
-    if (statementRange === "current_month") {
-      const currentStatement = statementRecords[0];
-      if (!currentStatement?.salary_statement_url) {
-        toast({ title: "No statement found", description: "No current month salary statement is available." });
-        return;
-      }
-      window.open(currentStatement.salary_statement_url, "_blank", "noopener,noreferrer");
+    if (!statementRecords.length) {
+      toast({
+        title: "No statements found",
+        description: `No salary statements are available for ${SALARY_FILTER_LABELS[salaryFilter].toLowerCase()}.`,
+      });
       return;
     }
 
-    if (!statementRecords.length) {
-      toast({ title: "No statements found", description: "No salary statements are available for this range." });
+    if (statementRecords.length === 1) {
+      window.open(statementRecords[0].salary_statement_url as string, "_blank", "noopener,noreferrer");
       return;
     }
 
@@ -455,7 +549,7 @@ export function DocumentsTab({ user, isResigned }: DocumentsTabProps) {
       const url = URL.createObjectURL(zipBlob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `salary-statements-${statementRange}-${selectedYear}.zip`;
+      link.download = `salary-statements-${salaryFilter}.zip`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -630,28 +724,66 @@ export function DocumentsTab({ user, isResigned }: DocumentsTabProps) {
           </div>
         </TabsContent>
 
-        <TabsContent value="salary" className="mt-0">
+        <TabsContent value="salary" className="mt-0 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Period</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select
+                value={salaryFilter}
+                onValueChange={(v) => setSalaryFilter(v as SalaryFilterMode)}
+              >
+                <SelectTrigger className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="past_6_months">Past 6 Months</SelectItem>
+                  <SelectItem value="this_year">This Year</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+              {salaryFilter === "custom" && (
+                <>
+                  <Input
+                    type="month"
+                    value={customFromMonth}
+                    onChange={(e) => setCustomFromMonth(e.target.value)}
+                    className="w-36"
+                    aria-label="From month"
+                  />
+                  <span className="text-sm text-slate-500">to</span>
+                  <Input
+                    type="month"
+                    value={customToMonth}
+                    onChange={(e) => setCustomToMonth(e.target.value)}
+                    className="w-36"
+                    aria-label="To month"
+                  />
+                </>
+              )}
+              <Button
+                type="button"
+                onClick={handleStatementAction}
+                disabled={downloading}
+                className="rounded-lg bg-slate-900 text-white hover:bg-slate-800"
+              >
+                {downloading
+                  ? "Preparing..."
+                  : statementRecords.length === 1
+                    ? "View Statement"
+                    : "Download Statements"}
+              </Button>
+            </div>
+          </div>
+
           <div className="grid gap-4 xl:grid-cols-2">
             <section className="rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Salary Breakdown</p>
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {salaryYears.map((year) => (
-                      <SelectItem key={year} value={year}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Salary Breakdown</p>
 
               <div className="max-h-[470px] space-y-2 overflow-y-auto pr-1">
                 {salaryRows.length === 0 ? (
-                  <p className="rounded-xl border border-slate-200 p-4 text-sm text-slate-500">No salary records found for {selectedYear}.</p>
+                  <p className="rounded-xl border border-slate-200 p-4 text-sm text-slate-500">
+                    No salary records found for {SALARY_FILTER_LABELS[salaryFilter].toLowerCase()}.
+                  </p>
                 ) : (
                   salaryRows.map((row) => (
                     <div key={row.id} className="rounded-xl border border-slate-200 p-3">
@@ -669,24 +801,7 @@ export function DocumentsTab({ user, isResigned }: DocumentsTabProps) {
             </section>
 
             <section className="rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Yearly Salary Graph</p>
-                <div className="flex items-center gap-2">
-                  <Select value={statementRange} onValueChange={setStatementRange}>
-                    <SelectTrigger className="w-44">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="current_month">Current Month</SelectItem>
-                      <SelectItem value="past_6_months">Past 6 Months</SelectItem>
-                      <SelectItem value="this_year">This Year</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button type="button" onClick={handleStatementAction} disabled={downloading} className="rounded-lg bg-slate-900 text-white hover:bg-slate-800">
-                    {downloading ? "Preparing..." : statementRange === "current_month" ? "View" : "Download Zip"}
-                  </Button>
-                </div>
-              </div>
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Salary Graph</p>
 
               <div className="h-[420px] w-full">
                 <ResponsiveContainer width="100%" height="100%">

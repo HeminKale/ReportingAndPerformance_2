@@ -82,12 +82,12 @@
   [data-theme="sand"] {
     --background: 24 100% 97%;
     --foreground: 24 18% 18%;
-    --card: 30 33% 99%;
+    --card: 40 33% 97%;
     --card-foreground: 24 18% 18%;
-    --popover: 30 33% 99%;
+    --popover: 40 33% 97%;
     --popover-foreground: 24 18% 18%;
     --primary: 22 78% 48%;
-    --primary-foreground: 30 33% 99%;
+    --primary-foreground: 40 33% 97%;
     --secondary: 24 60% 94%;
     --secondary-foreground: 24 18% 18%;
     --muted: 24 45% 94%;
@@ -95,13 +95,63 @@
     --accent: 24 70% 93%;
     --accent-foreground: 24 18% 18%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 30 33% 99%;
+    --destructive-foreground: 40 33% 97%;
     --border: 24 35% 88%;
     --input: 24 35% 88%;
     --ring: 22 78% 48%;
     --hero-from: 22 70% 42%;
     --hero-to: 28 65% 46%;
     --hero-ring: 22 78% 48%;
+  }
+
+  [data-theme="stone"] {
+    --background: 40 4% 84%;
+    --foreground: 40 12% 18%;
+    --card: 40 33% 97%;
+    --card-foreground: 40 12% 18%;
+    --popover: 40 33% 97%;
+    --popover-foreground: 40 12% 18%;
+    --primary: 40 14% 38%;
+    --primary-foreground: 40 33% 97%;
+    --secondary: 40 6% 78%;
+    --secondary-foreground: 40 12% 18%;
+    --muted: 40 5% 80%;
+    --muted-foreground: 40 8% 40%;
+    --accent: 40 20% 92%;
+    --accent-foreground: 40 12% 18%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 40 33% 97%;
+    --border: 40 6% 76%;
+    --input: 40 6% 76%;
+    --ring: 40 14% 38%;
+    --hero-from: 40 12% 32%;
+    --hero-to: 40 10% 42%;
+    --hero-ring: 40 14% 38%;
+  }
+
+  [data-theme="sage"] {
+    --background: 140 22% 92%;
+    --foreground: 155 18% 16%;
+    --card: 130 35% 98%;
+    --card-foreground: 155 18% 16%;
+    --popover: 130 35% 98%;
+    --popover-foreground: 155 18% 16%;
+    --primary: 152 42% 36%;
+    --primary-foreground: 130 35% 98%;
+    --secondary: 140 25% 88%;
+    --secondary-foreground: 155 18% 16%;
+    --muted: 140 18% 90%;
+    --muted-foreground: 155 12% 38%;
+    --accent: 145 35% 90%;
+    --accent-foreground: 155 18% 16%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 130 35% 98%;
+    --border: 140 18% 82%;
+    --input: 140 18% 82%;
+    --ring: 152 42% 36%;
+    --hero-from: 152 38% 30%;
+    --hero-to: 165 35% 34%;
+    --hero-ring: 152 42% 36%;
   }
 }
 
@@ -194,7 +244,7 @@
 
 [data-theme="sand"] .app-shell-nav {
   border-color: hsl(24 35% 86% / 0.9);
-  background: hsl(30 33% 99% / 0.92);
+  background: hsl(40 33% 97% / 0.92);
 }
 
 [data-theme="sand"] .app-logo-icon {
@@ -215,7 +265,7 @@
 [data-theme="sand"] .app-profile-panel,
 [data-theme="sand"] .option-panel {
   border-color: hsl(24 35% 88%);
-  background-color: #fefdfc;
+  background-color: #faf9f6;
   box-shadow: 0 8px 28px rgba(120, 72, 32, 0.08);
 }
 
@@ -259,12 +309,12 @@
 [data-theme="sand"] .option-surface {
   background:
     radial-gradient(circle at 15% 10%, #fff6f0, transparent 40%),
-    radial-gradient(circle at 85% 20%, #fefdfc, transparent 35%),
+    radial-gradient(circle at 85% 20%, #faf9f6, transparent 35%),
     #fff6f0;
 }
 
 [data-theme="sand"] .option-soft-card {
-  background: #fefdfc;
+  background: #faf9f6;
 }
 
 [data-theme="sand"] .option-cta {
@@ -277,7 +327,197 @@
 
 [data-theme="sand"] .option-quest-card {
   border-color: hsl(24 35% 88%);
-  background: #fefdfc;
+  background: #faf9f6;
+}
+
+[data-theme="stone"] .app-shell-nav {
+  border-color: hsl(40 6% 72% / 0.9);
+  background: hsl(40 33% 97% / 0.92);
+}
+
+[data-theme="stone"] .app-logo-icon {
+  background: linear-gradient(135deg, hsl(40 14% 42%), hsl(40 10% 52%));
+}
+
+[data-theme="stone"] .app-logo-text {
+  color: hsl(40 14% 22%);
+}
+
+[data-theme="stone"] .app-nav-links {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-theme="stone"] .app-popover,
+[data-theme="stone"] .app-profile-panel,
+[data-theme="stone"] .option-panel {
+  border-color: hsl(40 6% 76%);
+  background-color: #faf9f6;
+  box-shadow: 0 8px 28px rgba(60, 58, 54, 0.1);
+}
+
+[data-theme="stone"] .option-tablist {
+  border-color: hsl(40 6% 76%);
+  background: #d7d6d4;
+}
+
+[data-theme="stone"] .app-nav-link {
+  color: hsl(40 8% 38%);
+}
+
+[data-theme="stone"] .app-nav-link:hover {
+  background: transparent;
+  color: hsl(40 14% 30%);
+}
+
+[data-theme="stone"] .app-nav-link-active {
+  background: transparent;
+  color: hsl(40 14% 28%);
+}
+
+[data-theme="stone"] .app-avatar-dot {
+  background: linear-gradient(135deg, hsl(40 14% 42%), hsl(40 10% 52%));
+}
+
+[data-theme="stone"] .app-ghost-btn:hover {
+  background: #d7d6d4;
+}
+
+[data-theme="stone"] .app-icon {
+  color: hsl(40 8% 38%);
+}
+
+[data-theme="stone"] .app-theme-pill-active {
+  border-color: hsl(40 10% 62%);
+  background: #faf9f6;
+  color: hsl(40 14% 30%);
+}
+
+[data-theme="stone"] .option-surface {
+  background:
+    radial-gradient(circle at 15% 10%, #d7d6d4, transparent 40%),
+    radial-gradient(circle at 85% 20%, #faf9f6, transparent 35%),
+    #d7d6d4;
+}
+
+[data-theme="stone"] .option-soft-card {
+  background: #faf9f6;
+}
+
+[data-theme="stone"] .option-cta {
+  background: linear-gradient(135deg, hsl(40 14% 36%), hsl(40 10% 46%));
+}
+
+[data-theme="stone"] .option-cta:hover {
+  background: linear-gradient(135deg, hsl(40 14% 32%), hsl(40 10% 42%));
+}
+
+[data-theme="stone"] .option-quest-card {
+  border-color: hsl(40 6% 76%);
+  background: #faf9f6;
+}
+
+[data-theme="stone"] .task-side-trigger[data-state="active"],
+[data-theme="stone"] .manager-side-trigger[data-state="active"] {
+  background-color: hsl(40 14% 38% / 0.18);
+  color: hsl(40 14% 28%);
+  box-shadow: none;
+}
+
+[data-theme="sage"] .app-shell-nav {
+  border-color: hsl(140 18% 78% / 0.9);
+  background: hsl(130 35% 98% / 0.92);
+}
+
+[data-theme="sage"] .app-logo-icon {
+  background: linear-gradient(135deg, hsl(152 42% 40%), hsl(165 38% 38%));
+}
+
+[data-theme="sage"] .app-logo-text {
+  color: hsl(155 22% 20%);
+}
+
+[data-theme="sage"] .app-nav-links {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-theme="sage"] .app-popover,
+[data-theme="sage"] .app-profile-panel,
+[data-theme="sage"] .option-panel {
+  border-color: hsl(140 18% 82%);
+  background-color: #f6fbf7;
+  box-shadow: 0 8px 28px rgba(36, 72, 52, 0.08);
+}
+
+[data-theme="sage"] .option-tablist {
+  border-color: hsl(140 18% 82%);
+  background: #e8f2eb;
+}
+
+[data-theme="sage"] .app-nav-link {
+  color: hsl(155 14% 36%);
+}
+
+[data-theme="sage"] .app-nav-link:hover {
+  background: transparent;
+  color: hsl(152 42% 30%);
+}
+
+[data-theme="sage"] .app-nav-link-active {
+  background: transparent;
+  color: hsl(152 42% 28%);
+}
+
+[data-theme="sage"] .app-avatar-dot {
+  background: linear-gradient(135deg, hsl(152 42% 40%), hsl(165 38% 38%));
+}
+
+[data-theme="sage"] .app-ghost-btn:hover {
+  background: #e8f2eb;
+}
+
+[data-theme="sage"] .app-icon {
+  color: hsl(155 14% 36%);
+}
+
+[data-theme="sage"] .app-theme-pill-active {
+  border-color: hsl(152 35% 62%);
+  background: #e8f2eb;
+  color: hsl(152 42% 28%);
+}
+
+[data-theme="sage"] .option-surface {
+  background:
+    radial-gradient(circle at 15% 10%, #e8f2eb, transparent 40%),
+    radial-gradient(circle at 85% 20%, #f6fbf7, transparent 35%),
+    #e8f2eb;
+}
+
+[data-theme="sage"] .option-soft-card {
+  background: #f6fbf7;
+}
+
+[data-theme="sage"] .option-cta {
+  background: linear-gradient(135deg, hsl(152 42% 34%), hsl(165 38% 32%));
+}
+
+[data-theme="sage"] .option-cta:hover {
+  background: linear-gradient(135deg, hsl(152 42% 30%), hsl(165 38% 28%));
+}
+
+[data-theme="sage"] .option-quest-card {
+  border-color: hsl(140 18% 82%);
+  background: #f6fbf7;
+}
+
+[data-theme="sage"] .task-side-trigger[data-state="active"],
+[data-theme="sage"] .manager-side-trigger[data-state="active"] {
+  background-color: hsl(152 42% 36% / 0.18);
+  color: hsl(152 42% 28%);
+  box-shadow: none;
 }
 
 .task-side-trigger[data-state="active"],

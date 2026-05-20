@@ -42,7 +42,9 @@ function ThemeDot({ theme }: { theme: AppTheme }) {
   const colors: Record<AppTheme, string> = {
     taskos: "from-indigo-500 to-indigo-700",
     bloom: "from-fuchsia-500 to-violet-600",
-    sand: "from-[#fff6f0] to-[#fefdfc] ring-1 ring-amber-200/80",
+    sand: "from-[#fff6f0] to-[#faf9f6] ring-1 ring-amber-200/80",
+    stone: "from-[#d7d6d4] to-[#faf9f6] ring-1 ring-stone-300/80",
+    sage: "from-[#e8f2eb] to-[#f6fbf7] ring-1 ring-emerald-200/80",
   };
 
   return <span className={cn("h-4 w-4 rounded-full bg-gradient-to-br", colors[theme])} />;
@@ -61,8 +63,6 @@ export function TopNav({ orgSlug, userRole, userId, userName }: TopNavProps) {
   } | null>(null);
   const canAccessAdminTools = userRole === "admin" || userRole === "manager";
   const displayName = userName || "Hero";
-  const appTitle = theme === "bloom" ? "Bloom" : theme === "sand" ? "Sand" : "Worksphere";
-
   const { primaryNavItems, overflowNavItems } = useMemo(() => {
     const primary = navItems.slice(0, NAV_PRIMARY_MAX);
     const overflow = navItems.length > NAV_PRIMARY_MAX ? navItems.slice(NAV_PRIMARY_MAX) : [];
@@ -112,7 +112,7 @@ export function TopNav({ orgSlug, userRole, userId, userName }: TopNavProps) {
           className="app-logo-text flex shrink-0 items-center gap-2 font-black tracking-tight text-slate-900"
         >
           <span className="app-logo-icon inline-flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white">⚡</span>
-          <span>{appTitle}</span>
+          <span>Worksphere</span>
         </Link>
 
         <nav className="app-nav-links mx-auto hidden min-w-0 flex-1 items-center justify-center gap-0 border-0 bg-transparent p-0 md:flex">

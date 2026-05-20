@@ -27,6 +27,10 @@ import type { User, LeaderboardDaily } from "@/lib/types/database";
 import { dailyPerformanceLabel } from "@/lib/types/database";
 import { cn } from "@/lib/utils/cn";
 import { DashboardSkyBg } from "@/components/dashboard/dashboard-sky-bg";
+import {
+  dicebearAvatarUrl,
+  resolveProfilePhotoUrls,
+} from "@/lib/users/resolve-profile-photo-urls";
 
 interface LeaderboardEntry {
   id: string;
@@ -118,22 +122,16 @@ export default function LeaderboardPage() {
       console.error("[Leaderboard] monthly fetch:", error);
       setLeaderboard([]);
     } else {
-      const entries = (data as any) || [];
+      const entries = (data as LeaderboardEntry[]) || [];
       setLeaderboard(entries);
 
-      const userIds = entries.map((e: any) => e.user_id);
-      if (userIds.length > 0) {
-        const { data: photos } = await supabase
-          .from('employee_documents')
-          .select('user_id, file_url')
-          .in('user_id', userIds)
-          .eq('doc_type', 'photo');
-        
-        const photoMap: Record<string, string> = {};
-        photos?.forEach(p => {
-          photoMap[p.user_id] = p.file_url;
-        });
-        setProfilePhotos(prev => ({ ...prev, ...photoMap }));
+      const avatarSources = entries.map((e) => ({
+        id: e.user_id,
+        avatar_url: e.users?.avatar_url ?? null,
+      }));
+      if (avatarSources.length > 0) {
+        const photoMap = await resolveProfilePhotoUrls(supabase, avatarSources);
+        setProfilePhotos((prev) => ({ ...prev, ...photoMap }));
       }
     }
     setLoading(false);
@@ -181,6 +179,15 @@ export default function LeaderboardPage() {
 
     const users = (usersData || []) as User[];
     setDailyRows(users.map((u) => ({ user: u, rating: byUser[u.id] ?? null })));
+
+    if (users.length > 0) {
+      const photoMap = await resolveProfilePhotoUrls(
+        supabase,
+        users.map((u) => ({ id: u.id, avatar_url: u.avatar_url }))
+      );
+      setProfilePhotos((prev) => ({ ...prev, ...photoMap }));
+    }
+
     setDailyLoading(false);
   };
 
@@ -273,7 +280,7 @@ export default function LeaderboardPage() {
                       <>
                         <div className="relative mb-4">
                           <div className="h-24 w-24 rounded-full border-4 border-slate-300 p-1 bg-white shadow-xl overflow-hidden transition-transform group-hover:scale-105">
-                            <img src={profilePhotos[secondEntry.user_id] || `https://api.dicebear.com/7.x/notionists/svg?seed=${secondEntry.users.full_name}`} className="h-full w-full object-cover rounded-full" />
+                            <img src={profilePhotos[secondEntry.user_id] || dicebearAvatarUrl(secondEntry.users.full_name)} alt="" className="h-full w-full object-cover rounded-full" />
                           </div>
                           <div className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-slate-300 flex items-center justify-center border-2 border-white shadow-md">
                             <Medal className="h-4 w-4 text-slate-600" />
@@ -297,7 +304,7 @@ export default function LeaderboardPage() {
                         <div className="relative mb-6">
                           <div className="absolute -top-10 left-1/2 -translate-x-1/2 animate-bounce z-20"><Crown className="h-12 w-12 text-yellow-500 fill-yellow-500" /></div>
                           <div className="h-36 w-36 rounded-full border-[6px] border-yellow-400 p-1.5 bg-white shadow-xl overflow-hidden transition-transform group-hover:scale-105">
-                            <img src={profilePhotos[topEntry.user_id] || `https://api.dicebear.com/7.x/notionists/svg?seed=${topEntry.users.full_name}`} className="h-full w-full object-cover rounded-full" />
+                            <img src={profilePhotos[topEntry.user_id] || dicebearAvatarUrl(topEntry.users.full_name)} alt="" className="h-full w-full object-cover rounded-full" />
                           </div>
                           <div className="absolute -bottom-3 -right-3 h-12 w-12 rounded-full bg-yellow-400 flex items-center justify-center border-4 border-white shadow-lg">
                             <Trophy className="h-6 w-6 text-yellow-900" />
@@ -330,7 +337,7 @@ export default function LeaderboardPage() {
                       <>
                         <div className="relative mb-4">
                           <div className="h-20 w-20 rounded-full border-4 border-amber-600/50 p-1 bg-white shadow-xl overflow-hidden transition-transform group-hover:scale-105">
-                            <img src={profilePhotos[thirdEntry.user_id] || `https://api.dicebear.com/7.x/notionists/svg?seed=${thirdEntry.users.full_name}`} className="h-full w-full object-cover rounded-full" />
+                            <img src={profilePhotos[thirdEntry.user_id] || dicebearAvatarUrl(thirdEntry.users.full_name)} alt="" className="h-full w-full object-cover rounded-full" />
                           </div>
                           <div className="absolute -bottom-2 -right-2 h-7 w-7 rounded-full bg-amber-600 flex items-center justify-center border-2 border-white shadow-md">
                             <Award className="h-3.5 w-3.5 text-white" />
@@ -357,7 +364,7 @@ export default function LeaderboardPage() {
                       <div key={entry.id} className="group flex items-center gap-4 rounded-3xl bg-white/60 backdrop-blur-md border border-white/80 p-4 shadow-sm hover:shadow-md transition-all">
                         <div className="flex-shrink-0 w-12 flex justify-center text-xl font-black text-slate-300 group-hover:text-slate-500 transition-colors">#{entry.rank}</div>
                         <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-slate-100 flex-shrink-0">
-                          <img src={profilePhotos[entry.user_id] || `https://api.dicebear.com/7.x/notionists/svg?seed=${entry.users.full_name}`} className="h-full w-full object-cover" />
+                          <img src={profilePhotos[entry.user_id] || dicebearAvatarUrl(entry.users.full_name)} alt="" className="h-full w-full object-cover" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-slate-800 truncate group-hover:text-blue-600 transition-colors">{entry.users.full_name}</p>
@@ -416,7 +423,11 @@ export default function LeaderboardPage() {
                 {dailyRows.map(({ user, rating }) => (
                   <div key={user.id} className="group flex items-center gap-4 rounded-3xl bg-white/60 backdrop-blur-md border border-white/80 p-4 shadow-sm hover:shadow-md transition-all">
                     <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-slate-100 flex-shrink-0 bg-slate-50 flex items-center justify-center">
-                      {profilePhotos[user.id] ? <img src={profilePhotos[user.id]} className="h-full w-full object-cover" /> : <span className="text-xs font-bold text-slate-400">{user.full_name.charAt(0)}</span>}
+                      <img
+                        src={profilePhotos[user.id] || dicebearAvatarUrl(user.full_name)}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                        <p className="font-bold text-slate-800">{user.full_name}</p>
