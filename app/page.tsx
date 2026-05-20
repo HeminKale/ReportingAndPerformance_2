@@ -109,19 +109,18 @@ export default async function Home() {
             className="text-5xl lg:text-6xl font-bold tracking-tight leading-tight mb-6"
             style={{ color: "var(--ws-faded-charcoal)", letterSpacing: "-0.025em" }}
           >
-            Work hard.
+            Own your workday.
             <br />
-            Earn XP.
-            <br />
-            <span style={{ color: "var(--ws-indigo-cta)" }}>Level up.</span>
+            <span style={{ color: "var(--ws-indigo-cta)" }}>Master every deadline.</span>
           </h1>
 
           <p
             className="text-lg leading-relaxed mb-8 max-w-md"
             style={{ color: "var(--ws-subtle-ash)" }}
           >
-            Worksphere turns your team's daily tasks into a rewarding game — earn XP, climb ranks,
-            hit streaks, and watch productivity soar. No more boring dashboards.
+            WorkSphere brings planning, calendars, employee management, documents, and task
+            execution into one seamless workflow. Stay organized, move faster, and deliver
+            consistently.
           </p>
 
           <div className="flex flex-wrap items-center gap-3">
