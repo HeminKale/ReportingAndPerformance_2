@@ -42,7 +42,7 @@ function ThemeDot({ theme }: { theme: AppTheme }) {
   const colors: Record<AppTheme, string> = {
     taskos: "from-indigo-500 to-indigo-700",
     bloom: "from-fuchsia-500 to-violet-600",
-    midnight: "from-cyan-400 to-blue-500",
+    sand: "from-[#fff6f0] to-[#fefdfc] ring-1 ring-amber-200/80",
   };
 
   return <span className={cn("h-4 w-4 rounded-full bg-gradient-to-br", colors[theme])} />;
@@ -61,7 +61,7 @@ export function TopNav({ orgSlug, userRole, userId, userName }: TopNavProps) {
   } | null>(null);
   const canAccessAdminTools = userRole === "admin" || userRole === "manager";
   const displayName = userName || "Hero";
-  const appTitle = theme === "bloom" ? "Bloom" : theme === "midnight" ? "Midnight" : "Worksphere";
+  const appTitle = theme === "bloom" ? "Bloom" : theme === "sand" ? "Sand" : "Worksphere";
 
   const { primaryNavItems, overflowNavItems } = useMemo(() => {
     const primary = navItems.slice(0, NAV_PRIMARY_MAX);
