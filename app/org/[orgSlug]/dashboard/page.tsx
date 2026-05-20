@@ -19,6 +19,7 @@ import { streakClockInCutoffFromOrg } from '@/lib/gamification/streak-conditions
 import { DashboardSkyBg } from '@/components/dashboard/dashboard-sky-bg';
 import { ScrollableCardList } from '@/components/dashboard/scrollable-card-list';
 import { XpProgressBar } from '@/components/dashboard/xp-progress-bar';
+import { BadgeImage } from '@/components/dashboard/badge-image';
 import { MonthlyCelebration } from '@/components/dashboard/monthly-celebration';
 import { DashboardTasksCard } from '@/components/dashboard/dashboard-tasks-card';
 import { ProfilePhotoUpload } from '@/components/dashboard/profile-photo-upload';
@@ -318,11 +319,9 @@ export default async function DashboardPage({
               {earnedRankTiers.map((tier) => (
                 <div key={tier.id} className="flex flex-col items-center gap-1 group">
                   <div className="h-14 w-14 flex items-center justify-center rounded-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-sm transition-transform group-hover:scale-110 overflow-hidden">
-                    <img 
-                      src={`/assets/badges/${tier.rankName}.png`} 
-                      alt={tier.rankName} 
-                      className="h-10 w-10 object-contain"
-                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                    <BadgeImage
+                      src={`/assets/badges/${tier.rankName}.png`}
+                      alt={tier.rankName}
                     />
                   </div>
                   <span className="text-[9px] font-bold text-slate-500 text-center leading-tight">{tier.rankName}</span>
