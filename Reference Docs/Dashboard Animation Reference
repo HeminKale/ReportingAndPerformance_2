@@ -1,0 +1,57 @@
+Dashboard Animations Reference Guide
+This document provides a complete overview of the dopamine-driven animation system on the dashboard, including their triggers, visual effects, and the specific files responsible for their execution.
+
+1. Animation Infrastructure
+The system is built using a React Context pattern to ensure animations are decoupled from business logic and can be rendered as top-level overlays.
+
+Component / File	Purpose
+components/dashboard/animation-manager.tsx	Core Engine. Contains the AnimationContext, state for particles/overlays, and the logic to render animations on top of everything.
+app/globals.css	Styling. Definitions for all custom @keyframes (e.g., celestial, liquid-ripple, glass-shatter) and Tailwind animation classes.
+components/dashboard/xp-progress-bar.tsx	Observer. Watches for changes in XP from the database and tells the AnimationManager when to trigger a gain or loss flourish.
+2. Animation Breakdown
+A. Celestial Streak (XP Gain)
+Visuals: Glowing golden particles fly from a source point (usually screen center) toward the XP progress bar in the top right. A floating "+X XP" label follows the streak.
+Trigger: Automated. It fires whenever the totalXp prop in the Dashboard increases.
+Key Files:
+animation-manager.tsx: Renders the particle divs and the animate-celestial CSS class.
+xp-progress-bar.tsx: Detects the XP increase and calls triggerXpGain().
+CSS Class: .animate-celestial
+B. Ghost Fade (XP Loss / Penalty)
+Visuals: A red "-X XP" text with a small message floats upward and evaporates, indicating a mistake or penalty.
+Trigger: Automated. Fires when the totalXp prop decreases.
+Key Files:
+animation-manager.tsx: Manages the ghosts state and renders the animate-ghost-evaporate overlay.
+xp-progress-bar.tsx: Detects the XP decrease and calls triggerXpLoss().
+CSS Class: .animate-ghost-evaporate
+C. Liquid Ripple (XP Bar Update)
+Visuals: A subtle "wave" or shimmer effect that passes over the XP progress bar as its width increases.
+Trigger: Automated. Dispatched as a CustomEvent("taskos-xp-ripple") by the particles when they "hit" the bar.
+Key Files:
+xp-progress-bar.tsx: Listens for the ripple event and toggles a dedicated overlay div with the ripple animation.
+CSS Class: .animate-liquid-ripple
+D. Rank Resonance (Trophy / Level Up)
+Visuals: Full-screen backdrop blur, a bouncing gold trophy, spinning stars, and "Rank Up" text with shattering/popping effects.
+Trigger: Automated (One-time). Fires on the first dashboard load of the month if the user is identified as the Top Performer.
+Key Files:
+monthly-celebration.tsx: The logic handler that checks database flags and localStorage to ensure it only plays once.
+animation-manager.tsx: Renders the full-screen Trophy overlay.
+CSS Classes: .animate-pulse-glow, glass-shatter, xp-pop
+3. How to Test & Verify
+Automatic Trigger Testing
+Navigate to the Dashboard.
+In the browser console, you can manually simulate a server-side XP change by firing the internal event directly:
+javascript
+// Simulate an XP gain of 50
+window.dispatchEvent(new CustomEvent("taskos-xp-ripple", { detail: { amount: 50 } }));
+Trophy Replay (Manual Reset)
+If you need to see the Monthly Trophy again for testing:
+
+Open Browser DevTools -> Application -> Local Storage.
+Find the key starting with celebration-seen- and delete it.
+Refresh the page (ensure your user is actually ranked #1 in the database for that month).
+4. Summary of Key Files
+Context: components/dashboard/animation-manager.tsx
+UI Integration: components/dashboard/xp-progress-bar.tsx
+Special Events: components/dashboard/monthly-celebration.tsx
+Styles: app/globals.css
+Data Source: app/org/[orgSlug]/dashboard/page.tsx (Fetches from Supabase user_gamification and leaderboard tables).

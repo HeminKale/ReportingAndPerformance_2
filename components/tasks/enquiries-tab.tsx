@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Pencil } from "lucide-react";
+import { cn } from "@/lib/utils/cn";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +44,32 @@ const STATUS_OPTIONS: { value: EnquiryStatus; label: string }[] = [
   { value: "closed_won", label: "Closed won" },
   { value: "closed_lost", label: "Closed lost" },
 ];
+
+const STATUS_BADGE_STYLES: Record<EnquiryStatus, string> = {
+  prospecting:
+    "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-50",
+  analyzing:
+    "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-50",
+  closed_won:
+    "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-50",
+  closed_lost:
+    "border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-50",
+};
+
+function EnquiryStatusBadge({ status }: { status: EnquiryStatus }) {
+  const label = STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status;
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "rounded-full px-2.5 py-0.5 text-xs font-semibold",
+        STATUS_BADGE_STYLES[status]
+      )}
+    >
+      {label}
+    </Badge>
+  );
+}
 
 export function EnquiriesTab({ user }: { user: User | null }) {
   const supabase = createClient();
@@ -155,14 +183,24 @@ export function EnquiriesTab({ user }: { user: User | null }) {
       certification_body: formState.certificationBody.trim() || null,
     };
 
-    const { error } = isEditing
-      ? await supabase.from("enquiries").update(payload).eq("id", editingId)
-      : await supabase.from("enquiries").insert(payload);
+    const { data: savedRow, error } = isEditing
+      ? await supabase.from("enquiries").update(payload).eq("id", editingId!).select("id").single()
+      : await supabase.from("enquiries").insert(payload).select("id").single();
 
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       setSaving(false);
       return;
+    }
+
+    const enquiryId = savedRow?.id ?? editingId;
+    if (formState.status === "closed_won" && enquiryId) {
+      void fetch("/api/gamification/xp-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ kind: "enquiry_closed_won", resourceId: enquiryId }),
+      }).catch(() => {});
     }
 
     toast({ title: "Success", description: `Enquiry ${isEditing ? "updated" : "saved"} successfully` });
@@ -202,9 +240,9 @@ export function EnquiriesTab({ user }: { user: User | null }) {
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
               <Button
-                variant="ghost"
+                variant="outline"
                 onClick={handleOpenNew}
-                className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 font-semibold"
+                className="border-primary/50 bg-transparent font-semibold text-primary hover:bg-primary/10"
               >
                 + New Enquiry
               </Button>
@@ -336,13 +374,13 @@ export function EnquiriesTab({ user }: { user: User | null }) {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-sm text-slate-500">
+                      <TableCell colSpan={8} className="text-center text-sm text-slate-500">
                         Loading enquiries...
                       </TableCell>
                     </TableRow>
                   ) : filteredEnquiries.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-sm text-slate-500">
+                      <TableCell colSpan={8} className="text-center text-sm text-slate-500">
                         No enquiries found.
                       </TableCell>
                     </TableRow>
@@ -350,7 +388,9 @@ export function EnquiriesTab({ user }: { user: User | null }) {
                     filteredEnquiries.map((row) => (
                       <TableRow key={row.id}>
                         <TableCell>{row.name}</TableCell>
-                        <TableCell className="capitalize">{row.status.replace("_", " ")}</TableCell>
+                        <TableCell>
+                          <EnquiryStatusBadge status={row.status} />
+                        </TableCell>
                         <TableCell>{row.reason || "-"}</TableCell>
                         <TableCell>{row.iso_standard || "-"}</TableCell>
                         <TableCell>{row.date}</TableCell>
@@ -404,13 +444,13 @@ export function EnquiriesTab({ user }: { user: User | null }) {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-sm text-slate-500">
+                      <TableCell colSpan={8} className="text-center text-sm text-slate-500">
                         Loading enquiries...
                       </TableCell>
                     </TableRow>
                   ) : filteredEnquiries.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-sm text-slate-500">
+                      <TableCell colSpan={8} className="text-center text-sm text-slate-500">
                         No enquiries found.
                       </TableCell>
                     </TableRow>
@@ -418,7 +458,9 @@ export function EnquiriesTab({ user }: { user: User | null }) {
                     filteredEnquiries.map((row) => (
                       <TableRow key={row.id}>
                         <TableCell>{row.name}</TableCell>
-                        <TableCell className="capitalize">{row.status.replace("_", " ")}</TableCell>
+                        <TableCell>
+                          <EnquiryStatusBadge status={row.status} />
+                        </TableCell>
                         <TableCell>{row.reason || "-"}</TableCell>
                         <TableCell>{row.iso_standard || "-"}</TableCell>
                         <TableCell>{row.date}</TableCell>

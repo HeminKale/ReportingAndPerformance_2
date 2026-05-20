@@ -15,6 +15,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY);
+    if (saved === "midnight") {
+      setTheme("sand");
+      return;
+    }
     if (saved && isAppTheme(saved)) {
       setTheme(saved);
     }

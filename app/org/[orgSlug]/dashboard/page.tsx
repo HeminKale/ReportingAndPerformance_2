@@ -1,8 +1,56 @@
 import { createClient } from '@/lib/supabase/server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, CheckSquare, Clock, Flame, Sparkles, TrendingUp } from 'lucide-react';
-import { format } from 'date-fns';
+import { CheckSquare, Sparkles, TrendingUp, CheckCircle2, CircleDashed } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { getCurrentTimeInTimezone } from '@/lib/utils/timezone';
+import {
+  rankForTotalXp,
+  RANK_TIERS,
+  XP_TRAINING_COMPLETED,
+  XP_ALL_TASKS_COMPLETED_BONUS,
+  XP_PUNCTUALITY_BUNDLE,
+  XP_ZERO_MISTAKES_BONUS,
+  CLOCK_OUT_END,
+  STREAK_CLOCK_IN_CUTOFF_DEFAULT,
+} from '@/lib/gamification/xp-rules';
+import { localHM } from '@/lib/calendar/calendar-utils';
+import { streakClockInCutoffFromOrg } from '@/lib/gamification/streak-conditions';
+import { DashboardSkyBg } from '@/components/dashboard/dashboard-sky-bg';
+import { ScrollableCardList } from '@/components/dashboard/scrollable-card-list';
+import { XpProgressBar } from '@/components/dashboard/xp-progress-bar';
+import { BadgeImage } from '@/components/dashboard/badge-image';
+import { MonthlyCelebration } from '@/components/dashboard/monthly-celebration';
+import { DashboardTasksCard } from '@/components/dashboard/dashboard-tasks-card';
+import { ProfilePhotoUpload } from '@/components/dashboard/profile-photo-upload';
+import type { Organization, TaskLog } from '@/lib/types/database';
+
+const morningMessages = [
+  "Let's make today incredibly productive.",
+  "Every small step counts towards your big goals.",
+  "Believe you can and you're halfway there.",
+  "Focus on being productive instead of busy.",
+  "The secret of getting ahead is getting started."
+];
+
+const afternoonMessages = [
+  "You're making great progress.",
+  "Small daily improvements are the key to staggering long-term results.",
+  "Stay focused, stay positive, stay strong.",
+  "The day is what you make it! So why not make it a great one?",
+  "Keep up the hard work, it will pay off."
+];
+
+const clockOutMessages = [
+  "Great job today! Rest up and recharge.",
+  "You've earned some well-deserved rest.",
+  "Leave work at work. Enjoy your evening!",
+  "A productive day ends with a peaceful evening.",
+  "Tomorrow is another day, but tonight is yours."
+];
+
+/** Always refetch Supabase-backed data on each visit (including client nav from other tabs). */
+export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage({
   params,
@@ -14,9 +62,7 @@ export default async function DashboardPage({
   
   const { data: { user } } = await supabase.auth.getUser();
   
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   const { data: userData } = await supabase
     .from('users')
@@ -24,20 +70,31 @@ export default async function DashboardPage({
     .eq('id', user.id)
     .single();
 
+  let clockInCutoffForQuest = STREAK_CLOCK_IN_CUTOFF_DEFAULT;
+  if (userData?.organization_id) {
+    const { data: orgRow } = await supabase
+      .from('organizations')
+      .select('settings')
+      .eq('id', userData.organization_id)
+      .maybeSingle();
+    clockInCutoffForQuest = streakClockInCutoffFromOrg(
+      (orgRow?.settings ?? null) as Organization['settings'] | null
+    );
+  }
+
   const userTimezone = userData?.timezone || 'Asia/Kolkata';
   const nowUserTime = getCurrentTimeInTimezone(userTimezone);
   const today = format(nowUserTime, 'yyyy-MM-dd');
 
+  // Fetch tasks
   const { data: todayTasks } = await supabase
     .from('tasks')
-    .select(`
-      *,
-      task_logs!left(*)
-    `)
+    .select(`*, task_logs!left(*)`)
     .eq('organization_id', userData?.organization_id)
     .or(`assigned_to.eq.${user.id},is_common_task.eq.true`)
     .eq('is_active', true);
 
+  // Fetch attendance
   const { data: attendance } = await supabase
     .from('attendance')
     .select('*')
@@ -45,283 +102,341 @@ export default async function DashboardPage({
     .eq('date', today)
     .single();
 
+  // Fetch task logs
   const { data: taskLogs } = await supabase
     .from('task_logs')
     .select('*')
     .eq('user_id', user.id)
     .eq('date', today);
 
-  const completedTasks = taskLogs?.filter(log => log.status === 'completed').length || 0;
-  const totalTasks = todayTasks?.length || 0;
-  const currentHour = nowUserTime.getHours();
-  const greeting =
-    currentHour >= 5 && currentHour < 12
-      ? "Good morning"
-      : currentHour >= 12 && currentHour < 17
-      ? "Good afternoon"
-      : currentHour >= 17 && currentHour < 21
-      ? "Good evening"
-      : "Good night";
-
-  const { data: pendingVerifications } = await supabase
-    .from('task_logs')
+  // Fetch trainings
+  const { data: trainings } = await supabase
+    .from('trainings')
     .select('*')
     .eq('user_id', user.id)
-    .eq('verification_status', 'pending');
+    .eq('status', 'completed')
+    .order('date_completed', { ascending: false });
+
+  // Resolve profile photo from users.avatar_url (may be a storage path or a full URL)
+  let profilePhotoUrl = `https://api.dicebear.com/7.x/notionists/svg?seed=${encodeURIComponent(userData?.full_name || 'Hero')}&backgroundColor=e2e8f0`;
+  const avatarStoragePath = userData?.avatar_url && !userData.avatar_url.startsWith('http')
+    ? userData.avatar_url
+    : null;
+  if (avatarStoragePath) {
+    const { data: signedData } = await supabase.storage
+      .from('employee-documents')
+      .createSignedUrl(avatarStoragePath, 60 * 60 * 24 * 7);
+    if (signedData?.signedUrl) profilePhotoUrl = signedData.signedUrl;
+  } else if (userData?.avatar_url?.startsWith('http')) {
+    profilePhotoUrl = userData.avatar_url;
+  }
+
+  // Fetch top performer status from leaderboard
+  // Get the most recent month's ranking
+  const { data: leaderboardEntry } = await supabase
+    .from('leaderboard')
+    .select('id, rank, month, celebration_seen_at')
+    .eq('user_id', user.id)
+    .order('month', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const isTopPerformer = leaderboardEntry?.rank === 1;
+  const latestRankingMonth = leaderboardEntry?.month || '';
+  const celebrationSeenAt = leaderboardEntry?.celebration_seen_at || null;
+
+  // Fetch Gamification
+  const { data: gamification } = await supabase
+    .from('user_gamification')
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  // Split tasks into today-assigned vs past-assigned (calendar day in user TZ — matches DB `created_at AT TIME ZONE tz`)
+  const getAssignedDayInUserTz = (createdAt: string) =>
+    formatInTimeZone(parseISO(createdAt), userTimezone, 'yyyy-MM-dd');
+  const tasksAssignedToday = (todayTasks || []).filter(
+    (t) => getAssignedDayInUserTz(t.created_at) === today
+  );
+  const tasksAssignedPast = (todayTasks || []).filter(
+    (t) => getAssignedDayInUserTz(t.created_at) < today
+  );
+
+  // Fetch logs for past-assigned tasks to detect approved-completion
+  const pastTaskIds = tasksAssignedPast.map(t => t.id);
+  let pastTaskLogs: TaskLog[] = [];
+  if (pastTaskIds.length > 0) {
+    const { data: pastLogsData } = await supabase
+      .from('task_logs').select('*')
+      .eq('user_id', user.id).in('task_id', pastTaskIds)
+      .order('submitted_at', { ascending: false });
+    pastTaskLogs = pastLogsData || [];
+  }
+
+  // Past due = past-assigned with no approved-completed log
+  const pastDueTasks = tasksAssignedPast.filter(task =>
+    !pastTaskLogs.some(l =>
+      l.task_id === task.id && l.status === 'completed' && l.verification_status === 'approved'
+    )
+  );
+
+  // Computations
+  const completedTasks = taskLogs?.filter(log => log.status === 'completed').length || 0;
+  const totalTasks = todayTasks?.length || 0;
+  const completionPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+  // Quest-specific: only today-assigned tasks
+  const todayAssignedCompleted = (taskLogs || []).filter(l =>
+    tasksAssignedToday.some(t => t.id === l.task_id) && l.status === 'completed'
+  ).length;
+  const todayQuestPct = tasksAssignedToday.length > 0
+    ? Math.round((todayAssignedCompleted / tasksAssignedToday.length) * 100)
+    : 0;
+  
+  const currentHour = nowUserTime.getHours();
+  
+  // Seed for random messages
+  const dateSeed = today.split('-').reduce((acc, part) => acc + parseInt(part, 10), 0);
+  
+  let greetingTime = "Good morning";
+  let inspiringMessage = "";
+  
+  if (attendance?.clock_out_time) {
+    greetingTime = currentHour < 17 ? "Good afternoon" : "Good evening";
+    inspiringMessage = clockOutMessages[dateSeed % clockOutMessages.length];
+  } else if (currentHour >= 5 && currentHour < 12) {
+    greetingTime = "Good morning";
+    inspiringMessage = "Ready to crush another day? " + morningMessages[dateSeed % morningMessages.length];
+  } else if (currentHour >= 12 && currentHour < 17) {
+    greetingTime = "Good afternoon";
+    inspiringMessage = "Keep going, you are doing awesome. " + afternoonMessages[dateSeed % afternoonMessages.length];
+  } else {
+    greetingTime = currentHour >= 17 && currentHour < 21 ? "Good evening" : "Good night";
+    inspiringMessage = "You've worked hard. " + clockOutMessages[(dateSeed + 1) % clockOutMessages.length];
+  }
+
+  const totalXp = gamification?.total_xp ?? 0;
+  const { rankName, nextTier } = rankForTotalXp(totalXp);
+  const currentRankBadge = RANK_TIERS.find(t => t.rankName === rankName)?.badgeName || "🌱 Starter";
+  const streakDays = gamification?.current_streak ?? 0;
+  const longestStreak = gamification?.longest_streak ?? 0;
+  
+  const earnedRankTiers = RANK_TIERS.filter(t => totalXp >= t.minXp);
+  const nextGoalXp = nextTier?.minXp ?? RANK_TIERS[RANK_TIERS.length - 1]!.minXp;
+  const currentTierMinXp =
+    [...RANK_TIERS].reverse().find((t) => totalXp >= t.minXp)?.minXp ?? 0;
+  const xpProgressPct =
+    nextTier && nextGoalXp > currentTierMinXp
+      ? Math.min(
+          100,
+          Math.round(((totalXp - currentTierMinXp) / (nextGoalXp - currentTierMinXp)) * 100)
+        )
+      : 100;
+
+  /** Productive work: same windows as streak punctuality — clock-in on/before org cutoff (default 9:15) and clock-out on/after 5 PM. Status only meaningful after clock-out. */
+  let productiveWorkComplete = false;
+  let productiveWorkStatusLabel = 'Pending';
+  let productiveWorkSubLabel = "";
+  if (attendance?.clock_out_time && attendance.clock_in_time) {
+    const inOk = localHM(attendance.clock_in_time, userTimezone) <= clockInCutoffForQuest;
+    const outOk = localHM(attendance.clock_out_time, userTimezone) >= CLOCK_OUT_END;
+    productiveWorkComplete = inOk && outOk;
+    productiveWorkStatusLabel = productiveWorkComplete ? 'Completed' : 'Not met';
+    productiveWorkSubLabel = productiveWorkComplete
+      ? 'On-time arrival and full day'
+      : 'Clock-in or clock-out outside the productive window';
+  } else if (attendance?.clock_out_time) {
+    productiveWorkStatusLabel = 'Not met';
+    productiveWorkSubLabel = 'Clock-in record missing for today';
+  }
 
   return (
-    <div className="option-surface space-y-6 p-6 md:p-8">
-      <section className="grid gap-6 xl:grid-cols-[2fr_1fr]">
-        <div className="relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-[hsl(var(--hero-from))] to-[hsl(var(--hero-to))] p-8 text-white shadow-xl">
-          <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-          <div className="absolute -bottom-20 right-20 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-          <div className="relative">
-            <p className="text-sm font-semibold text-white/80">{greeting}, {userData?.full_name || "Hero"}!</p>
-            <h2 className="mt-2 text-3xl font-black tracking-tight">Ready to crush another day?</h2>
+    <div className="relative min-h-full pb-12">
+      <MonthlyCelebration 
+        isTopPerformer={isTopPerformer} 
+        month={latestRankingMonth} 
+        celebrationSeenAt={celebrationSeenAt}
+        leaderboardId={leaderboardEntry?.id}
+      />
+      <DashboardSkyBg currentHour={currentHour} />
+      
+      <div className="mx-auto flex w-full max-w-[1600px] flex-col md:flex-row relative z-10 gap-8">
+        {/* Left Column */}
+        <div className="w-full md:w-[40%] px-4 md:pl-8 md:pr-4 pt-[25vh] flex flex-col gap-6">
+          
+          {/* Main Hero Card */}
+          <div className="relative flex flex-col rounded-[2.5rem] bg-white/80 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.08)] p-8 pt-16">
+            
+            {/* Profile photo (click to upload) */}
+            <ProfilePhotoUpload
+              userId={user.id}
+              isTopPerformer={isTopPerformer}
+              initialPhotoUrl={profilePhotoUrl}
+              storagePath={avatarStoragePath}
+              userName={userData?.full_name || 'Hero'}
+            />
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
-                <p className="text-xs font-bold uppercase tracking-wider text-white/70">Current Rank</p>
-                <p className="mt-1 text-2xl font-extrabold">Focus Master</p>
-                <p className="text-sm text-white/80">Level 4</p>
+            {/* Greeting & Profile Info */}
+            <div className="text-center mb-6">
+              <h2 className="mt-1 text-2xl font-black tracking-tight" style={{ color: '#000435' }}>{greetingTime}, {userData?.full_name?.split(' ')[0] || "Hero"}</h2>
+              <p className="text-sm text-slate-600 mt-2 font-medium italic">"{inspiringMessage}"</p>
+            </div>
+
+            {/* Gamification Stats inside Card */}
+            <div className="grid gap-3 sm:grid-cols-2 mb-6">
+              <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 p-4 border border-blue-100/50 text-center shadow-sm">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600/80">Rank</p>
+                <p className="mt-1 text-xl font-extrabold" style={{ color: '#000435' }}>{rankName}</p>
+                <p className="text-xs text-blue-700/80 mt-1">{currentRankBadge}</p>
               </div>
-              <div className="rounded-2xl bg-white/10 p-4 text-center backdrop-blur">
-                <Flame className="mx-auto h-4 w-4 text-orange-300" />
-                <p className="mt-1 text-xl font-extrabold">5</p>
-                <p className="text-xs text-white/75">Day Streak</p>
-              </div>
-              <div className="rounded-2xl bg-white/10 p-4 text-center backdrop-blur">
-                <TrendingUp className="mx-auto h-4 w-4 text-cyan-200" />
-                <p className="mt-1 text-xl font-extrabold">{totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}%</p>
-                <p className="text-xs text-white/75">Completion</p>
+              <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-100/50 text-center shadow-sm">
+                <CheckSquare className="mx-auto h-4 w-4 text-emerald-500 mb-1" />
+                <p className="text-xl font-extrabold" style={{ color: '#000435' }}>{completionPct}%</p>
+                <p className="text-[10px] uppercase font-bold text-emerald-700/70">Completion</p>
               </div>
             </div>
 
-            <div className="mt-6">
-              <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="font-semibold text-white/80">XP Progress to Level 5</span>
-                <span className="font-semibold">850 / 1000 XP</span>
+            {/* XP Progress */}
+            <XpProgressBar 
+              userId={user.id}
+              totalXp={totalXp} 
+              nextGoalXp={nextGoalXp} 
+              xpProgressPct={xpProgressPct} 
+              nextTierExists={!!nextTier} 
+              rankName={rankName}
+              nextRankName={nextTier?.rankName || null}
+            />
+            
+            {/* Streak Split Card */}
+            <div className="flex bg-slate-50 border border-slate-100 rounded-xl overflow-hidden shadow-sm">
+              <div className="flex-1 py-3 text-center border-r border-slate-200">
+                <p className="text-lg font-black text-slate-800">{streakDays}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#000435' }}>Current Streak</p>
               </div>
-              <div className="h-3 overflow-hidden rounded-full bg-white/20">
-                <div className="h-full w-[85%] animate-pulse-glow rounded-full bg-gradient-to-r from-sky-300 via-indigo-300 to-fuchsia-300" />
+              <div className="flex-1 py-3 text-center">
+                <p className="text-lg font-black text-slate-800">{longestStreak}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#000435' }}>Longest Streak</p>
               </div>
             </div>
           </div>
-        </div>
 
-        <Card className="option-panel rounded-3xl border-slate-200 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl tracking-tight">Attendance</CardTitle>
-            <CardDescription>{attendance?.clock_in_time ? "Clocked In" : "Not Clocked In"}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="option-soft-card rounded-2xl bg-slate-50 p-4 text-center">
-              <p className="text-3xl font-black tracking-tight">{Math.max(totalTasks - completedTasks, 0)} / {totalTasks}</p>
-              <p className="mt-1 text-sm text-muted-foreground">Essential tasks remaining today</p>
+          {/* Badges Card */}
+          <div className="flex flex-col rounded-[2rem] bg-white/80 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.08)] p-6">
+            <h3 className="text-sm font-bold uppercase tracking-wider mb-4 text-center" style={{ color: '#000435' }}>Badges</h3>
+            <div className="grid grid-cols-4 gap-3">
+              {earnedRankTiers.map((tier) => (
+                <div key={tier.id} className="flex flex-col items-center gap-1 group">
+                  <div className="h-14 w-14 flex items-center justify-center rounded-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-sm transition-transform group-hover:scale-110 overflow-hidden">
+                    <BadgeImage
+                      src={`/assets/badges/${tier.rankName}.png`}
+                      alt={tier.rankName}
+                    />
+                  </div>
+                  <span className="text-[9px] font-bold text-slate-500 text-center leading-tight">{tier.rankName}</span>
+                </div>
+              ))}
+              {earnedRankTiers.length === 0 && (
+                <p className="col-span-4 text-xs text-center text-slate-400">Complete tasks to earn badges!</p>
+              )}
             </div>
-            <a
-              href={`/org/${orgSlug}/attendance`}
-              className="option-cta block rounded-2xl bg-slate-900 px-4 py-3 text-center text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-800"
-            >
-              {attendance?.clock_in_time ? "Manage Attendance" : "Clock In to Start"}
-            </a>
-          </CardContent>
-        </Card>
-      </section>
+          </div>
 
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-amber-500" />
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Daily Quests</p>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="option-quest-card rounded-2xl border-emerald-200 bg-emerald-50/70">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <p className="font-semibold text-emerald-900">Approve 5 documents</p>
-                <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-emerald-600">+50 XP</span>
-              </div>
-              <p className="mt-4 text-xs font-bold uppercase tracking-wider text-emerald-700/80">Pending</p>
-            </CardContent>
-          </Card>
-          <Card className="option-quest-card rounded-2xl border-blue-200 bg-blue-50/70">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <p className="font-semibold text-blue-900">Clock in before 9 AM</p>
-                <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-blue-600">+20 XP</span>
-              </div>
-              <p className="mt-4 text-xs font-bold uppercase tracking-wider text-blue-700/80">Pending</p>
-            </CardContent>
-          </Card>
-          <Card className="option-quest-card rounded-2xl border-fuchsia-200 bg-fuchsia-50/70">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <p className="font-semibold text-fuchsia-900">Zero mistakes today</p>
-                <span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-fuchsia-600">+100 XP</span>
-              </div>
-              <p className="mt-4 text-xs font-bold uppercase tracking-wider text-fuchsia-700/80">Pending</p>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Tasks Today
-            </CardTitle>
-            <CheckSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {completedTasks} / {totalTasks}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}% completed
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Attendance Status
-            </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {attendance?.clock_in_time ? 'Clocked In' : 'Not Clocked In'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {attendance?.clock_in_time 
-                ? `Since ${format(new Date(attendance.clock_in_time), 'h:mm a')}`
-                : 'Clock in to start your day'
-              }
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Pending Verifications
-            </CardTitle>
-            <AlertCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {pendingVerifications?.length || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Awaiting manager approval
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              This Month
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              --
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Performance score
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Today's Tasks</CardTitle>
-            <CardDescription>
-              Your tasks for {format(new Date(), 'MMMM d, yyyy')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {todayTasks && todayTasks.length > 0 ? (
-              <div className="space-y-4">
-                {todayTasks.slice(0, 5).map((task) => {
-                  const log = taskLogs?.find(l => l.task_id === task.id);
-                  return (
-                    <div key={task.id} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`h-2 w-2 rounded-full ${
-                          log?.status === 'completed' ? 'bg-green-500' : 'bg-gray-300'
-                        }`} />
-                        <div>
-                          <p className="font-medium">{task.title}</p>
-                          <p className="text-sm text-muted-foreground">{task.type}</p>
+          {/* Trainings Completed (Now on Left) */}
+          <Card className="rounded-[2.5rem] border-white/40 shadow-xl bg-white/70 backdrop-blur-md">
+             <CardHeader className="px-8 pt-8">
+               <CardTitle style={{ color: '#000435' }}>Trainings Completed</CardTitle>
+               <CardDescription>
+                 Your continuous learning progress
+               </CardDescription>
+             </CardHeader>
+             <CardContent className="px-8 pb-8">
+                {trainings && trainings.length > 0 ? (
+                  <ScrollableCardList maxHeight="300px">
+                    {trainings.map((t) => (
+                      <div key={t.id} className="group flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm transition-all hover:border-blue-100 hover:shadow-md">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-slate-800">{t.name}</p>
+                          <p className="text-xs font-medium text-slate-500">Completed on {t.date_completed ? format(new Date(t.date_completed), 'MMM d, yyyy') : 'N/A'}</p>
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <span className="rounded-full border border-violet-100 bg-white px-3 py-1 text-xs font-bold text-violet-600 shadow-sm">
+                            +{XP_TRAINING_COMPLETED} XP
+                          </span>
+                          <TrendingUp className="h-5 w-5 text-slate-300 transition-colors group-hover:text-blue-500" aria-hidden />
                         </div>
                       </div>
-                      {log && (
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          log.verification_status === 'approved' 
-                            ? 'bg-green-100 text-green-800'
-                            : log.verification_status === 'rejected'
-                            ? 'bg-red-100 text-red-800'
-                            : log.verification_status === 'recalled'
-                            ? 'bg-amber-100 text-amber-900'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {log.verification_status}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No tasks for today</p>
-            )}
-          </CardContent>
-        </Card>
+                    ))}
+                  </ScrollableCardList>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+                    <p className="text-sm font-medium text-slate-500">No trainings completed yet.</p>
+                  </div>
+                )}
+             </CardContent>
+           </Card>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>
-              Common actions you might need
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <a
-              href={`/org/${orgSlug}/attendance`}
-              className="block p-3 rounded-lg border hover:bg-accent transition-colors"
-            >
-              <p className="font-medium">Clock In/Out</p>
-              <p className="text-sm text-muted-foreground">
-                Manage your attendance
-              </p>
-            </a>
-            <a
-              href={`/org/${orgSlug}/tasks`}
-              className="block p-3 rounded-lg border hover:bg-accent transition-colors"
-            >
-              <p className="font-medium">Submit Tasks</p>
-              <p className="text-sm text-muted-foreground">
-                Mark tasks as complete
-              </p>
-            </a>
-            <a
-              href={`/org/${orgSlug}/leaves`}
-              className="block p-3 rounded-lg border hover:bg-accent transition-colors"
-            >
-              <p className="font-medium">Request Leave</p>
-              <p className="text-sm text-muted-foreground">
-                Submit a leave request
-              </p>
-            </a>
-          </CardContent>
-        </Card>
+        {/* Right Column (Rest of Content) */}
+        <div className="w-full md:w-[60%] px-4 md:pl-4 md:pr-8 pt-[32vh] pb-12 flex flex-col gap-6">
+           
+           {/* Daily Quests (Now on Right) */}
+           <div className="flex flex-col rounded-[2.5rem] bg-white/70 backdrop-blur-md border border-white/40 shadow-xl p-8">
+            <h3 className="text-lg font-bold mb-6 flex items-center gap-2" style={{ color: '#000435' }}>
+              <Sparkles className="h-5 w-5 text-amber-500" /> Daily Quests
+            </h3>
+            <div className="flex flex-col gap-4">
+              
+              <div className="relative rounded-2xl border border-blue-100 bg-blue-50/50 p-5 shadow-sm">
+                <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-bold text-blue-600 shadow-sm">+{XP_ALL_TASKS_COMPLETED_BONUS} XP</div>
+                <p className="font-bold text-blue-900">Complete today's tasks</p>
+                <div className="mt-3 flex items-center gap-2">
+                   {todayQuestPct === 100 ? (
+                     <><CheckCircle2 className="h-4 w-4 text-emerald-500" /><span className="text-sm font-bold text-emerald-600">Completed</span></>
+                   ) : (
+                     <><CircleDashed className="h-4 w-4 text-blue-400" /><span className="text-sm font-bold text-blue-500">In Progress</span></>
+                   )}
+                </div>
+              </div>
+
+              <div className="relative rounded-2xl border border-emerald-100 bg-emerald-50/50 p-5 shadow-sm">
+                <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-bold text-emerald-600 shadow-sm">+{XP_PUNCTUALITY_BUNDLE} XP</div>
+                <p className="font-bold text-emerald-900">Productive work</p>
+                <div className="mt-3 flex flex-col gap-1">
+                   <div className="flex items-center gap-2">
+                     {productiveWorkComplete ? (
+                       <><CheckCircle2 className="h-4 w-4 text-emerald-500" /><span className="text-sm font-bold text-emerald-600">{productiveWorkStatusLabel}</span></>
+                     ) : productiveWorkStatusLabel === 'Not met' ? (
+                       <><CircleDashed className="h-4 w-4 text-amber-500" /><span className="text-sm font-bold text-amber-700">{productiveWorkStatusLabel}</span></>
+                     ) : (
+                       <><CircleDashed className="h-4 w-4 text-emerald-400" /><span className="text-sm font-bold text-emerald-500">{productiveWorkStatusLabel}</span></>
+                     )}
+                   </div>
+                   {productiveWorkSubLabel ? (
+                     <span className="text-[11px] font-medium text-emerald-800/70">{productiveWorkSubLabel}</span>
+                   ) : null}
+                </div>
+              </div>
+
+              <div className="relative rounded-2xl border border-fuchsia-100 bg-fuchsia-50/50 p-5 shadow-sm">
+                <div className="absolute top-3 right-3 bg-white rounded-full px-3 py-1 text-xs font-bold text-fuchsia-600 shadow-sm">+{XP_ZERO_MISTAKES_BONUS} XP</div>
+                <p className="font-bold text-fuchsia-900">Zero mistakes</p>
+                <div className="mt-3 flex items-center gap-2">
+                   <CircleDashed className="h-4 w-4 text-fuchsia-400" /><span className="text-sm font-bold text-fuchsia-500">At clock-out if in/out on-time</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+           {/* Tasks Card (Today / Past due tabs) */}
+           <DashboardTasksCard
+             tasksAssignedToday={tasksAssignedToday}
+             taskLogsToday={taskLogs || []}
+             pastDueTasks={pastDueTasks}
+             pastTaskLogs={pastTaskLogs}
+           />
+           
+        </div>
       </div>
     </div>
   );

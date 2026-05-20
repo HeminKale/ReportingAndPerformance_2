@@ -17,6 +17,8 @@ export type PeriodicTaskTemplate = {
   linked_monthly_periodic_id?: string | null;
   assigned_user_ids?: string[] | null;
   is_enabled?: boolean;
+  priority?: "low" | "medium" | "high" | null;
+  assignment_xp_override?: number | null;
 };
 
 function pad2(n: number) {
@@ -212,6 +214,8 @@ export async function materializePeriodicTemplates(
           numeric_unit: template.is_numeric_task ? template.numeric_unit : null,
           linked_monthly_task_id: linkedMonthlyTaskId,
           source_manager_periodic_task_id: template.id,
+          priority: template.priority ?? "medium",
+          assignment_xp_override: template.assignment_xp_override ?? null,
         };
       })
     );

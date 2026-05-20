@@ -2,12 +2,14 @@
 
 import { createContext, useContext } from "react";
 
-export type AppTheme = "taskos" | "bloom" | "midnight";
+export type AppTheme = "taskos" | "bloom" | "sand" | "stone" | "sage";
 
 export const APP_THEMES: { value: AppTheme; label: string }[] = [
-  { value: "taskos", label: "TaskOS" },
+  { value: "taskos", label: "Worksphere" },
   { value: "bloom", label: "Bloom" },
-  { value: "midnight", label: "Midnight" },
+  { value: "sand", label: "Sand" },
+  { value: "stone", label: "Stone" },
+  { value: "sage", label: "Sage" },
 ];
 
 type ThemeContextValue = {

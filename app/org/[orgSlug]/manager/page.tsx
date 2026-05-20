@@ -29,6 +29,7 @@ import { ManagerCalendarTab } from "@/components/manager/manager-calendar-tab";
 import { ManagerEmployeeRatingsTab } from "@/components/manager/manager-employee-ratings-tab";
 import { markResourceNotificationsRead } from "@/lib/notifications/mark-resource-read";
 import { requestNotificationsBellRefresh } from "@/lib/notifications/refresh-bell";
+import { PriorityBadge } from "@/components/gamification/priority-badge";
 
 export default function ManagerPage() {
   const { orgSlug } = useParams() as { orgSlug: string };
@@ -52,10 +53,11 @@ export default function ManagerPage() {
   const [historySearchTerm, setHistorySearchTerm] = useState("");
   const [historyDateFilter, setHistoryDateFilter] = useState("");
   const [historyToDateFilter, setHistoryToDateFilter] = useState("");
-  const [managerActiveTab, setManagerActiveTab] = useState("manager-tasks");
+  const [managerActiveTab, setManagerActiveTab] = useState("task-assignment");
   const [tasksSubView, setTasksSubView] = useState<"regular" | "shared" | "history">("regular");
   const [regularEmployeeFilter, setRegularEmployeeFilter] = useState("");
   const [regularTaskFilter, setRegularTaskFilter] = useState("");
+  const [regularTasksScope, setRegularTasksScope] = useState<"today" | "all">("today");
   const [sharedEmployeeFilter, setSharedEmployeeFilter] = useState("");
   const [sharedTaskFilter, setSharedTaskFilter] = useState("");
   const [taskHistoryEmployeeFilter, setTaskHistoryEmployeeFilter] = useState("");
@@ -72,6 +74,7 @@ export default function ManagerPage() {
   const [teamSearchTerm, setTeamSearchTerm] = useState("");
   const [mistakeSearchTerm, setMistakeSearchTerm] = useState("");
   const [expandedMistakeRows, setExpandedMistakeRows] = useState<Set<string>>(new Set());
+  const [expandedAttendanceRowIds, setExpandedAttendanceRowIds] = useState<Set<string>>(new Set());
   const [certGraphEmployeeFilter, setCertGraphEmployeeFilter] = useState("");
   const [certGraphMode, setCertGraphMode] = useState<"daily" | "monthly">("daily");
   const [selectedCertEmployeeIds, setSelectedCertEmployeeIds] = useState<string[]>([]);
@@ -496,6 +499,79 @@ export default function ManagerPage() {
     return Object.entries(by).sort(([a], [b]) => a.localeCompare(b));
   }, [filteredTodayTaskRows]);
 
+  // All tab: every task due on today for team members, regardless of assignment date
+  const allTaskRows = useMemo(() => {
+    // Derive weekday from today string to stay in Kolkata calendar
+    const todayWeekday = new Date(today + "T12:00:00").getDay();
+
+    const dueTodayTasks = teamTasks.filter((task: any) => {
+      if (!task.is_active) return false;
+      const createdDay = toDayString(task.created_at);
+      if (today < createdDay) return false; // not yet active
+      if (task.type === "daily") return true;
+      if (task.type === "weekly") return task.day_of_week === todayWeekday;
+      if (task.type === "monthly") return task.due_date === today;
+      return false;
+    });
+
+    const activeRows = dueTodayTasks.flatMap((task: any) => {
+      const relevantMembers = task.is_common_task
+        ? teamMembers
+        : teamMembers.filter((m: User) => m.id === task.assigned_to);
+      return relevantMembers.map((member: User) => {
+        const log = taskLogs.find(
+          (l: any) => l.task_id === task.id && l.user_id === member.id && getTaskDay(l) === today
+        );
+        const status = !log
+          ? "Not Submitted"
+          : log.verification_status === "approved"
+            ? "Completed & verified"
+            : log.verification_status === "rejected"
+              ? "Rejected"
+              : log.verification_status === "recalled"
+                ? "Recalled"
+                : "Pending Approval";
+        return { member, task, log, status };
+      });
+    });
+
+    // Include recalled past logs (same as todayTaskRows) without duplicating
+    const activeLogIds = new Set(activeRows.map((r: any) => r.log?.id).filter(Boolean));
+    const recalledPastLogs = taskLogs.filter(
+      (l: any) => l.verification_status === "recalled" && getTaskDay(l) !== today
+    );
+    const recalledRows = recalledPastLogs
+      .filter((log: any) => !activeLogIds.has(log.id))
+      .map((log: any) => {
+        const member = teamMembers.find((m) => m.id === log.user_id);
+        const task = log.tasks;
+        if (!member || !task) return null;
+        return { member, task, log, status: "Recalled" as const };
+      })
+      .filter(Boolean) as any[];
+
+    return [...activeRows, ...recalledRows];
+  }, [teamTasks, teamMembers, taskLogs, today]);
+
+  const filteredAllTaskRows = useMemo(() => {
+    return allTaskRows.filter(
+      (row) =>
+        matchesName(row.member.full_name, regularEmployeeFilter) &&
+        (!regularTaskFilter.trim() ||
+          (row.task.title || "").toLowerCase().includes(regularTaskFilter.trim().toLowerCase()))
+    );
+  }, [allTaskRows, regularEmployeeFilter, regularTaskFilter]);
+
+  const sortedAllGroupsFiltered = useMemo(() => {
+    const by: Record<string, (typeof allTaskRows)[number][]> = {};
+    for (const row of filteredAllTaskRows) {
+      const key = row.member.full_name;
+      if (!by[key]) by[key] = [];
+      by[key].push(row);
+    }
+    return Object.entries(by).sort(([a], [b]) => a.localeCompare(b));
+  }, [filteredAllTaskRows]);
+
   const currentAttendanceItems = attendanceItems.filter((att) =>
     getAttendanceDay(att) === today &&
     matchesName(att.users?.full_name, currentSearchTerm)
@@ -565,7 +641,7 @@ export default function ManagerPage() {
 
     setActionLoading(true);
     try {
-      const { error } = await supabase
+      const { data: newMistake, error } = await supabase
         .from('mistakes')
         .insert({
           organization_id: user.organization_id,
@@ -577,8 +653,19 @@ export default function ManagerPage() {
           date: new Date().toISOString().split('T')[0],
           status: 'open',
           closure_request_pending: false,
-        });
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+
+      if (newMistake?.id) {
+        void fetch("/api/gamification/xp-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ kind: "mistake", resourceId: newMistake.id }),
+        }).catch(() => {});
+      }
 
       const tasksLink = `/org/${orgSlug}/tasks`;
       const { error: nErr } = await supabase.from("notifications").insert({
@@ -823,6 +910,16 @@ export default function ManagerPage() {
 
       if (error) throw error;
 
+      void fetch("/api/gamification/xp-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          kind: "task_log_approval_revoked",
+          resourceId: String(log.id),
+        }),
+      }).catch(() => {});
+
       const taskTitle = (log.tasks?.title as string) || "your task";
       await supabase.from("notifications").insert({
         organization_id: user.organization_id,
@@ -873,7 +970,26 @@ export default function ManagerPage() {
           })
           .eq('id', actionDialog.item.id);
 
-        if (error) throw error;
+      if (error) throw error;
+
+      if (actionDialog.action === "approve") {
+        void fetch("/api/gamification/xp-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ kind: "task_log_approved", resourceId: String(actionDialog.item.id) }),
+        }).catch(() => {});
+      } else {
+        void fetch("/api/gamification/xp-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            kind: "task_log_approval_revoked",
+            resourceId: String(actionDialog.item.id),
+          }),
+        }).catch(() => {});
+      }
 
         await markResourceNotificationsRead(
           supabase,
@@ -1069,7 +1185,7 @@ export default function ManagerPage() {
           <CardContent>
             <div className="text-2xl font-bold">
               {taskLogs.filter(log => log.verification_status === 'pending').length +
-                attendanceItems.filter(att => att.approval_status === 'pending').length +
+                attendanceItems.filter(att => att.approval_status === 'pending' && getAttendanceDay(att) === today).length +
                 leaveItems.filter(leave => leave.status === 'pending').length}
             </div>
           </CardContent>
@@ -1082,6 +1198,16 @@ export default function ManagerPage() {
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">Manager Panel</h2>
             </div>
             <TabsList className="flex h-auto flex-col gap-1.5 bg-transparent p-0">
+              <TabsTrigger
+                value="task-assignment"
+                className={cn(
+                  "group flex w-full items-center justify-between gap-2 rounded-xl px-4 py-3 text-left text-sm font-medium transition-all duration-300 shadow-none",
+                  "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                  "data-[state=active]:translate-x-1 data-[state=active]:scale-[1.02] data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-[0_8px_16px_-4px_rgba(0,0,0,0.1),0_4px_8px_-2px_rgba(0,0,0,0.05)] data-[state=active]:ring-1 data-[state=active]:ring-slate-200/50"
+                )}
+              >
+                <span>Task Assignment</span>
+              </TabsTrigger>
               <div className="flex w-full flex-col gap-1.5">
                 <TabsTrigger 
                   value="manager-tasks" 
@@ -1145,7 +1271,7 @@ export default function ManagerPage() {
               </div>
 
               {[
-                { value: "attendance-report", label: "Attendance Report", count: attendanceItems.filter((att: any) => att.approval_status === 'pending').length },
+                { value: "attendance-report", label: "Attendance Report", count: attendanceItems.filter((att: any) => att.approval_status === 'pending' && getAttendanceDay(att) === today).length },
                 { value: "mistakes", label: "Track Mistakes", count: allMistakes.filter((m: any) => m.closure_request_pending === true).length },
                 { value: "leaves", label: "Leaves", count: leaveItems.filter((leave: any) => leave.status === 'pending').length },
                 { value: "calendar", label: "Calendar" },
@@ -1153,7 +1279,6 @@ export default function ManagerPage() {
                 { value: "documents", label: "Documents" },
                 { value: "salary", label: "Salary" },
                 { value: "ratings", label: "Employee Ratings" },
-                { value: "task-assignment", label: "Task Assignment" },
               ].map((tab) => (
                 <TabsTrigger 
                   key={tab.value}
@@ -1184,221 +1309,286 @@ export default function ManagerPage() {
         <TabsContent value="manager-tasks" className="space-y-4">
           {tasksSubView === "regular" && (
             <div className="space-y-4">
-              <div className="flex flex-wrap gap-3">
-                <Input
-                  placeholder="Filter by employee name..."
-                  value={regularEmployeeFilter}
-                  onChange={(e) => setRegularEmployeeFilter(e.target.value)}
-                  className="max-w-xs flex-1 min-w-[160px]"
-                />
-                <Input
-                  placeholder="Filter by task name..."
-                  value={regularTaskFilter}
-                  onChange={(e) => setRegularTaskFilter(e.target.value)}
-                  className="max-w-xs flex-1 min-w-[160px]"
-                />
+              {/* Toolbar: filters left, scope toggle right */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap gap-3 flex-1 min-w-0">
+                  <Input
+                    placeholder="Filter by employee name..."
+                    value={regularEmployeeFilter}
+                    onChange={(e) => setRegularEmployeeFilter(e.target.value)}
+                    className="max-w-xs flex-1 min-w-[160px]"
+                  />
+                  <Input
+                    placeholder="Filter by task name..."
+                    value={regularTaskFilter}
+                    onChange={(e) => setRegularTaskFilter(e.target.value)}
+                    className="max-w-xs flex-1 min-w-[160px]"
+                  />
+                </div>
+                <div className="ml-auto shrink-0 flex items-end gap-6">
+                  <button
+                    type="button"
+                    onClick={() => setRegularTasksScope("today")}
+                    className={cn(
+                      "rounded-none border-b-2 pb-1 text-xs font-semibold transition-colors",
+                      regularTasksScope === "today"
+                        ? "border-[#000435] text-[#000435]"
+                        : "border-transparent text-slate-500 hover:text-slate-800"
+                    )}
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRegularTasksScope("all")}
+                    className={cn(
+                      "rounded-none border-b-2 pb-1 text-xs font-semibold transition-colors",
+                      regularTasksScope === "all"
+                        ? "border-[#000435] text-[#000435]"
+                        : "border-transparent text-slate-500 hover:text-slate-800"
+                    )}
+                  >
+                    All
+                  </button>
+                </div>
               </div>
-              {sortedTodayGroupsFiltered.length === 0 ? (
-                <Card><CardContent className="p-6 text-center text-muted-foreground">No tasks due today for your team</CardContent></Card>
-              ) : (
-                <div className="space-y-2">
-                  {sortedTodayGroupsFiltered.map(([employeeName, rows]) => (
-                    <details key={employeeName} className="group rounded-lg border">
-                      <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
-                        <span className="min-w-0 flex-1 text-left">
-                          {employeeName} &mdash; {rows.length} task{rows.length !== 1 ? "s" : ""}
-                        </span>
-                        <ChevronDown
-                          className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
-                          aria-hidden
-                        />
-                      </summary>
-                      <div className="border-t">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Employee</TableHead>
-                              <TableHead>Task Name</TableHead>
-                              <TableHead>Description</TableHead>
-                              <TableHead>Type</TableHead>
-                              <TableHead>Frequency</TableHead>
-                              <TableHead>Number</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead className="w-12 text-right">
-                                <span className="sr-only">Expand review</span>
-                              </TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {rows.map((row) => {
-                              const rowKey = `${row.member.id}-${row.task.id}-${row.log?.id || 'no-log'}`;
-                              const isPending = row.log?.verification_status === "pending";
-                              const expanded = expandedRegularRowKeys.has(rowKey);
-                              const employeeComment = (row.log?.comment && String(row.log.comment).trim()) || "";
-                              const employeeReason = (row.log?.reason && String(row.log.reason).trim()) || "";
-                              const hasEmployeeNote = Boolean(employeeComment || employeeReason);
-                              const canRecallRow =
-                                row.log &&
-                                (row.log.verification_status === "approved" ||
-                                  row.log.verification_status === "rejected");
-                              const statusClass =
-                                row.status === "Completed & verified"
-                                  ? "bg-emerald-100 text-emerald-900"
-                                  : row.status === "Rejected"
-                                    ? "bg-red-100 text-red-800"
-                                    : row.status === "Recalled"
-                                      ? "bg-amber-100 text-amber-900"
-                                      : row.status === "Pending Approval"
-                                        ? "bg-yellow-100 text-yellow-800"
-                                        : row.status === "Not Submitted"
-                                          ? "bg-red-100 text-red-800"
-                                          : "";
-                              return (
-                                <Fragment key={rowKey}>
-                                  <TableRow>
-                                    <TableCell>{row.member.full_name}</TableCell>
-                                    <TableCell className="font-medium">{row.task.title}</TableCell>
-                                    <TableCell className="max-w-md">
-                                      <p className="text-sm text-muted-foreground line-clamp-2">
-                                        {row.task.description || "-"}
-                                      </p>
-                                    </TableCell>
-                                    <TableCell>
-                                      <span className="rounded bg-blue-100 px-2 py-1 text-xs capitalize text-blue-800">
-                                        {row.task.type}
-                                      </span>
-                                    </TableCell>
-                                    <TableCell className="text-sm">
-                                      {row.task.source_manager_periodic_task_id ? "Periodic" : "Once"}
-                                    </TableCell>
-                                    <TableCell>
-                                      {row.task.is_numeric_task ? (
-                                        row.log?.numeric_value != null ? (
-                                          <span className="text-sm">
-                                            {row.log.numeric_value} {row.task.numeric_unit || "units"}
-                                          </span>
+
+              {/* Render the active scope */}
+              {(() => {
+                const isAll = regularTasksScope === "all";
+                const groups = isAll ? sortedAllGroupsFiltered : sortedTodayGroupsFiltered;
+                const emptyMsg = isAll
+                  ? "No tasks due today for your team"
+                  : "No tasks due today for your team";
+
+                if (groups.length === 0) {
+                  return <Card><CardContent className="p-6 text-center text-muted-foreground">{emptyMsg}</CardContent></Card>;
+                }
+
+                return (
+                  <div className="space-y-2">
+                    {groups.map(([employeeName, rows]) => {
+                      const submittedCount = rows.filter((r: any) => r.log?.status === "completed").length;
+                      const total = rows.length;
+                      const progressPct = total > 0 ? Math.round((submittedCount / total) * 100) : 0;
+                      return (
+                        <details key={employeeName} className="group rounded-lg border">
+                          <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row items-center gap-3">
+                            <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-slate-800">
+                              {employeeName}
+                            </span>
+                            <div className="flex w-1/6 max-w-[16.67%] shrink-0 items-center justify-end gap-1" title={`${submittedCount} of ${total} submitted`}>
+                              <div className="relative h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-100">
+                                <div
+                                  className="absolute inset-y-0 left-0 rounded-full bg-emerald-500 transition-all duration-500"
+                                  style={{ width: `${progressPct}%` }}
+                                />
+                              </div>
+                              <span className="shrink-0 tabular-nums text-[10px] text-slate-500">{submittedCount}/{total}</span>
+                            </div>
+                            <ChevronDown
+                              className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                              aria-hidden
+                            />
+                          </summary>
+                          <div className="border-t">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  {isAll ? <TableHead>Assigned at</TableHead> : <TableHead>Employee</TableHead>}
+                                  <TableHead>Task Name</TableHead>
+                                  <TableHead>Priority</TableHead>
+                                  <TableHead>Description</TableHead>
+                                  <TableHead>Type</TableHead>
+                                  <TableHead>Frequency</TableHead>
+                                  <TableHead>Number</TableHead>
+                                  <TableHead>Status</TableHead>
+                                  <TableHead className="w-12 text-right">
+                                    <span className="sr-only">Expand review</span>
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {rows.map((row: any) => {
+                                  const rowKey = `${row.member.id}-${row.task.id}-${row.log?.id || 'no-log'}`;
+                                  const isPending = row.log?.verification_status === "pending";
+                                  const expanded = expandedRegularRowKeys.has(rowKey);
+                                  const employeeComment = (row.log?.comment && String(row.log.comment).trim()) || "";
+                                  const employeeReason = (row.log?.reason && String(row.log.reason).trim()) || "";
+                                  const hasEmployeeNote = Boolean(employeeComment || employeeReason);
+                                  const canRecallRow =
+                                    row.log &&
+                                    (row.log.verification_status === "approved" ||
+                                      row.log.verification_status === "rejected");
+                                  const statusClass =
+                                    row.status === "Completed & verified"
+                                      ? "bg-emerald-100 text-emerald-900"
+                                      : row.status === "Rejected"
+                                        ? "bg-red-100 text-red-800"
+                                        : row.status === "Recalled"
+                                          ? "bg-amber-100 text-amber-900"
+                                          : row.status === "Pending Approval"
+                                            ? "bg-yellow-100 text-yellow-800"
+                                            : row.status === "Not Submitted"
+                                              ? "bg-red-100 text-red-800"
+                                              : "";
+                                  return (
+                                    <Fragment key={rowKey}>
+                                      <TableRow>
+                                        {isAll ? (
+                                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                                            {row.task.created_at ? format(new Date(row.task.created_at), "dd MMM yyyy") : "-"}
+                                          </TableCell>
                                         ) : (
-                                          <span className="text-muted-foreground">-</span>
-                                        )
-                                      ) : (
-                                        <span className="text-muted-foreground">-</span>
-                                      )}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Badge className={statusClass}>{row.status}</Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right align-middle">
-                                      <div className="flex justify-end gap-1">
-                                        {isPending ? (
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8"
-                                            aria-expanded={expanded}
-                                            aria-label={expanded ? "Collapse review" : "Expand review"}
-                                            onClick={() => {
-                                              setRegularRowMenuKey(null);
-                                              toggleRegularTaskRow(rowKey);
-                                            }}
-                                          >
-                                            {expanded ? (
-                                              <ChevronUp className="h-4 w-4" />
+                                          <TableCell>{row.member.full_name}</TableCell>
+                                        )}
+                                        <TableCell className="font-medium">{row.task.title}</TableCell>
+                                        <TableCell>
+                                          <PriorityBadge priority={row.task.priority ?? "medium"} size="sm" />
+                                        </TableCell>
+                                        <TableCell className="max-w-md">
+                                          <p className="text-sm text-muted-foreground line-clamp-2">
+                                            {row.task.description || "-"}
+                                          </p>
+                                        </TableCell>
+                                        <TableCell>
+                                          <span className="rounded bg-blue-100 px-2 py-1 text-xs capitalize text-blue-800">
+                                            {row.task.type}
+                                          </span>
+                                        </TableCell>
+                                        <TableCell className="text-sm">
+                                          {row.task.source_manager_periodic_task_id ? "Periodic" : "Once"}
+                                        </TableCell>
+                                        <TableCell>
+                                          {row.task.is_numeric_task ? (
+                                            row.log?.numeric_value != null ? (
+                                              <span className="text-sm">
+                                                {row.log.numeric_value} {row.task.numeric_unit || "units"}
+                                              </span>
                                             ) : (
-                                              <ChevronDown className="h-4 w-4" />
-                                            )}
-                                          </Button>
-                                        ) : null}
-                                        {canRecallRow ? (
-                                          <div className="relative inline-block text-left">
-                                            <Button
-                                              type="button"
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-8 w-8"
-                                              aria-expanded={regularRowMenuKey === rowKey}
-                                              aria-label="Task actions"
-                                              onClick={() =>
-                                                setRegularRowMenuKey((prev) => (prev === rowKey ? null : rowKey))
-                                              }
-                                            >
-                                              <MoreVertical className="h-4 w-4" />
-                                            </Button>
-                                            {regularRowMenuKey === rowKey && (
-                                              <div className="option-panel absolute right-0 z-10 mt-1 w-44 rounded-md border bg-background p-1 shadow-md">
+                                              <span className="text-muted-foreground">-</span>
+                                            )
+                                          ) : (
+                                            <span className="text-muted-foreground">-</span>
+                                          )}
+                                        </TableCell>
+                                        <TableCell>
+                                          <Badge className={statusClass}>{row.status}</Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right align-middle">
+                                          <div className="flex justify-end gap-1">
+                                            {isPending ? (
+                                              <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                aria-expanded={expanded}
+                                                aria-label={expanded ? "Collapse review" : "Expand review"}
+                                                onClick={() => {
+                                                  setRegularRowMenuKey(null);
+                                                  toggleRegularTaskRow(rowKey);
+                                                }}
+                                              >
+                                                {expanded ? (
+                                                  <ChevronUp className="h-4 w-4" />
+                                                ) : (
+                                                  <ChevronDown className="h-4 w-4" />
+                                                )}
+                                              </Button>
+                                            ) : null}
+                                            {canRecallRow ? (
+                                              <div className="relative inline-block text-left">
                                                 <Button
+                                                  type="button"
                                                   variant="ghost"
-                                                  size="sm"
-                                                  className="w-full justify-start font-medium"
-                                                  onClick={() => {
-                                                    setRegularRowMenuKey(null);
-                                                    setRecallComment("");
-                                                    setRecallDialog({ open: true, log: row.log });
-                                                  }}
+                                                  size="icon"
+                                                  className="h-8 w-8"
+                                                  aria-expanded={regularRowMenuKey === rowKey}
+                                                  aria-label="Task actions"
+                                                  onClick={() =>
+                                                    setRegularRowMenuKey((prev) => (prev === rowKey ? null : rowKey))
+                                                  }
                                                 >
-                                                  Recall
+                                                  <MoreVertical className="h-4 w-4" />
+                                                </Button>
+                                                {regularRowMenuKey === rowKey && (
+                                                  <div className="option-panel absolute right-0 z-10 mt-1 w-44 rounded-md border bg-background p-1 shadow-md">
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      className="w-full justify-start font-medium"
+                                                      onClick={() => {
+                                                        setRegularRowMenuKey(null);
+                                                        setRecallComment("");
+                                                        setRecallDialog({ open: true, log: row.log });
+                                                      }}
+                                                    >
+                                                      Recall
+                                                    </Button>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            ) : null}
+                                          </div>
+                                        </TableCell>
+                                      </TableRow>
+                                      {isPending && expanded && (
+                                        <TableRow>
+                                          <TableCell colSpan={9} className="bg-muted/40">
+                                            <div className="space-y-3 py-2">
+                                              {hasEmployeeNote ? (
+                                                <div className="rounded-md border border-slate-200 bg-background px-3 py-2 text-sm space-y-1">
+                                                  {employeeComment ? (
+                                                    <p className="whitespace-pre-wrap text-foreground">
+                                                      <span className="text-muted-foreground">Comment: </span>
+                                                      {employeeComment}
+                                                    </p>
+                                                  ) : null}
+                                                  {employeeReason ? (
+                                                    <p className="whitespace-pre-wrap text-foreground">
+                                                      <span className="text-muted-foreground">Incomplete / note: </span>
+                                                      {employeeReason}
+                                                    </p>
+                                                  ) : null}
+                                                </div>
+                                              ) : null}
+                                              <div className="flex flex-wrap items-center gap-2">
+                                                <span className="text-sm text-muted-foreground mr-2">Review submission</span>
+                                                <Button
+                                                  size="sm"
+                                                  onClick={() =>
+                                                    setActionDialog({ open: true, type: "task", item: row.log, action: "approve" })
+                                                  }
+                                                >
+                                                  Approve
+                                                </Button>
+                                                <Button
+                                                  size="sm"
+                                                  variant="destructive"
+                                                  onClick={() =>
+                                                    setActionDialog({ open: true, type: "task", item: row.log, action: "reject" })
+                                                  }
+                                                >
+                                                  Reject
                                                 </Button>
                                               </div>
-                                            )}
-                                          </div>
-                                        ) : null}
-                                      </div>
-                                    </TableCell>
-                                  </TableRow>
-                                  {isPending && expanded && (
-                                    <TableRow>
-                                      <TableCell colSpan={8} className="bg-muted/40">
-                                        <div className="space-y-3 py-2">
-                                          {hasEmployeeNote ? (
-                                            <div className="rounded-md border border-slate-200 bg-background px-3 py-2 text-sm space-y-1">
-                                              {employeeComment ? (
-                                                <p className="whitespace-pre-wrap text-foreground">
-                                                  <span className="text-muted-foreground">Comment: </span>
-                                                  {employeeComment}
-                                                </p>
-                                              ) : null}
-                                              {employeeReason ? (
-                                                <p className="whitespace-pre-wrap text-foreground">
-                                                  <span className="text-muted-foreground">Incomplete / note: </span>
-                                                  {employeeReason}
-                                                </p>
-                                              ) : null}
                                             </div>
-                                          ) : null}
-                                          <div className="flex flex-wrap items-center gap-2">
-                                            <span className="text-sm text-muted-foreground mr-2">Review submission</span>
-                                            <Button
-                                              size="sm"
-                                              onClick={() =>
-                                                setActionDialog({ open: true, type: "task", item: row.log, action: "approve" })
-                                              }
-                                            >
-                                              Approve
-                                            </Button>
-                                            <Button
-                                              size="sm"
-                                              variant="destructive"
-                                              onClick={() =>
-                                                setActionDialog({ open: true, type: "task", item: row.log, action: "reject" })
-                                              }
-                                            >
-                                              Reject
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      </TableCell>
-                                    </TableRow>
-                                  )}
-                                </Fragment>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </details>
-                  ))}
-                </div>
-              )}
+                                          </TableCell>
+                                        </TableRow>
+                                      )}
+                                    </Fragment>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </details>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
 
               <details className="group rounded-lg border">
                 <summary className="cursor-pointer list-none px-4 py-3 font-medium hover:bg-muted/50 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-2">
@@ -1866,18 +2056,88 @@ export default function ManagerPage() {
                                     <TableHead>Clock Out</TableHead>
                                     <TableHead>Hours</TableHead>
                                     <TableHead>Tasks Complete</TableHead>
+                                    <TableHead>Status / Action</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {items.map((att: any) => (
-                                    <TableRow key={att.id}>
-                                      <TableCell>{format(new Date(att.date), "dd/MM/yyyy")}</TableCell>
-                                      <TableCell>{att.clock_in_time ? format(new Date(att.clock_in_time), "HH:mm") : "-"}</TableCell>
-                                      <TableCell>{att.clock_out_time ? format(new Date(att.clock_out_time), "HH:mm") : "-"}</TableCell>
-                                      <TableCell>{calculateHours(att.clock_in_time, att.clock_out_time)}</TableCell>
-                                      <TableCell>{getTasksCompleteForDate(userId, getAttendanceDay(att))}</TableCell>
-                                    </TableRow>
-                                  ))}
+                                  {items.map((att: any) => {
+                                    const isPending = att.is_late_request && att.approval_status === 'pending';
+                                    const isExpanded = expandedAttendanceRowIds.has(att.id);
+                                    const toggleRow = () =>
+                                      setExpandedAttendanceRowIds((prev) => {
+                                        const next = new Set(prev);
+                                        if (next.has(att.id)) next.delete(att.id);
+                                        else next.add(att.id);
+                                        return next;
+                                      });
+                                    return (
+                                      <Fragment key={att.id}>
+                                        <TableRow>
+                                          <TableCell>{format(new Date(att.date), "dd/MM/yyyy")}</TableCell>
+                                          <TableCell>{att.clock_in_time ? format(new Date(att.clock_in_time), "HH:mm") : "-"}</TableCell>
+                                          <TableCell>{att.clock_out_time ? format(new Date(att.clock_out_time), "HH:mm") : "-"}</TableCell>
+                                          <TableCell>{calculateHours(att.clock_in_time, att.clock_out_time)}</TableCell>
+                                          <TableCell>{getTasksCompleteForDate(userId, getAttendanceDay(att))}</TableCell>
+                                          <TableCell>
+                                            {isPending ? (
+                                              <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8"
+                                                onClick={toggleRow}
+                                                title="Review late request"
+                                              >
+                                                {isExpanded ? (
+                                                  <ChevronUp className="h-4 w-4" />
+                                                ) : (
+                                                  <ChevronDown className="h-4 w-4 text-amber-600" />
+                                                )}
+                                              </Button>
+                                            ) : (
+                                              <span className="capitalize text-xs text-muted-foreground">
+                                                {att.approval_status}
+                                              </span>
+                                            )}
+                                          </TableCell>
+                                        </TableRow>
+                                        {isPending && isExpanded && (
+                                          <TableRow>
+                                            <TableCell colSpan={6} className="bg-amber-50/50 py-3">
+                                              <div className="flex flex-wrap items-center gap-3 px-2">
+                                                <span className="text-xs font-semibold text-amber-700">
+                                                  Late request — pending approval
+                                                </span>
+                                                {att.late_reason && (
+                                                  <span className="flex-1 text-xs text-muted-foreground">
+                                                    "{att.late_reason}"
+                                                  </span>
+                                                )}
+                                                <Button
+                                                  size="sm"
+                                                  onClick={() => {
+                                                    toggleRow();
+                                                    setActionDialog({ open: true, type: "attendance", item: att, action: "approve" });
+                                                  }}
+                                                >
+                                                  Approve
+                                                </Button>
+                                                <Button
+                                                  size="sm"
+                                                  variant="destructive"
+                                                  onClick={() => {
+                                                    toggleRow();
+                                                    setActionDialog({ open: true, type: "attendance", item: att, action: "reject" });
+                                                  }}
+                                                >
+                                                  Reject
+                                                </Button>
+                                              </div>
+                                            </TableCell>
+                                          </TableRow>
+                                        )}
+                                      </Fragment>
+                                    );
+                                  })}
                                 </TableBody>
                               </Table>
                             </div>

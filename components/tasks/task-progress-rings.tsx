@@ -44,7 +44,9 @@ export function TaskProgressRings({ tasks }: TaskProgressRingsProps) {
   }, [tasks]);
 
   const completionPercent = stats.total > 0 ? (stats.completed / stats.total) * 100 : 0;
-  const approvalPercent = stats.submitted > 0 ? (stats.approved / stats.submitted) * 100 : 0;
+  const submittedDenominator = stats.submitted > 0 ? stats.submitted : stats.total;
+  const approvalPercent =
+    submittedDenominator > 0 ? (stats.approved / submittedDenominator) * 100 : 0;
 
   useEffect(() => {
     if (completionPercent === 100 && stats.total > 0) {
@@ -117,7 +119,7 @@ export function TaskProgressRings({ tasks }: TaskProgressRingsProps) {
         />
         <Ring
           percent={approvalPercent}
-          fraction={`${stats.approved}/${stats.submitted}`}
+          fraction={`${stats.approved}/${submittedDenominator}`}
           label="Approved / Submitted Tasks"
         />
       </div>

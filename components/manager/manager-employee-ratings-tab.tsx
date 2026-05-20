@@ -181,7 +181,9 @@ export function ManagerEmployeeRatingsTab({ currentUser, teamMembers }: ManagerE
         decided_by: currentUser.id,
       }));
 
-      const { error } = await supabase.from("leaderboard").upsert(rows, { onConflict: "user_id,month" });
+      const { error } = await supabase
+        .from("leaderboard")
+        .upsert(rows, { onConflict: "organization_id,user_id,month" });
       if (error) throw error;
       toast({ title: "Ratings published!", description: "Leaderboard has been updated." });
       void fetchRatings(ratingsMonth, currentUser.organization_id, employees);

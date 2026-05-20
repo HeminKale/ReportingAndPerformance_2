@@ -68,8 +68,8 @@ function TaskHoverPanel({
   return (
     <div
       className={cn(
-        "rounded-md border bg-card shadow-lg p-2.5 text-xs",
-        "max-h-44 overflow-y-auto w-max min-w-[200px] max-w-[280px] z-[70]"
+        "rounded-lg border border-slate-200/90 bg-card p-2.5 text-xs shadow-lg ring-1 ring-slate-200/40",
+        "max-h-44 w-max min-w-[200px] max-w-[280px] overflow-y-auto z-[70]"
       )}
       onMouseDown={(e) => e.preventDefault()}
     >
@@ -161,16 +161,20 @@ function CalendarDayCell({
   return (
     <div
       className={cn(
-        "relative z-0 flex flex-col border rounded-lg p-2 min-h-[140px] transition-colors overflow-visible hover:z-50",
-        today ? "border-primary border-2 bg-primary/5" : "border-border",
-        isLeave ? "bg-green-50/80" : "bg-card",
+        "relative z-0 flex min-h-[140px] flex-col overflow-visible rounded-xl border p-2 transition-all hover:z-50",
+        isLeave
+          ? "border-emerald-200/85 bg-gradient-to-b from-emerald-50/95 to-emerald-50/50 shadow-sm ring-1 ring-emerald-200/40"
+          : today
+            ? "border-2 border-primary bg-primary/5 shadow-md ring-1 ring-primary/20"
+            : "border-slate-200/90 bg-gradient-to-b from-white to-slate-50/60 shadow-sm ring-1 ring-slate-200/30 hover:border-slate-300/80 hover:shadow-md",
+        isLeave && today && "ring-2 ring-primary/35",
         !isSameMonth(day, currentMonth) && "opacity-50"
       )}
     >
       <div className="text-sm font-semibold mb-1.5 shrink-0">{format(day, "d")}</div>
 
       {isLeave && leave ? (
-        <div className="text-xs bg-green-200/90 text-green-900 px-2 py-1.5 rounded-md font-medium capitalize">
+        <div className="rounded-md bg-emerald-200/90 px-2 py-1.5 text-xs font-medium capitalize text-emerald-900 shadow-sm ring-1 ring-emerald-300/50">
           Leave: {leave.leave_type}
         </div>
       ) : (
@@ -400,11 +404,11 @@ export function EmployeeCalendarPanel({
       );
     }
     return (
-      <Card className="overflow-visible shadow-sm">
+      <Card className="overflow-visible rounded-2xl border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-200/40">
         <CardContent className="p-6">
           <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-muted rounded w-1/3" />
-            <div className="h-[min(70vh,640px)] bg-muted rounded-xl" />
+            <div className="h-8 w-1/3 rounded-lg bg-muted" />
+            <div className="h-[min(70vh,640px)] rounded-2xl bg-muted" />
           </div>
         </CardContent>
       </Card>
@@ -417,7 +421,7 @@ export function EmployeeCalendarPanel({
       return <p className="text-sm text-muted-foreground py-6">{msg}</p>;
     }
     return (
-      <Card className="overflow-visible shadow-sm">
+      <Card className="overflow-visible rounded-2xl border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-200/40">
         <CardContent className="p-6">
           <p className="text-sm text-muted-foreground">{msg}</p>
         </CardContent>
@@ -492,10 +496,12 @@ export function EmployeeCalendarPanel({
   }
 
   return (
-    <Card className="overflow-visible shadow-sm">
-      <CardHeader className="pb-4">
+    <Card className="overflow-visible rounded-2xl border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-200/40">
+      <CardHeader className="border-b border-slate-100/80 pb-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <CardTitle className="text-xl">{format(currentMonth, "MMMM yyyy")}</CardTitle>
+          <CardTitle className="text-xl font-semibold tracking-tight">
+            {format(currentMonth, "MMMM yyyy")}
+          </CardTitle>
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -518,7 +524,9 @@ export function EmployeeCalendarPanel({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="overflow-visible pt-0">{gridAndLegend}</CardContent>
+      <CardContent className="overflow-visible bg-gradient-to-b from-white to-slate-50/30 pt-6">
+        {gridAndLegend}
+      </CardContent>
     </Card>
   );
 }

@@ -13,12 +13,17 @@ import { TaskAssignmentPanel } from "@/components/shared/task-assignment-panel";
 import { createClient } from "@/lib/supabase/client";
 import { format } from "date-fns";
 import { getCurrentTimeInTimezone } from "@/lib/utils/timezone";
+import { getTasksDueForUserOnDate } from "@/lib/gamification/due-tasks";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { ChevronDown, Filter, LayoutGrid, List } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import type { Task, TaskLog, User } from "@/lib/types/database";
 const TASK_SUB_TAB_LIST = "inline-flex h-auto w-auto flex-wrap items-center justify-start gap-0 rounded-none border-0 bg-transparent p-0";
 const TASK_SUB_TAB_TRIGGER = "rounded-none border-b-2 border-transparent px-4 py-2 text-sm font-semibold text-slate-600 shadow-none transition-colors hover:text-slate-900 data-[state=active]:border-slate-900 data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none";
+const ADD_TASK_BUTTON_CLASS =
+  "rounded-xl border-primary/50 bg-transparent px-4 py-2 text-sm font-semibold text-primary shadow-none hover:bg-primary/10";
+const SCOPE_TAB_ACTIVE = "relative rounded-none border-b-2 border-primary bg-transparent px-2 pb-3 pt-2 font-medium text-foreground";
+const SCOPE_TAB_IDLE = "relative rounded-none border-b-2 border-transparent bg-transparent px-2 pb-3 pt-2 font-medium text-muted-foreground hover:text-foreground";
 
 
 
@@ -34,6 +39,7 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [taskViewMode, setTaskViewMode] = useState<"list" | "board">("list");
   const [taskPeriod, setTaskPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
+  const [taskListScope, setTaskListScope] = useState<"today" | "pastDue">("today");
   const [historyFilters, setHistoryFilters] = useState({
     daily: { date: '', taskName: '' },
     weekly: { date: '', taskName: '' },
@@ -215,24 +221,27 @@ export default function TasksPage() {
 
   const isAssignedToday = (task: Task) => getAssignedDay(task.created_at) === today;
 
+  /** Same “due today” rules as gamification / dashboard (daily = every day after created_at; weekly DOW; monthly due_date). Weekday uses user TZ, not browser local. */
   const pieChartTasks = useMemo(() => {
-    const currentDayOfWeek = new Date().getDay();
-    return currentTasks.filter((task) => {
-      // Always include recalled tasks regardless of date so they affect the rings
-      if (task.taskLog?.verification_status === "recalled") return true;
+    if (!user) return [];
+    const tz = user.timezone || "Asia/Kolkata";
+    const weekday = getCurrentTimeInTimezone(tz).getDay();
 
-      if (task.type === "daily") {
-        return isAssignedToday(task);
+    const dueToday = getTasksDueForUserOnDate(
+      currentTasks as Task[],
+      user.id,
+      today,
+      weekday
+    );
+
+    const byId = new Map(dueToday.map((t) => [t.id, t]));
+    for (const task of currentTasks) {
+      if (task.taskLog?.verification_status === "recalled" && !byId.has(task.id)) {
+        byId.set(task.id, task);
       }
-      if (task.type === "weekly") {
-        return task.day_of_week === currentDayOfWeek || isAssignedToday(task);
-      }
-      if (task.type === "monthly") {
-        return task.due_date === today || isAssignedToday(task);
-      }
-      return false;
-    });
-  }, [currentTasks, today]);
+    }
+    return Array.from(byId.values());
+  }, [currentTasks, today, user]);
 
   // Prepared for Phase 2 (Current/History sub-tabs + history accordion).
   const dailyHistoryTasks = historyTasks.filter(t => t.type === 'daily');
@@ -252,6 +261,17 @@ export default function TasksPage() {
   const dailyFreshTasks = dailyTasks.filter((t) => !isPendingApprovalTask(t));
   const weeklyFreshTasks = weeklyTasks.filter((t) => !isPendingApprovalTask(t));
   const monthlyFreshTasks = monthlyTasks.filter((t) => !isPendingApprovalTask(t));
+
+  // Today tab: all tasks assigned today regardless of status
+  const dailyTodayTasks = dailyTasks.filter(isAssignedToday);
+  const weeklyTodayTasks = weeklyTasks.filter(isAssignedToday);
+  const monthlyTodayTasks = monthlyTasks.filter(isAssignedToday);
+
+  // Past due tab: tasks assigned before today that are NOT approved_completed
+  // (currentTasks already excludes past approved_completed, so filtering by !isAssignedToday is sufficient)
+  const dailyFreshPastDue = dailyTasks.filter((t) => !isAssignedToday(t));
+  const weeklyFreshPastDue = weeklyTasks.filter((t) => !isAssignedToday(t));
+  const monthlyFreshPastDue = monthlyTasks.filter((t) => !isAssignedToday(t));
 
   const dailyCurrentTodayCount = dailyTasks.filter(isAssignedToday).length;
   const weeklyCurrentTodayCount = weeklyTasks.filter(isAssignedToday).length;
@@ -398,17 +418,42 @@ export default function TasksPage() {
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
                 <TabsList className={TASK_SUB_TAB_LIST}>
                   <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
-                    Current ({dailyCurrentTodayCount})
+                    Current
                   </TabsTrigger>
                   <TabsTrigger value="history" className={TASK_SUB_TAB_TRIGGER}>
-                    History ({dailyHistoryTasks.length})
+                    History
                   </TabsTrigger>
                 </TabsList>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setTaskListScope("today")}
+                    className={cn(taskListScope === "today" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE, "flex items-center gap-1.5")}
+                  >
+                    Today
+                    {dailyTodayTasks.length > 0 && (
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-100 px-1 text-[10px] font-bold text-sky-700">
+                        {dailyTodayTasks.length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTaskListScope("pastDue")}
+                    className={cn(taskListScope === "pastDue" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE, "flex items-center gap-1.5")}
+                  >
+                    Past due items
+                    {dailyFreshPastDue.length > 0 && (
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-100 px-1 text-[10px] font-bold text-rose-700">
+                        {dailyFreshPastDue.length}
+                      </span>
+                    )}
+                  </button>
                   <Button
                     type="button"
                     size="sm"
-                    className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                    variant="outline"
+                    className={ADD_TASK_BUTTON_CLASS}
                     onClick={() => setAddTaskPanelOpen(true)}
                   >
                     + Add Task
@@ -440,8 +485,14 @@ export default function TasksPage() {
               {/* Current sub-tab */}
               <TabsContent value="current" className="mt-0 data-[state=inactive]:hidden">
                 <div className="flex flex-col gap-4 p-5">
-                  {/* Active Tasks Table */}
-                  <TaskTable tasks={dailyFreshTasks} onSubmit={handleSubmit} onView={handleView} hideDueColumn />
+                  {/* Active Tasks Table — scope-switched */}
+                  <TaskTable
+                    tasks={taskListScope === "pastDue" ? dailyFreshPastDue : dailyTodayTasks}
+                    onSubmit={handleSubmit}
+                    onView={handleView}
+                    hideDueColumn
+                    emptyMessage={taskListScope === "pastDue" ? "No past due items — great job staying on top of things!" : "No tasks for today."}
+                  />
 
                   {/* Monthly Numeric Summary cards */}
                   {dailyFreshTasks.some((t) => t.is_numeric_task && t.linked_monthly_task_id) && user && (
@@ -541,14 +592,44 @@ export default function TasksPage() {
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
                 <TabsList className={TASK_SUB_TAB_LIST}>
                   <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
-                    Current ({weeklyCurrentTodayCount})
+                    Current
                   </TabsTrigger>
                   <TabsTrigger value="history" className={TASK_SUB_TAB_TRIGGER}>
-                    History ({weeklyHistoryTasks.length})
+                    History
                   </TabsTrigger>
                 </TabsList>
-                <div className="flex items-center gap-2">
-                  <Button type="button" size="sm" className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90" onClick={() => setAddTaskPanelOpen(true)}>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setTaskListScope("today")}
+                    className={cn(taskListScope === "today" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE, "flex items-center gap-1.5")}
+                  >
+                    Today
+                    {weeklyTodayTasks.length > 0 && (
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-100 px-1 text-[10px] font-bold text-sky-700">
+                        {weeklyTodayTasks.length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTaskListScope("pastDue")}
+                    className={cn(taskListScope === "pastDue" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE, "flex items-center gap-1.5")}
+                  >
+                    Past due items
+                    {weeklyFreshPastDue.length > 0 && (
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-100 px-1 text-[10px] font-bold text-rose-700">
+                        {weeklyFreshPastDue.length}
+                      </span>
+                    )}
+                  </button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className={ADD_TASK_BUTTON_CLASS}
+                    onClick={() => setAddTaskPanelOpen(true)}
+                  >
                     + Add Task
                   </Button>
                   <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50/90 p-1">
@@ -561,7 +642,12 @@ export default function TasksPage() {
 
               <TabsContent value="current" className="mt-0 data-[state=inactive]:hidden">
                 <div className="flex flex-col gap-4 p-5">
-                  <TaskTable tasks={weeklyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
+                  <TaskTable
+                    tasks={taskListScope === "pastDue" ? weeklyFreshPastDue : weeklyTodayTasks}
+                    onSubmit={handleSubmit}
+                    onView={handleView}
+                    emptyMessage={taskListScope === "pastDue" ? "No past due items — great job staying on top of things!" : "No tasks for today."}
+                  />
 
                   {weeklyPendingApprovalTasks.length > 0 && (
                     <details className="group rounded-xl border border-slate-200 bg-slate-50/50">
@@ -616,14 +702,44 @@ export default function TasksPage() {
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
                 <TabsList className={TASK_SUB_TAB_LIST}>
                   <TabsTrigger value="current" className={TASK_SUB_TAB_TRIGGER}>
-                    Current ({monthlyCurrentTodayCount})
+                    Current
                   </TabsTrigger>
                   <TabsTrigger value="history" className={TASK_SUB_TAB_TRIGGER}>
-                    History ({monthlyHistoryTasks.length})
+                    History
                   </TabsTrigger>
                 </TabsList>
-                <div className="flex items-center gap-2">
-                  <Button type="button" size="sm" className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90" onClick={() => setAddTaskPanelOpen(true)}>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setTaskListScope("today")}
+                    className={cn(taskListScope === "today" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE, "flex items-center gap-1.5")}
+                  >
+                    Today
+                    {monthlyTodayTasks.length > 0 && (
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-100 px-1 text-[10px] font-bold text-sky-700">
+                        {monthlyTodayTasks.length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTaskListScope("pastDue")}
+                    className={cn(taskListScope === "pastDue" ? SCOPE_TAB_ACTIVE : SCOPE_TAB_IDLE, "flex items-center gap-1.5")}
+                  >
+                    Past due items
+                    {monthlyFreshPastDue.length > 0 && (
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-100 px-1 text-[10px] font-bold text-rose-700">
+                        {monthlyFreshPastDue.length}
+                      </span>
+                    )}
+                  </button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className={ADD_TASK_BUTTON_CLASS}
+                    onClick={() => setAddTaskPanelOpen(true)}
+                  >
                     + Add Task
                   </Button>
                   <div className="flex items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50/90 p-1">
@@ -636,7 +752,12 @@ export default function TasksPage() {
 
               <TabsContent value="current" className="mt-0 data-[state=inactive]:hidden">
                 <div className="flex flex-col gap-4 p-5">
-                  <TaskTable tasks={monthlyFreshTasks} onSubmit={handleSubmit} onView={handleView} />
+                  <TaskTable
+                    tasks={taskListScope === "pastDue" ? monthlyFreshPastDue : monthlyTodayTasks}
+                    onSubmit={handleSubmit}
+                    onView={handleView}
+                    emptyMessage={taskListScope === "pastDue" ? "No past due items — great job staying on top of things!" : "No tasks for today."}
+                  />
 
                   {monthlyPendingApprovalTasks.length > 0 && (
                     <details className="group rounded-xl border border-slate-200 bg-slate-50/50">

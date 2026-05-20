@@ -138,6 +138,15 @@ export default function NotificationsPage() {
           })
           .eq("id", resourceId);
         if (error) throw error;
+
+        if (action === "approve") {
+          void fetch("/api/gamification/xp-event", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ kind: "task_log_approved", resourceId: String(resourceId) }),
+          }).catch(() => {});
+        }
       }
 
       if (resourceType === "attendance") {

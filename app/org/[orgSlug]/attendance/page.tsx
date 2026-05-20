@@ -10,10 +10,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/lib/hooks/use-toast";
-import { format, parse, startOfMonth } from "date-fns";
+import { format, getDay, parse, startOfMonth } from "date-fns";
 import { getCurrentTimeInTimezone, isAfterCutoff, formatInUserTimezone } from "@/lib/utils/timezone";
-import { AlertTriangle, CheckCircle, Clock } from "lucide-react";
-import type { Attendance, User } from "@/lib/types/database";
+import { AlertTriangle, CheckCircle, Clock, Star } from "lucide-react";
+import type { Attendance, TaskLog, User } from "@/lib/types/database";
+import {
+  getLogForTaskDate,
+  getTasksDueForClockOutOnDate,
+  isApprovedCompletedBefore,
+  isTaskLogRejectedOrRecalled,
+} from "@/lib/gamification/due-tasks";
 
 function sumAttendanceHours(rows: Attendance[]): number {
   let sum = 0;
@@ -40,6 +46,75 @@ function formatTotalHours(decimalHours: number): string {
   return `${h}h ${m}m`;
 }
 
+function AnimatedClock({ timezone }: { timezone: string }) {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Calculate rotations based on current time in the given timezone
+  const getRotations = () => {
+    const zonedTime = new Date(new Date().toLocaleString("en-US", { timeZone: timezone }));
+    const seconds = zonedTime.getSeconds();
+    const minutes = zonedTime.getMinutes();
+    const hours = zonedTime.getHours() % 12;
+
+    return {
+      sec: seconds * 6,
+      min: minutes * 6 + seconds * 0.1,
+      hour: hours * 30 + minutes * 0.5,
+    };
+  };
+
+  const { sec, min, hour } = getRotations();
+
+  return (
+    <div className="relative mx-auto mb-6 h-32 w-32 flex items-center justify-center rounded-full border-[3px] border-white/80 bg-white/40 backdrop-blur-md shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),inset_0_2px_10px_rgba(255,255,255,1)] ring-1 ring-slate-200/50">
+      {/* Clock Face Details */}
+      {[...Array(12)].map((_, i) => (
+        <div
+          key={i}
+          className="absolute w-0.5 bg-slate-300"
+          style={{
+            height: i % 3 === 0 ? '8px' : '4px',
+            transform: `rotate(${i * 30}deg)`,
+            top: i % 3 === 0 ? '4px' : '6px',
+            transformOrigin: '50% 60px',
+          }}
+        />
+      ))}
+
+      {/* Hour Hand */}
+      <div 
+        className="absolute w-1 h-10 bg-slate-800 rounded-full origin-bottom shadow-sm transition-transform duration-500 ease-out"
+        style={{ bottom: '50%', transform: `rotate(${hour}deg)` }}
+      />
+      
+      {/* Minute Hand */}
+      <div 
+        className="absolute w-1 h-14 bg-slate-500 rounded-full origin-bottom shadow-sm transition-transform duration-500 ease-out"
+        style={{ bottom: '50%', transform: `rotate(${min}deg)` }}
+      />
+      
+      {/* Second Hand */}
+      <div 
+        className="absolute w-0.5 h-16 bg-red-500 rounded-full origin-bottom shadow-xs transition-transform duration-100 linear"
+        style={{ bottom: '50%', transform: `rotate(${sec}deg)` }}
+      />
+      
+      {/* Center Pin */}
+      <div className="absolute h-2.5 w-2.5 rounded-full bg-slate-900 border-2 border-white shadow-sm z-10" />
+      
+      {/* Outer Glow */}
+      <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-primary/5 to-transparent pointer-events-none" />
+    </div>
+  );
+}
+
 export default function AttendancePage() {
   const params = useParams();
   const [user, setUser] = useState<User | null>(null);
@@ -53,6 +128,7 @@ export default function AttendancePage() {
   const [earlyClockOutDialogOpen, setEarlyClockOutDialogOpen] = useState(false);
   const [earlyClockOutReason, setEarlyClockOutReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [clockInCutoff, setClockInCutoff] = useState("09:15");
   const { toast } = useToast();
   const supabase = createClient();
   const [today, setToday] = useState(format(getCurrentTimeInTimezone('Asia/Kolkata'), 'yyyy-MM-dd'));
@@ -125,6 +201,20 @@ export default function AttendancePage() {
       .eq('id', authUser.id)
       .single();
 
+    if (userData?.organization_id) {
+      const { data: orgRow } = await supabase
+        .from("organizations")
+        .select("settings")
+        .eq("id", userData.organization_id)
+        .maybeSingle();
+      const raw = orgRow?.settings?.clock_in_cutoff;
+      if (typeof raw === "string" && /^\d{2}:\d{2}$/.test(raw)) {
+        setClockInCutoff(raw);
+      } else {
+        setClockInCutoff("09:15");
+      }
+    }
+
     const userTimezone = userData?.timezone || 'Asia/Kolkata';
     const currentToday = format(getCurrentTimeInTimezone(userTimezone), 'yyyy-MM-dd');
     setToday(currentToday);
@@ -145,13 +235,37 @@ export default function AttendancePage() {
     }
   };
 
+  const runDailyCloseEvaluation = async (attendanceId: string) => {
+    try {
+      const res = await fetch("/api/gamification/daily-close", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ attendanceId }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        duplicate?: boolean;
+        xpDelta?: number;
+        streakOk?: boolean;
+      };
+      if (!json.ok || json.duplicate || typeof json.xpDelta !== "number") return "";
+      const bits: string[] = [];
+      if (json.streakOk) bits.push("Streak day secured");
+      if (json.xpDelta !== 0) bits.push(`${json.xpDelta > 0 ? "+" : ""}${json.xpDelta} XP`);
+      return bits.length ? ` ${bits.join(" · ")}.` : "";
+    } catch {
+      return "";
+    }
+  };
+
   const handleClockIn = async () => {
     if (!user) return;
 
     setActionLoading(true);
 
     try {
-      const isLate = isAfterCutoff(user.timezone, '09:15');
+      const isLate = isAfterCutoff(user.timezone, clockInCutoff);
 
       if (isLate) {
         setLateDialogOpen(true);
@@ -266,35 +380,64 @@ export default function AttendancePage() {
     setActionLoading(true);
 
     try {
-      const { data: allDailyTasks } = await supabase
-        .from('tasks')
-        .select('id')
-        .eq('organization_id', user.organization_id)
+      const tz = user.timezone || "Asia/Kolkata";
+      const clockOutDateStr = format(getCurrentTimeInTimezone(tz), "yyyy-MM-dd");
+      const weekday = getDay(parse(clockOutDateStr, "yyyy-MM-dd", new Date()));
+
+      const { data: allActiveTasks } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("organization_id", user.organization_id)
         .or(`assigned_to.eq.${user.id},is_common_task.eq.true`)
-        .eq('is_active', true)
-        .eq('type', 'daily');
+        .eq("is_active", true);
 
-      const dailyTaskIds = (allDailyTasks || []).map((task) => task.id);
-
-      const { data: todayTaskLogs } = await supabase
-        .from('task_logs')
-        .select('task_id,status')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .in('task_id', dailyTaskIds);
-
-      const totalTaskCount = (allDailyTasks || []).length;
-      const completedTaskIds = new Set(
-        (todayTaskLogs || [])
-          .filter(log => log.status === 'completed')
-          .map(log => log.task_id)
+      const dueToday = getTasksDueForClockOutOnDate(
+        allActiveTasks || [],
+        user.id,
+        clockOutDateStr,
+        weekday,
+        tz
       );
-      const completedCount = completedTaskIds.size;
+      const dueIds = dueToday.map((t) => t.id);
+      const { data: todayTaskLogs } =
+        dueIds.length > 0
+          ? await supabase
+              .from("task_logs")
+              .select("*")
+              .eq("user_id", user.id)
+              .eq("date", clockOutDateStr)
+              .in("task_id", dueIds)
+          : { data: [] as TaskLog[] };
 
-      if (completedCount < totalTaskCount) {
+      const logs = (todayTaskLogs || []) as TaskLog[];
+      const nowIso = new Date().toISOString();
+
+      for (const task of dueToday) {
+        const log = getLogForTaskDate(logs, task.id, user.id, clockOutDateStr);
+        if (isTaskLogRejectedOrRecalled(log)) {
+          toast({
+            title: "Cannot clock out",
+            description:
+              "One or more tasks were rejected or recalled by your manager. Resubmit those tasks before clocking out.",
+            variant: "destructive",
+          });
+          setActionLoading(false);
+          return;
+        }
+      }
+
+      let submittedDone = 0;
+      for (const task of dueToday) {
+        const log = getLogForTaskDate(logs, task.id, user.id, clockOutDateStr);
+        if (isApprovedCompletedBefore(log, nowIso)) {
+          submittedDone++;
+        }
+      }
+
+      if (dueToday.length > 0 && submittedDone < dueToday.length) {
         toast({
           title: "Cannot clock out",
-          description: `Please complete all daily tasks before clocking out (${completedCount}/${totalTaskCount} completed)`,
+          description: `Submit all tasks due today before clocking out (${submittedDone}/${dueToday.length} submitted). Pending manager review is OK.`,
           variant: "destructive",
         });
         setActionLoading(false);
@@ -318,9 +461,11 @@ export default function AttendancePage() {
 
       if (error) throw error;
 
+      const extra = await runDailyCloseEvaluation(attendance.id);
+
       toast({
         title: "Clocked out successfully",
-        description: "Have a great day!",
+        description: `Have a great day!${extra}`,
       });
 
       await fetchData({ refreshHistory: true });
@@ -358,6 +503,8 @@ export default function AttendancePage() {
 
       if (error) throw error;
 
+      const extra = await runDailyCloseEvaluation(attendance.id);
+
       if (user.manager_id) {
         await supabase
           .from('notifications')
@@ -381,7 +528,7 @@ export default function AttendancePage() {
 
       toast({
         title: "Early clock-out request submitted",
-        description: "Waiting for manager approval",
+        description: `Waiting for manager approval.${extra}`,
       });
 
       setEarlyClockOutDialogOpen(false);
@@ -400,19 +547,17 @@ export default function AttendancePage() {
 
   if (loading) {
     return (
-      <div className="p-8">
+      <div className="option-surface p-6 md:p-8">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
+          <div className="h-8 w-1/4 rounded-lg bg-muted" />
+          <div className="h-64 rounded-2xl bg-muted" />
         </div>
       </div>
     );
   }
 
-  const { from: rangeFrom, to: rangeTo } = getEffectiveHistoryRange();
   const totalHoursDecimal = sumAttendanceHours(attendanceHistory);
   const totalHoursDisplay = formatTotalHours(totalHoursDecimal);
-  const usingDefaultMonthRange = !historyDateFrom && !historyDateTo;
 
   const attendanceRequestRejected = Boolean(
     attendance?.is_late_request && attendance.approval_status === "rejected"
@@ -421,29 +566,28 @@ export default function AttendancePage() {
     attendanceRequestRejected || attendance?.approval_status === "pending";
 
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col p-8">
-      <div className="mb-6 shrink-0">
-        <h1 className="text-3xl font-bold">Attendance</h1>
-      </div>
+    <div className="option-surface flex min-h-0 w-full flex-1 flex-col gap-3 pt-4 px-6 pb-6 md:pt-6 md:px-8 md:pb-8">
+      <h1 className="shrink-0 text-2xl font-bold tracking-tight">Attendance</h1>
 
-      <div className="grid min-h-0 w-full flex-1 gap-6 md:grid-cols-2 md:items-stretch md:min-h-[calc(100dvh-11rem)]">
-        <Card className="flex h-full min-h-0 flex-col">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle>Clock In/Out</CardTitle>
+      <div className="grid min-h-0 w-full flex-1 gap-6 md:grid-cols-2 md:items-stretch md:min-h-[calc(100dvh-8rem)]">
+        <Card className="flex h-full min-h-0 flex-col rounded-2xl border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-200/40">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-slate-100/80 pb-4">
+            <CardTitle className="text-lg font-semibold">Clock In/Out</CardTitle>
             <CardDescription>
-              {format(new Date(), 'EEEE, MMMM d, yyyy')}
+              {format(new Date(), "EEEE, MMMM d, yyyy")}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col space-y-6">
-            <div className="flex items-center justify-center p-8 bg-muted rounded-lg">
+            <div className="flex items-center justify-center rounded-2xl border border-white/60 bg-gradient-to-b from-white/80 to-slate-50/50 p-10 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.05),inset_0_2px_10px_rgba(255,255,255,0.8)] backdrop-blur-sm ring-1 ring-white/40">
               <div className="text-center">
-                <Clock className="h-16 w-16 mx-auto mb-4 text-primary" />
-                <div className="text-4xl font-bold mb-2">
-                  {user && formatInUserTimezone(new Date(), user.timezone, 'h:mm:ss a')}
+                {user && <AnimatedClock timezone={user.timezone || 'Asia/Kolkata'} />}
+                <div className="mb-2 text-4xl font-black tabular-nums tracking-tighter text-slate-900 drop-shadow-sm">
+                  {user && formatInUserTimezone(new Date(), user.timezone, "h:mm:ss a")}
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {user?.timezone}
-                </p>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100/80 border border-slate-200/50 text-[10px] font-bold uppercase tracking-widest text-slate-500 shadow-sm">
+                   <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
+                   {user?.timezone}
+                </div>
               </div>
             </div>
 
@@ -452,8 +596,8 @@ export default function AttendancePage() {
                 <div
                   className={
                     attendanceRequestRejected
-                      ? "flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4"
-                      : "flex items-center justify-between rounded-lg bg-green-50 p-4"
+                      ? "flex items-start justify-between gap-3 rounded-xl border border-amber-200/90 bg-amber-50/90 p-4 shadow-sm ring-1 ring-amber-200/30"
+                      : "flex items-center justify-between rounded-xl border border-emerald-200/70 bg-emerald-50/80 p-4 shadow-sm ring-1 ring-emerald-200/25"
                   }
                 >
                   <div className="flex items-start gap-3">
@@ -509,7 +653,7 @@ export default function AttendancePage() {
                 </div>
 
                 {attendance.clock_out_time ? (
-                  <div className="flex items-center gap-3 rounded-lg bg-blue-50 p-4">
+                  <div className="flex items-center gap-3 rounded-xl border border-sky-200/70 bg-sky-50/80 p-4 shadow-sm ring-1 ring-sky-200/25">
                     <CheckCircle className="h-5 w-5 text-blue-600" />
                     <div>
                       <p className="font-medium">Clocked Out</p>
@@ -522,8 +666,8 @@ export default function AttendancePage() {
                   <Button
                     onClick={handleClockOut}
                     disabled={actionLoading || clockOutDisabledByApproval}
-                    className="w-full"
-                    variant="destructive"
+                    variant="outline"
+                    className="w-full border-destructive/50 bg-transparent text-destructive hover:bg-destructive/10"
                     title={
                       attendanceRequestRejected
                         ? "Clock in/out is not available while your request is rejected for today."
@@ -538,58 +682,57 @@ export default function AttendancePage() {
               <Button
                 onClick={handleClockIn}
                 disabled={actionLoading}
-                className="w-full"
+                variant="outline"
+                className="w-full border-primary/50 bg-transparent text-primary hover:bg-primary/10"
                 size="lg"
               >
                 {actionLoading ? "Processing..." : "Clock In"}
               </Button>
             )}
 
-            {user && isAfterCutoff(user.timezone, '09:15') && !attendance && (
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800">
-                  It's past 9:15 AM. You'll need to provide a reason for late clock-in.
+            {user && isAfterCutoff(user.timezone, clockInCutoff) && !attendance && (
+              <div className="rounded-xl border border-amber-200/80 bg-amber-50/80 p-4 shadow-sm ring-1 ring-amber-200/25">
+                <p className="text-sm text-amber-900/90">
+                  It's past {clockInCutoff}. You'll need to provide a reason for late clock-in.
                 </p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="flex h-full min-h-0 flex-col">
-          <CardHeader className="shrink-0">
-            <CardTitle>Attendance History</CardTitle>
-          </CardHeader>
-          <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden pt-0">
-            <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-              <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
-                <div className="space-y-2">
-                  <Label htmlFor="historyDateFrom">From</Label>
-                  <Input
-                    id="historyDateFrom"
-                    type="date"
-                    value={historyDateFrom}
-                    onChange={(e) => setHistoryDateFrom(e.target.value)}
-                    className="w-full sm:w-40"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="historyDateTo">To</Label>
-                  <Input
-                    id="historyDateTo"
-                    type="date"
-                    value={historyDateTo}
-                    onChange={(e) => setHistoryDateTo(e.target.value)}
-                    className="w-full sm:w-40"
-                  />
-                </div>
+        <Card className="flex h-full min-h-0 flex-col rounded-2xl border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-200/40">
+          <CardHeader className="shrink-0 border-b border-slate-100/80 pb-3 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <CardTitle className="text-lg font-semibold shrink-0">History</CardTitle>
+            <div className="flex flex-wrap items-center gap-3 md:justify-end">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="historyDateFrom" className="text-xs text-muted-foreground whitespace-nowrap">From</Label>
+                <Input
+                  id="historyDateFrom"
+                  type="date"
+                  value={historyDateFrom}
+                  onChange={(e) => setHistoryDateFrom(e.target.value)}
+                  className="h-8 w-[120px] text-xs px-2"
+                />
               </div>
-              <div className="flex flex-col items-start gap-1 sm:items-end shrink-0">
-                <div className="inline-flex w-fit max-w-full items-baseline gap-2 rounded-md border border-border px-3 py-1.5">
-                  <span className="text-sm text-muted-foreground">Total Hours:</span>
-                  <span className="text-sm font-medium tabular-nums">{totalHoursDisplay}</span>
-                </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="historyDateTo" className="text-xs text-muted-foreground whitespace-nowrap">To</Label>
+                <Input
+                  id="historyDateTo"
+                  type="date"
+                  value={historyDateTo}
+                  onChange={(e) => setHistoryDateTo(e.target.value)}
+                  className="h-8 w-[120px] text-xs px-2"
+                />
+              </div>
+              <div className="inline-flex items-center gap-1.5 rounded-md border border-slate-200/80 bg-slate-50/80 px-2.5 py-1 shadow-sm">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total:</span>
+                <span className="text-xs font-bold tabular-nums text-slate-900 whitespace-nowrap">
+                  {totalHoursDisplay}
+                </span>
               </div>
             </div>
+          </CardHeader>
+          <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden pt-4">
             <div className="min-h-0 flex-1 overflow-y-auto pr-1">
             {attendanceHistory.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
@@ -598,8 +741,11 @@ export default function AttendancePage() {
             ) : (
               <div className="space-y-3 pb-2">
                 {attendanceHistory.map((item) => (
-                  <div key={item.id} className="border rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-slate-200/80 bg-white/90 p-3.5 shadow-sm transition-shadow hover:shadow-md"
+                  >
+                    <div className="mb-2 flex items-center justify-between">
                       <p className="font-medium">{format(new Date(item.date), "EEE, MMM d, yyyy")}</p>
                       <span className={`text-xs px-2 py-1 rounded ${
                         item.approval_status === "approved"
@@ -657,7 +803,7 @@ export default function AttendancePage() {
           <DialogHeader>
             <DialogTitle>Late Clock-In Request</DialogTitle>
             <DialogDescription>
-              Please provide a reason for clocking in after 9:15 AM
+              Please provide a reason for clocking in after {clockInCutoff}
             </DialogDescription>
           </DialogHeader>
 

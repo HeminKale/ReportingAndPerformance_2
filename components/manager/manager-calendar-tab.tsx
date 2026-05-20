@@ -53,9 +53,10 @@ function TeamLeavesDayCell({
   return (
     <div
       className={cn(
-        "relative z-0 flex flex-col border rounded-lg p-2 min-h-[140px] transition-colors overflow-visible hover:z-50",
-        isToday(day) ? "border-primary border-2 bg-primary/5" : "border-border",
-        "bg-card",
+        "relative z-0 flex min-h-[140px] flex-col overflow-visible rounded-xl border p-2 transition-all hover:z-50",
+        isToday(day)
+          ? "border-2 border-primary bg-primary/5 shadow-md ring-1 ring-primary/20"
+          : "border-slate-200/90 bg-gradient-to-b from-white to-slate-50/60 shadow-sm ring-1 ring-slate-200/30 hover:border-slate-300/80 hover:shadow-md",
         !isSameMonth(day, currentMonth) && "opacity-50"
       )}
     >
@@ -147,11 +148,13 @@ export function ManagerCalendarTab({ teamMembers }: { teamMembers: User[] }) {
   };
 
   return (
-    <Card className="overflow-visible shadow-sm">
-      <CardHeader className="pb-4">
+    <Card className="overflow-visible rounded-2xl border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-200/40">
+      <CardHeader className="border-b border-slate-100/80 pb-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex flex-wrap items-center gap-3 min-w-0">
-            <CardTitle className="text-xl shrink-0">{format(currentMonth, "MMMM yyyy")}</CardTitle>
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <CardTitle className="shrink-0 text-xl font-semibold tracking-tight">
+              {format(currentMonth, "MMMM yyyy")}
+            </CardTitle>
             <div className="flex gap-2 shrink-0">
               <Button variant="outline" size="icon" type="button" onClick={() => bumpMonth(-1)}>
                 <ChevronLeft className="h-4 w-4" />
@@ -184,7 +187,7 @@ export function ManagerCalendarTab({ teamMembers }: { teamMembers: User[] }) {
             : "All leave requests from your team that overlap this month. Green = approved, red = pending or rejected."}
         </p>
       </CardHeader>
-      <CardContent className="overflow-visible pt-0">
+      <CardContent className="overflow-visible bg-gradient-to-b from-white to-slate-50/30 pt-6">
         {teamMembers.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6">
             No team members in your hierarchy. The calendar will populate when you have direct or indirect reports.

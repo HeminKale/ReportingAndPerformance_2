@@ -94,12 +94,21 @@ export function TrainingsTab({ user }: { user: User | null }) {
   };
 
   const updateTraining = async (id: string, updates: Partial<TrainingRow>) => {
+    const prevRow = rows.find((r) => r.id === id);
     const { error } = await supabase.from("trainings").update(updates).eq("id", id);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
     setRows((prev) => prev.map((row) => (row.id === id ? { ...row, ...updates } : row)));
+    if (updates.status === "completed" && prevRow?.status !== "completed") {
+      void fetch("/api/gamification/xp-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ kind: "training_completed", resourceId: id }),
+      }).catch(() => {});
+    }
   };
 
   const uploadCertificate = async (trainingId: string, file: File | null) => {
@@ -131,10 +140,10 @@ export function TrainingsTab({ user }: { user: User | null }) {
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
             <Button
-              variant="ghost"
-              className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 font-semibold"
+              variant="outline"
+              className="border-primary/50 bg-transparent font-semibold text-primary hover:bg-primary/10"
             >
-              + Add Training
+              + New Training
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
