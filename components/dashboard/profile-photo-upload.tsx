@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Trash2, Crown } from "lucide-react";
+import { Camera, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils/cn";
 
@@ -92,12 +92,6 @@ export function ProfilePhotoUpload({
 
   return (
     <div className="absolute top-0 left-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 z-20">
-      {isTopPerformer && (
-        <div className="absolute -top-7 left-1/2 -translate-x-1/2 z-30 animate-bounce pointer-events-none">
-          <Crown className="h-10 w-10 text-yellow-500 fill-yellow-500 drop-shadow-[0_0_15px_rgba(234,179,8,0.6)]" />
-        </div>
-      )}
-
       {/* Avatar circle */}
       <div
         className="relative h-full w-full cursor-pointer"
