@@ -223,7 +223,15 @@ export default async function DashboardPage({
   
   const earnedRankTiers = RANK_TIERS.filter(t => totalXp >= t.minXp);
   const nextGoalXp = nextTier?.minXp ?? RANK_TIERS[RANK_TIERS.length - 1]!.minXp;
-  const xpProgressPct = nextTier && nextGoalXp > 0 ? Math.min(100, Math.round((totalXp / nextGoalXp) * 100)) : 100;
+  const currentTierMinXp =
+    [...RANK_TIERS].reverse().find((t) => totalXp >= t.minXp)?.minXp ?? 0;
+  const xpProgressPct =
+    nextTier && nextGoalXp > currentTierMinXp
+      ? Math.min(
+          100,
+          Math.round(((totalXp - currentTierMinXp) / (nextGoalXp - currentTierMinXp)) * 100)
+        )
+      : 100;
 
   /** Productive work: same windows as streak punctuality — clock-in on/before org cutoff (default 9:15) and clock-out on/after 5 PM. Status only meaningful after clock-out. */
   let productiveWorkComplete = false;
