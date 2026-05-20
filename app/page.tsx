@@ -23,61 +23,67 @@ export default async function Home() {
 
   return (
     <div className="ws-landing min-h-screen">
-      {/* ── Navbar ── */}
+
+      {/* ══ NAVBAR ══ */}
       <header
         className="sticky top-0 z-50 w-full border-b"
         style={{
-          background: "rgba(254,253,252,0.92)",
-          backdropFilter: "blur(12px)",
-          borderColor: "var(--ws-soft-gray)",
+          background: "rgba(254,253,252,0.94)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          borderColor: "var(--color-soft-gray)",
         }}
       >
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          {/* Logo */}
+        <div className="mx-auto flex h-[60px] max-w-6xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2.5">
             <span
               className="flex h-8 w-8 items-center justify-center rounded-lg text-white text-sm font-bold"
-              style={{ background: "var(--ws-indigo-cta)" }}
+              style={{ background: "var(--color-indigo-cta)" }}
             >
               W
             </span>
-            <span className="text-lg font-semibold tracking-tight" style={{ color: "var(--ws-faded-charcoal)" }}>
+            <span
+              className="text-[17px] font-semibold"
+              style={{ color: "var(--color-faded-charcoal)", letterSpacing: "-0.005em" }}
+            >
               Worksphere
             </span>
           </Link>
 
-          {/* Nav links */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center">
             {["Features", "How it works", "For Managers", "Pricing"].map((item) => (
               <a
                 key={item}
                 href={`#${item.toLowerCase().replace(/ /g, "-")}`}
-                className="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-black/5"
-                style={{ color: "var(--ws-subtle-ash)" }}
+                className="px-3.5 py-2 rounded-lg text-[15px] transition-colors hover:bg-black/5"
+                style={{ color: "var(--color-subtle-ash)", fontWeight: 400 }}
               >
                 {item}
               </a>
             ))}
           </nav>
 
-          {/* CTA buttons */}
           <div className="flex items-center gap-2">
+            {/* Text Only Button */}
             <Link
               href="/login"
-              className="px-4 py-2 rounded-[15px] text-sm font-semibold border transition-colors hover:bg-black/5"
+              className="px-[14px] py-[9px] rounded-lg text-[15px] border transition-colors hover:bg-black/5"
               style={{
-                color: "var(--ws-faded-charcoal)",
-                borderColor: "var(--ws-soft-gray)",
+                color: "var(--color-faded-charcoal)",
+                borderColor: "var(--color-faded-charcoal)",
+                background: "transparent",
               }}
             >
               Sign in
             </Link>
+            {/* Primary Action Button */}
             <Link
               href="/signup"
-              className="px-4 py-2 rounded-[15px] text-sm font-semibold text-white transition-all hover:-translate-y-0.5"
+              className="px-[16px] py-[12px] text-[15px] font-semibold text-white transition-all hover:-translate-y-0.5"
               style={{
-                background: "var(--ws-indigo-cta)",
-                boxShadow: "var(--ws-shadow-lg)",
+                background: "var(--color-indigo-cta)",
+                borderRadius: "var(--radius-buttons)",
+                boxShadow: "var(--shadow-lg)",
               }}
             >
               Get started free
@@ -86,89 +92,188 @@ export default async function Home() {
         </div>
       </header>
 
-      {/* ── Hero ── */}
-      <section className="mx-auto max-w-6xl px-6 pt-20 pb-16 flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+      {/* ══ HERO ══ */}
+      <section className="relative mx-auto max-w-6xl px-6 pt-20 pb-20 flex flex-col lg:flex-row items-center gap-12 lg:gap-16 overflow-hidden">
+
+        {/* Decorative background stars (per DESIGN.md imagery spec) */}
+        <div className="pointer-events-none absolute inset-0 select-none" aria-hidden="true">
+          {[
+            { top: "8%",  left: "6%",  size: 28, dur: "6s",  delay: "0s" },
+            { top: "18%", left: "45%", size: 18, dur: "8s",  delay: "1s" },
+            { top: "5%",  left: "72%", size: 36, dur: "5s",  delay: "0.5s" },
+            { top: "60%", left: "2%",  size: 22, dur: "7s",  delay: "2s" },
+            { top: "75%", left: "88%", size: 20, dur: "6.5s",delay: "1.5s" },
+            { top: "40%", left: "92%", size: 14, dur: "9s",  delay: "0.8s" },
+          ].map((s, i) => (
+            <span
+              key={i}
+              className="ws-star absolute"
+              style={{
+                top: s.top,
+                left: s.left,
+                fontSize: s.size + "px",
+                color: "#f0e8e0",
+                "--dur": s.dur,
+                animationDelay: s.delay,
+              } as React.CSSProperties}
+            >
+              &#9733;
+            </span>
+          ))}
+        </div>
+
         {/* Left — text */}
-        <div className="flex-1 ws-animate-fade-up">
+        <div className="relative flex-1 ws-animate-fade-up">
           <span
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mb-6"
+            className="inline-flex items-center gap-1.5 mb-6"
             style={{
-              background: "var(--ws-indigo-light)",
-              color: "var(--ws-indigo-cta)",
-              borderRadius: "var(--ws-radius-badge)",
+              padding: "4px 10px",
+              background: "var(--color-light-green-tint)",
+              color: "var(--color-badge-green)",
+              borderRadius: "var(--radius-badges)",
+              fontSize: "var(--text-xs)",
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
             }}
           >
             <span
               className="h-1.5 w-1.5 rounded-full"
-              style={{ background: "var(--ws-indigo-cta)" }}
+              style={{ background: "var(--color-badge-green)" }}
             />
             Now with team leaderboards
           </span>
 
+          {/* H1 — 55px display spec */}
           <h1
-            className="text-5xl lg:text-6xl font-bold tracking-tight leading-tight mb-6"
-            style={{ color: "var(--ws-faded-charcoal)", letterSpacing: "-0.025em" }}
+            className="mb-6"
+            style={{
+              fontSize: "var(--text-display)",
+              fontWeight: 600,
+              lineHeight: "var(--leading-display)",
+              letterSpacing: "-0.010em",
+              color: "var(--color-faded-charcoal)",
+            }}
           >
             Work hard.
             <br />
             Earn XP.
             <br />
-            <span style={{ color: "var(--ws-indigo-cta)" }}>Level up.</span>
+            <span style={{ color: "var(--color-indigo-cta)" }}>Level up.</span>
           </h1>
 
+          {/* Body — 21px spec */}
           <p
-            className="text-lg leading-relaxed mb-8 max-w-md"
-            style={{ color: "var(--ws-subtle-ash)" }}
+            className="mb-8 max-w-md"
+            style={{
+              fontSize: "var(--text-xl-2)",
+              fontWeight: 475,
+              lineHeight: "var(--leading-xl-2)",
+              letterSpacing: "0.005em",
+              color: "var(--color-subtle-ash)",
+            }}
           >
             Worksphere turns your team's daily tasks into a rewarding game — earn XP, climb ranks,
-            hit streaks, and watch productivity soar. No more boring dashboards.
+            hit streaks, and watch productivity soar.
           </p>
 
           <div className="flex flex-wrap items-center gap-3">
+            {/* Hero Pill Button — primary CTA (exact Todoist spec) */}
             <Link
               href="/signup"
-              className="px-6 py-3 rounded-[15px] text-sm font-semibold text-white transition-all hover:-translate-y-0.5"
+              className="transition-all hover:-translate-y-0.5 active:translate-y-0"
               style={{
-                background: "var(--ws-indigo-cta)",
-                boxShadow: "var(--ws-shadow-lg)",
+                display: "inline-block",
+                padding: "12px 27px",
+                background: "rgba(37, 34, 30, 0.83)",
+                color: "var(--color-paper-white)",
+                border: "1px solid var(--color-paper-white)",
+                borderRadius: "var(--radius-buttons)",
+                fontSize: "var(--text-base-2)",
+                fontWeight: 600,
+                boxShadow: "var(--shadow-lg)",
               }}
             >
               Start for free
             </Link>
+
+            {/* Text Only Button — secondary CTA */}
             <a
               href="#how-it-works"
-              className="px-6 py-3 rounded-[15px] text-sm font-semibold border transition-colors hover:bg-black/5"
               style={{
-                color: "var(--ws-faded-charcoal)",
-                borderColor: "var(--ws-soft-gray)",
+                display: "inline-block",
+                padding: "9px 14px",
+                background: "transparent",
+                color: "var(--color-faded-charcoal)",
+                border: "1px solid var(--color-faded-charcoal)",
+                borderRadius: "var(--radius-default)",
+                fontSize: "var(--text-base-2)",
+                fontWeight: 400,
               }}
+              className="transition-colors hover:bg-black/5"
             >
               See how it works
             </a>
           </div>
 
-          {/* Social proof */}
-          <p className="mt-6 text-xs" style={{ color: "var(--ws-dusty-sage)" }}>
+          <p
+            className="mt-5 text-xs"
+            style={{ color: "var(--color-dusty-sage)", fontSize: "var(--text-sm-2)" }}
+          >
             Trusted by 200+ teams — no credit card required
           </p>
         </div>
 
-        {/* Right — mock app UI */}
-        <div className="flex-1 flex justify-center ws-animate-fade-up ws-animate-fade-up-delay-2">
-          <div className="ws-float w-full max-w-sm">
-            {/* Mock hero card */}
+        {/* Right — Browser-chrome framed app mockup */}
+        <div className="relative flex-1 flex justify-center ws-animate-fade-up ws-animate-fade-up-delay-2">
+          <div
+            className="ws-float w-full max-w-[380px]"
+            style={{ filter: "drop-shadow(0 24px 48px rgba(37,34,30,0.14))" }}
+          >
+            {/* Browser chrome frame */}
             <div
-              className="rounded-2xl p-6 text-white shadow-2xl"
-              style={{ background: "linear-gradient(135deg, #312e81 0%, #4338ca 50%, #4f46e5 100%)" }}
+              className="rounded-t-xl overflow-hidden"
+              style={{
+                background: "#e8e6e3",
+                borderRadius: "var(--radius-images) var(--radius-images) 0 0",
+              }}
             >
+              <div className="flex items-center gap-1.5 px-4 py-3">
+                <span className="h-3 w-3 rounded-full" style={{ background: "#ff5f57" }} />
+                <span className="h-3 w-3 rounded-full" style={{ background: "#febc2e" }} />
+                <span className="h-3 w-3 rounded-full" style={{ background: "#28c840" }} />
+                <div
+                  className="ml-3 flex-1 rounded-md px-3 py-1 text-xs text-center"
+                  style={{
+                    background: "rgba(37,34,30,0.08)",
+                    color: "var(--color-subtle-ash)",
+                    fontSize: "11px",
+                  }}
+                >
+                  worksphere.app/dashboard
+                </div>
+              </div>
+            </div>
+
+            {/* App content */}
+            <div
+              className="rounded-b-xl overflow-hidden p-5"
+              style={{
+                background: "linear-gradient(135deg, #312e81 0%, #4338ca 50%, #4f46e5 100%)",
+                borderRadius: "0 0 var(--radius-images) var(--radius-images)",
+              }}
+            >
+              {/* Hero card */}
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-indigo-200 text-xs font-medium uppercase tracking-widest mb-1">Welcome back</p>
-                  <p className="text-lg font-bold">Alex Chen</p>
+                  <p style={{ color: "#a5b4fc", fontSize: "11px", fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 2 }}>
+                    Welcome back
+                  </p>
+                  <p style={{ color: "white", fontSize: "17px", fontWeight: 700 }}>Alex Chen</p>
                 </div>
                 <div
-                  className="ws-rank-pulse flex h-12 w-12 items-center justify-center rounded-full text-xs font-bold"
-                  style={{ background: "rgba(255,255,255,0.15)", border: "2px solid rgba(255,255,255,0.3)" }}
+                  className="ws-rank-pulse flex h-12 w-12 items-center justify-center rounded-full text-xs font-bold text-white"
+                  style={{ background: "rgba(255,255,255,0.12)", border: "2px solid rgba(255,255,255,0.28)" }}
                 >
                   Lvl 7
                 </div>
@@ -176,155 +281,171 @@ export default async function Home() {
 
               {/* XP bar */}
               <div className="mb-4">
-                <div className="flex justify-between text-xs text-indigo-200 mb-1.5">
+                <div
+                  className="flex justify-between mb-1.5"
+                  style={{ color: "#a5b4fc", fontSize: "11px" }}
+                >
                   <span>XP to next rank</span>
                   <span>2,340 / 3,000</span>
                 </div>
-                <div className="h-2.5 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }}>
+                <div className="h-2 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }}>
+                  <div className="ws-xp-shimmer h-2 rounded-full" style={{ width: "78%" }} />
+                </div>
+              </div>
+
+              {/* Stat blocks */}
+              <div className="grid grid-cols-2 gap-2.5 mb-4">
+                {[{ val: "14", label: "Day streak" }, { val: "96%", label: "Completion" }].map((s) => (
                   <div
-                    className="ws-xp-shimmer h-2.5 rounded-full"
-                    style={{ width: "78%" }}
-                  />
-                </div>
+                    key={s.label}
+                    className="rounded-xl p-3 text-center"
+                    style={{ background: "rgba(255,255,255,0.10)" }}
+                  >
+                    <p style={{ color: "white", fontSize: "20px", fontWeight: 700 }}>{s.val}</p>
+                    <p style={{ color: "#a5b4fc", fontSize: "11px" }}>{s.label}</p>
+                  </div>
+                ))}
               </div>
 
-              {/* Stats row */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Task rows */}
+              {[
+                { name: "Submit weekly report", xp: 50, done: false },
+                { name: "Client call prep", xp: 80, done: true },
+              ].map((t) => (
                 <div
-                  className="rounded-xl p-3 text-center"
-                  style={{ background: "rgba(255,255,255,0.1)" }}
+                  key={t.name}
+                  className="flex items-center justify-between rounded-xl px-3 py-2.5 mb-2 last:mb-0"
+                  style={{
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    borderRadius: "var(--radius-cards)",
+                  }}
                 >
-                  <p className="text-xl font-bold">14</p>
-                  <p className="text-indigo-200 text-xs">Day streak</p>
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="h-4 w-4 rounded-full flex-shrink-0 flex items-center justify-center"
+                      style={{
+                        border: `2px solid ${t.done ? "#86efac" : "rgba(255,255,255,0.4)"}`,
+                        background: t.done ? "rgba(134,239,172,0.15)" : "transparent",
+                      }}
+                    >
+                      {t.done && (
+                        <svg className="h-2 w-2" viewBox="0 0 8 8" fill="none">
+                          <path d="M1 4l2 2 4-4" stroke="#86efac" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </div>
+                    <span
+                      style={{
+                        color: t.done ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.9)",
+                        fontSize: "13px",
+                        textDecoration: t.done ? "line-through" : "none",
+                      }}
+                    >
+                      {t.name}
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      padding: "2px 7px",
+                      background: "rgba(165,180,252,0.18)",
+                      color: "#a5b4fc",
+                      borderRadius: "var(--radius-badges)",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    +{t.xp} XP
+                  </span>
                 </div>
-                <div
-                  className="rounded-xl p-3 text-center"
-                  style={{ background: "rgba(255,255,255,0.1)" }}
-                >
-                  <p className="text-xl font-bold">96%</p>
-                  <p className="text-indigo-200 text-xs">Completion</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Mock task card */}
-            <div
-              className="mt-3 rounded-xl p-4 flex items-center justify-between"
-              style={{
-                background: "var(--ws-paper-white)",
-                boxShadow: "var(--ws-shadow-card)",
-                border: "1px solid var(--ws-soft-gray)",
-                borderRadius: "var(--ws-radius-card)",
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="h-5 w-5 rounded-full border-2 flex items-center justify-center"
-                  style={{ borderColor: "var(--ws-indigo-cta)" }}
-                />
-                <div>
-                  <p className="text-sm font-medium" style={{ color: "var(--ws-faded-charcoal)" }}>
-                    Submit weekly report
-                  </p>
-                  <p className="text-xs" style={{ color: "var(--ws-subtle-ash)" }}>Due today</p>
-                </div>
-              </div>
-              <span
-                className="px-2 py-0.5 text-xs font-semibold"
-                style={{
-                  background: "var(--ws-indigo-light)",
-                  color: "var(--ws-indigo-cta)",
-                  borderRadius: "var(--ws-radius-badge)",
-                }}
-              >
-                +50 XP
-              </span>
-            </div>
-
-            <div
-              className="mt-2 rounded-xl p-4 flex items-center justify-between"
-              style={{
-                background: "var(--ws-paper-white)",
-                boxShadow: "var(--ws-shadow-card)",
-                border: "1px solid var(--ws-soft-gray)",
-                borderRadius: "var(--ws-radius-card)",
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="h-5 w-5 rounded-full flex items-center justify-center"
-                  style={{ background: "#f0fdf4", border: "2px solid #4c7a45" }}
-                >
-                  <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="none">
-                    <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#4c7a45" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-medium line-through" style={{ color: "var(--ws-dusty-sage)" }}>
-                    Client call prep
-                  </p>
-                  <p className="text-xs" style={{ color: "var(--ws-subtle-ash)" }}>Completed</p>
-                </div>
-              </div>
-              <span
-                className="px-2 py-0.5 text-xs font-semibold"
-                style={{
-                  background: "#f0f6df",
-                  color: "#446c3d",
-                  borderRadius: "var(--ws-radius-badge)",
-                }}
-              >
-                +80 XP
-              </span>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── Stats bar ── */}
-      <div style={{ background: "var(--ws-light-peach)", borderTop: "1px solid #f0e8e0", borderBottom: "1px solid #f0e8e0" }}>
-        <div className="mx-auto max-w-6xl px-6 py-8 grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+      {/* ══ STATS BAR ══ */}
+      <div
+        style={{
+          background: "var(--color-light-peach)",
+          borderTop: "1px solid #edddd4",
+          borderBottom: "1px solid #edddd4",
+        }}
+      >
+        <div
+          className="mx-auto max-w-6xl px-6 grid grid-cols-1 sm:grid-cols-3 gap-6 text-center"
+          style={{ paddingTop: "var(--spacing-48)", paddingBottom: "var(--spacing-48)" }}
+        >
           {[
             { value: "50,000+", label: "Tasks completed daily" },
             { value: "10,000+", label: "XP earned every day" },
-            { value: "99%", label: "On-time task rate" },
-          ].map((stat) => (
-            <div key={stat.label}>
+            { value: "99%",     label: "On-time task rate" },
+          ].map((s) => (
+            <div key={s.label}>
               <p
-                className="text-3xl font-bold tracking-tight"
-                style={{ color: "var(--ws-faded-charcoal)" }}
+                style={{
+                  fontSize: "var(--text-h3)",
+                  fontWeight: 700,
+                  color: "var(--color-faded-charcoal)",
+                  letterSpacing: "-0.005em",
+                  lineHeight: "var(--leading-h3)",
+                }}
               >
-                {stat.value}
+                {s.value}
               </p>
-              <p className="text-sm mt-1" style={{ color: "var(--ws-subtle-ash)" }}>
-                {stat.label}
+              <p style={{ fontSize: "var(--text-base-2)", color: "var(--color-subtle-ash)", marginTop: 4 }}>
+                {s.label}
               </p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ── Feature 1 — Tasks that reward you ── */}
-      <section id="features" className="mx-auto max-w-6xl px-6 py-24 flex flex-col lg:flex-row items-center gap-16">
+      {/* ══ FEATURE 1 — Tasks that pay you back ══ */}
+      <section
+        id="features"
+        className="mx-auto max-w-6xl px-6 flex flex-col lg:flex-row items-start gap-16"
+        style={{ paddingTop: "var(--section-gap)", paddingBottom: "var(--section-gap)" }}
+      >
         {/* Text */}
         <div className="flex-1 ws-animate-fade-up">
           <span
-            className="text-xs font-bold uppercase tracking-widest mb-3 block"
-            style={{ color: "var(--ws-indigo-cta)" }}
+            className="block mb-3 uppercase"
+            style={{
+              fontSize: "var(--text-xs)",
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              color: "var(--color-indigo-cta)",
+            }}
           >
             Task management
           </span>
+          {/* H2 — 38px spec */}
           <h2
-            className="text-4xl font-bold tracking-tight mb-5 leading-tight"
-            style={{ color: "var(--ws-faded-charcoal)", letterSpacing: "-0.02em" }}
+            className="mb-5"
+            style={{
+              fontSize: "var(--text-h3)",
+              fontWeight: 700,
+              lineHeight: "var(--leading-h3)",
+              letterSpacing: "-0.005em",
+              color: "var(--color-faded-charcoal)",
+            }}
           >
             Tasks that
             <br />
             pay you back
           </h2>
-          <p className="text-base leading-relaxed mb-6" style={{ color: "var(--ws-subtle-ash)" }}>
+          <p
+            className="mb-6"
+            style={{
+              fontSize: "var(--text-base-2)",
+              lineHeight: 1.75,
+              color: "var(--color-subtle-ash)",
+              maxWidth: "380px",
+            }}
+          >
             Every task you complete earns XP. High-priority tasks earn more. Finish everything on
-            time? Stack a bonus. Worksphere makes the daily grind feel like progress.
+            time and stack a streak bonus. Worksphere makes the daily grind feel like real progress.
           </p>
           <ul className="space-y-3">
             {[
@@ -332,13 +453,17 @@ export default async function Home() {
               "Priority multipliers for urgent work",
               "Daily quest bonuses for streaks",
             ].map((item) => (
-              <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: "var(--ws-faded-charcoal)" }}>
+              <li
+                key={item}
+                className="flex items-center gap-2.5"
+                style={{ fontSize: "var(--text-base-2)", color: "var(--color-faded-charcoal)" }}
+              >
                 <span
-                  className="h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ background: "#f0fdf4" }}
+                  className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full"
+                  style={{ background: "var(--color-light-green-tint)" }}
                 >
                   <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="none">
-                    <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#4c7a45" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#446c3d" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
                 {item}
@@ -347,156 +472,217 @@ export default async function Home() {
           </ul>
         </div>
 
-        {/* Visual */}
-        <div className="flex-1 ws-animate-fade-up ws-animate-fade-up-delay-2">
-          <div
-            className="rounded-2xl p-6"
+        {/* Feature Card — exact Todoist spec: Paper White, 10px radius, shadow-subtle */}
+        <div
+          className="flex-1 ws-animate-fade-up ws-animate-fade-up-delay-2"
+          style={{
+            background: "var(--color-paper-white)",
+            borderRadius: "var(--radius-cards)",
+            boxShadow: "var(--shadow-subtle)",
+            border: "1px solid var(--color-soft-gray)",
+            padding: "var(--spacing-24)",
+          }}
+        >
+          <p
+            className="uppercase mb-4"
             style={{
-              background: "var(--ws-paper-white)",
-              boxShadow: "var(--ws-shadow-card)",
-              border: "1px solid var(--ws-soft-gray)",
+              fontSize: "var(--text-xs)",
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              color: "var(--color-dusty-sage)",
             }}
           >
-            <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: "var(--ws-dusty-sage)" }}>
-              Today's tasks
-            </p>
-            {[
-              { name: "Review Q2 proposals", xp: 120, priority: "High", done: false },
-              { name: "Update project timeline", xp: 60, priority: "Medium", done: true },
-              { name: "Team standup notes", xp: 40, priority: "Low", done: true },
-              { name: "Deploy staging build", xp: 150, priority: "Urgent", done: false },
-            ].map((task) => (
-              <div
-                key={task.name}
-                className="flex items-center justify-between py-3 border-b last:border-0"
-                style={{ borderColor: "var(--ws-soft-gray)" }}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="h-4 w-4 rounded-full border-2 flex-shrink-0"
-                    style={{
-                      borderColor: task.done ? "#4c7a45" : "var(--ws-soft-gray)",
-                      background: task.done ? "#f0fdf4" : "transparent",
-                    }}
-                  />
-                  <span
-                    className="text-sm"
-                    style={{
-                      color: task.done ? "var(--ws-dusty-sage)" : "var(--ws-faded-charcoal)",
-                      textDecoration: task.done ? "line-through" : "none",
-                    }}
-                  >
-                    {task.name}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="px-2 py-0.5 text-xs font-semibold"
-                    style={{
-                      background: task.priority === "Urgent" ? "#fef2f2" : task.priority === "High" ? "#fff7ed" : "var(--ws-light-peach)",
-                      color: task.priority === "Urgent" ? "#dc2626" : task.priority === "High" ? "#ea580c" : "var(--ws-subtle-ash)",
-                      borderRadius: "var(--ws-radius-badge)",
-                    }}
-                  >
-                    {task.priority}
-                  </span>
-                  <span
-                    className="px-2 py-0.5 text-xs font-semibold"
-                    style={{
-                      background: "var(--ws-indigo-light)",
-                      color: "var(--ws-indigo-cta)",
-                      borderRadius: "var(--ws-radius-badge)",
-                    }}
-                  >
-                    +{task.xp} XP
-                  </span>
-                </div>
+            Today's tasks
+          </p>
+          {[
+            { name: "Review Q2 proposals",    xp: 120, priority: "High",   done: false },
+            { name: "Update project timeline", xp: 60,  priority: "Medium", done: true  },
+            { name: "Team standup notes",      xp: 40,  priority: "Low",    done: true  },
+            { name: "Deploy staging build",    xp: 150, priority: "Urgent", done: false },
+          ].map((task) => (
+            <div
+              key={task.name}
+              className="flex items-center justify-between py-3 border-b last:border-0"
+              style={{ borderColor: "var(--color-soft-gray)" }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="h-4 w-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center"
+                  style={{
+                    borderColor: task.done ? "#446c3d" : "var(--color-soft-gray)",
+                    background: task.done ? "var(--color-light-green-tint)" : "transparent",
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: "var(--text-sm-2)",
+                    color: task.done ? "var(--color-dusty-sage)" : "var(--color-faded-charcoal)",
+                    textDecoration: task.done ? "line-through" : "none",
+                  }}
+                >
+                  {task.name}
+                </span>
               </div>
-            ))}
-          </div>
+              <div className="flex items-center gap-2">
+                <span
+                  style={{
+                    padding: "3px 7px",
+                    borderRadius: "var(--radius-badges)",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    background:
+                      task.priority === "Urgent" ? "#fef2f2"
+                      : task.priority === "High"   ? "#fff7ed"
+                      : "var(--color-light-peach)",
+                    color:
+                      task.priority === "Urgent" ? "#dc2626"
+                      : task.priority === "High"   ? "#ea580c"
+                      : "var(--color-subtle-ash)",
+                  }}
+                >
+                  {task.priority}
+                </span>
+                <span
+                  style={{
+                    padding: "3px 7px",
+                    borderRadius: "var(--radius-badges)",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    background: "var(--color-indigo-light)",
+                    color: "var(--color-indigo-cta)",
+                  }}
+                >
+                  +{task.xp} XP
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* ── Feature 2 — Climb the ranks ── */}
+      {/* ══ FEATURE 2 — Climb the ranks ══ */}
       <section
         id="how-it-works"
-        style={{ background: "var(--ws-light-peach)" }}
-        className="py-24"
+        style={{ background: "var(--color-light-peach)" }}
       >
-        <div className="mx-auto max-w-6xl px-6 flex flex-col lg:flex-row-reverse items-center gap-16">
+        <div
+          className="mx-auto max-w-6xl px-6 flex flex-col lg:flex-row-reverse items-start gap-16"
+          style={{ paddingTop: "var(--section-gap)", paddingBottom: "var(--section-gap)" }}
+        >
           {/* Text */}
           <div className="flex-1 ws-animate-fade-up">
             <span
-              className="text-xs font-bold uppercase tracking-widest mb-3 block"
-              style={{ color: "var(--ws-indigo-cta)" }}
+              className="block mb-3 uppercase"
+              style={{ fontSize: "var(--text-xs)", fontWeight: 700, letterSpacing: "0.08em", color: "var(--color-indigo-cta)" }}
             >
               Rank system
             </span>
             <h2
-              className="text-4xl font-bold tracking-tight mb-5 leading-tight"
-              style={{ color: "var(--ws-faded-charcoal)", letterSpacing: "-0.02em" }}
+              className="mb-5"
+              style={{
+                fontSize: "var(--text-h3)",
+                fontWeight: 700,
+                lineHeight: "var(--leading-h3)",
+                letterSpacing: "-0.005em",
+                color: "var(--color-faded-charcoal)",
+              }}
             >
               Climb the
               <br />
               ranks
             </h2>
-            <p className="text-base leading-relaxed mb-6" style={{ color: "var(--ws-subtle-ash)" }}>
-              Starting from Rookie, every XP point pushes you closer to the next title. The
-              leaderboard resets monthly — so every employee gets a fresh shot at glory.
+            <p
+              className="mb-7"
+              style={{
+                fontSize: "var(--text-base-2)",
+                lineHeight: 1.75,
+                color: "var(--color-subtle-ash)",
+                maxWidth: "360px",
+              }}
+            >
+              Starting from Rookie, every XP point pushes you closer to the next title.
+              The leaderboard resets monthly — so every employee gets a fresh shot at glory.
             </p>
+            {/* Hero Pill Button */}
             <Link
               href="/signup"
-              className="inline-block px-5 py-2.5 rounded-[15px] text-sm font-semibold text-white transition-all hover:-translate-y-0.5"
+              className="inline-block transition-all hover:-translate-y-0.5"
               style={{
-                background: "var(--ws-indigo-cta)",
-                boxShadow: "var(--ws-shadow-lg)",
+                padding: "12px 27px",
+                background: "rgba(37, 34, 30, 0.83)",
+                color: "var(--color-paper-white)",
+                border: "1px solid var(--color-paper-white)",
+                borderRadius: "var(--radius-buttons)",
+                fontSize: "var(--text-base-2)",
+                fontWeight: 600,
+                boxShadow: "var(--shadow-lg)",
               }}
             >
               Start climbing
             </Link>
           </div>
 
-          {/* Rank ladder visual */}
-          <div className="flex-1 ws-animate-fade-up ws-animate-fade-up-delay-2">
-            <div className="space-y-3">
+          {/* Rank ladder — Feature Card */}
+          <div
+            className="flex-1 ws-animate-fade-up ws-animate-fade-up-delay-2"
+            style={{
+              background: "var(--color-paper-white)",
+              borderRadius: "var(--radius-cards)",
+              boxShadow: "var(--shadow-subtle)",
+              border: "1px solid rgba(37,34,30,0.06)",
+              padding: "var(--spacing-20)",
+            }}
+          >
+            <div className="space-y-2">
               {[
-                { rank: "Legend", xp: "10,000+", color: "#f59e0b", bg: "#fffbeb", active: false },
-                { rank: "Platinum", xp: "7,500+", color: "#6366f1", bg: "#eef2ff", active: false },
-                { rank: "Gold", xp: "5,000+", color: "#d97706", bg: "#fef3c7", active: true },
-                { rank: "Silver", xp: "2,500+", color: "#6b7280", bg: "#f9fafb", active: false },
-                { rank: "Bronze", xp: "1,000+", color: "#b45309", bg: "#fef9ee", active: false },
-                { rank: "Rookie", xp: "0+", color: "#9ca3af", bg: "#f3f4f6", active: false },
+                { rank: "Legend",   xp: "10,000+", color: "#b45309", bg: "#fef9ee", active: false },
+                { rank: "Platinum", xp: "7,500+",  color: "#6366f1", bg: "#eef2ff", active: false },
+                { rank: "Gold",     xp: "5,000+",  color: "#d97706", bg: "#fef3c7", active: true  },
+                { rank: "Silver",   xp: "2,500+",  color: "#6b7280", bg: "#f9fafb", active: false },
+                { rank: "Bronze",   xp: "1,000+",  color: "#92400e", bg: "#fff7ed", active: false },
+                { rank: "Rookie",   xp: "0+",      color: "#9ca3af", bg: "#f3f4f6", active: false },
               ].map((r) => (
                 <div
                   key={r.rank}
-                  className="flex items-center justify-between rounded-xl px-5 py-3.5 transition-transform"
+                  className="flex items-center justify-between rounded-xl px-4 py-3 transition-transform"
                   style={{
-                    background: r.active ? r.bg : "var(--ws-paper-white)",
-                    border: `1px solid ${r.active ? r.color + "40" : "var(--ws-soft-gray)"}`,
-                    boxShadow: r.active ? `var(--ws-shadow-card)` : "var(--ws-shadow-subtle)",
+                    background: r.active ? r.bg : "transparent",
+                    border: `1px solid ${r.active ? r.color + "30" : "transparent"}`,
                     transform: r.active ? "scale(1.02)" : "scale(1)",
                   }}
                 >
                   <div className="flex items-center gap-3">
                     <span
-                      className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold"
-                      style={{ background: r.bg, color: r.color, border: `2px solid ${r.color}40` }}
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold"
+                      style={{ background: r.bg, color: r.color, border: `2px solid ${r.color}30` }}
                     >
                       {r.rank[0]}
                     </span>
-                    <span className="font-semibold text-sm" style={{ color: r.active ? r.color : "var(--ws-faded-charcoal)" }}>
+                    <span
+                      style={{
+                        fontSize: "var(--text-sm-2)",
+                        fontWeight: r.active ? 700 : 500,
+                        color: r.active ? r.color : "var(--color-faded-charcoal)",
+                      }}
+                    >
                       {r.rank}
                     </span>
                     {r.active && (
                       <span
-                        className="px-1.5 py-0.5 text-xs font-bold"
-                        style={{ background: r.color + "20", color: r.color, borderRadius: "4px" }}
+                        style={{
+                          padding: "2px 6px",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          background: r.color + "18",
+                          color: r.color,
+                          borderRadius: "4px",
+                        }}
                       >
                         You are here
                       </span>
                     )}
                   </div>
-                  <span className="text-xs font-medium" style={{ color: "var(--ws-subtle-ash)" }}>
+                  <span style={{ fontSize: "var(--text-xs)", color: "var(--color-subtle-ash)" }}>
                     {r.xp} XP
                   </span>
                 </div>
@@ -506,27 +692,45 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ── Feature 3 — Manager approvals ── */}
-      <section id="for-managers" className="mx-auto max-w-6xl px-6 py-24 flex flex-col lg:flex-row items-center gap-16">
+      {/* ══ FEATURE 3 — Manager approvals ══ */}
+      <section
+        id="for-managers"
+        className="mx-auto max-w-6xl px-6 flex flex-col lg:flex-row items-start gap-16"
+        style={{ paddingTop: "var(--section-gap)", paddingBottom: "var(--section-gap)" }}
+      >
         {/* Text */}
         <div className="flex-1 ws-animate-fade-up">
           <span
-            className="text-xs font-bold uppercase tracking-widest mb-3 block"
-            style={{ color: "var(--ws-indigo-cta)" }}
+            className="block mb-3 uppercase"
+            style={{ fontSize: "var(--text-xs)", fontWeight: 700, letterSpacing: "0.08em", color: "var(--color-indigo-cta)" }}
           >
             For managers
           </span>
           <h2
-            className="text-4xl font-bold tracking-tight mb-5 leading-tight"
-            style={{ color: "var(--ws-faded-charcoal)", letterSpacing: "-0.02em" }}
+            className="mb-5"
+            style={{
+              fontSize: "var(--text-h3)",
+              fontWeight: 700,
+              lineHeight: "var(--leading-h3)",
+              letterSpacing: "-0.005em",
+              color: "var(--color-faded-charcoal)",
+            }}
           >
             Approve tasks.
             <br />
             Award XP instantly.
           </h2>
-          <p className="text-base leading-relaxed mb-6" style={{ color: "var(--ws-subtle-ash)" }}>
-            Managers get a clean panel to review task submissions, verify attendance, track
-            mistakes, and assign bonus XP — all in one place. Recognition happens in real time.
+          <p
+            className="mb-6"
+            style={{
+              fontSize: "var(--text-base-2)",
+              lineHeight: 1.75,
+              color: "var(--color-subtle-ash)",
+              maxWidth: "360px",
+            }}
+          >
+            Managers get a clean panel to review submissions, verify attendance, track mistakes,
+            and assign bonus XP — all in one place. Recognition happens in real time.
           </p>
           <ul className="space-y-3">
             {[
@@ -534,13 +738,17 @@ export default async function Home() {
               "Attendance and leave management",
               "Real-time team performance reports",
             ].map((item) => (
-              <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: "var(--ws-faded-charcoal)" }}>
+              <li
+                key={item}
+                className="flex items-center gap-2.5"
+                style={{ fontSize: "var(--text-base-2)", color: "var(--color-faded-charcoal)" }}
+              >
                 <span
-                  className="h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ background: "var(--ws-indigo-light)" }}
+                  className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full"
+                  style={{ background: "var(--color-indigo-light)" }}
                 >
                   <svg className="h-2.5 w-2.5" viewBox="0 0 10 10" fill="none">
-                    <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#4f46e5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#4f46e5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
                 {item}
@@ -549,226 +757,292 @@ export default async function Home() {
           </ul>
         </div>
 
-        {/* Visual — manager panel mockup */}
-        <div className="flex-1 ws-animate-fade-up ws-animate-fade-up-delay-2">
+        {/* Feature Card — manager panel mockup */}
+        <div
+          className="flex-1 ws-animate-fade-up ws-animate-fade-up-delay-2 overflow-hidden"
+          style={{
+            borderRadius: "var(--radius-cards)",
+            boxShadow: "var(--shadow-subtle)",
+            border: "1px solid var(--color-soft-gray)",
+          }}
+        >
+          {/* Dark header bar */}
           <div
-            className="rounded-2xl overflow-hidden"
-            style={{
-              boxShadow: "var(--ws-shadow-card)",
-              border: "1px solid var(--ws-soft-gray)",
-            }}
+            className="flex items-center gap-2 px-5 py-3 border-b"
+            style={{ background: "#1e1b4b", borderColor: "#312e81" }}
           >
-            {/* Panel header */}
-            <div
-              className="px-5 py-3 flex items-center gap-2 border-b"
-              style={{ background: "#1e1b4b", borderColor: "#312e81" }}
+            <span style={{ color: "white", fontSize: "var(--text-sm-2)", fontWeight: 600 }}>
+              Task Verifications
+            </span>
+            <span
+              style={{
+                padding: "1px 7px",
+                borderRadius: "12px",
+                background: "#ef4444",
+                color: "white",
+                fontSize: "11px",
+                fontWeight: 700,
+              }}
             >
-              <span className="text-white text-xs font-semibold">Task Verifications</span>
-              <span
-                className="px-1.5 py-0.5 text-xs font-bold rounded-full"
-                style={{ background: "#ef4444", color: "white" }}
-              >
-                3
-              </span>
-            </div>
-
-            {/* Verification rows */}
-            {[
-              { name: "Priya Sharma", task: "Monthly sales report", xp: 100 },
-              { name: "James O'Brien", task: "Client onboarding deck", xp: 80 },
-              { name: "Mei Lin", task: "QA testing sprint 12", xp: 120 },
-            ].map((row, i) => (
-              <div
-                key={row.name}
-                className="flex items-center justify-between px-5 py-4 border-b last:border-0"
-                style={{
-                  background: "var(--ws-paper-white)",
-                  borderColor: "var(--ws-soft-gray)",
-                }}
-              >
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: "var(--ws-faded-charcoal)" }}>{row.name}</p>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--ws-subtle-ash)" }}>{row.task}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    className="px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors"
-                    style={{
-                      color: "var(--ws-faded-charcoal)",
-                      borderColor: "var(--ws-soft-gray)",
-                    }}
-                  >
-                    Review
-                  </button>
-                  <button
-                    className="px-3 py-1.5 text-xs font-semibold text-white rounded-lg"
-                    style={{ background: "var(--ws-indigo-cta)" }}
-                  >
-                    Approve +{row.xp} XP
-                  </button>
-                </div>
-              </div>
-            ))}
+              3
+            </span>
           </div>
+
+          {[
+            { name: "Priya Sharma",   task: "Monthly sales report",   xp: 100 },
+            { name: "James O'Brien",  task: "Client onboarding deck",  xp: 80  },
+            { name: "Mei Lin",        task: "QA testing sprint 12",    xp: 120 },
+          ].map((row) => (
+            <div
+              key={row.name}
+              className="flex items-center justify-between px-5 py-4 border-b last:border-0"
+              style={{
+                background: "var(--color-paper-white)",
+                borderColor: "var(--color-soft-gray)",
+              }}
+            >
+              <div>
+                <p style={{ fontSize: "var(--text-sm-2)", fontWeight: 600, color: "var(--color-faded-charcoal)" }}>
+                  {row.name}
+                </p>
+                <p style={{ fontSize: "var(--text-xs)", marginTop: 2, color: "var(--color-subtle-ash)" }}>
+                  {row.task}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Text Only Button */}
+                <button
+                  className="transition-colors hover:bg-black/5"
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "var(--color-faded-charcoal)",
+                    border: "1px solid var(--color-soft-gray)",
+                    borderRadius: "var(--radius-default)",
+                    background: "transparent",
+                  }}
+                >
+                  Review
+                </button>
+                {/* Subtle Action Button */}
+                <button
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "white",
+                    borderRadius: "var(--radius-default)",
+                    background: "var(--color-indigo-cta)",
+                  }}
+                >
+                  Approve +{row.xp} XP
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* ── Testimonials ── */}
+      {/* ══ TESTIMONIALS ══ */}
       <section
-        style={{ background: "var(--ws-light-peach)", borderTop: "1px solid #f0e8e0" }}
-        className="py-24"
+        style={{ background: "var(--color-light-peach)", borderTop: "1px solid #edddd4" }}
       >
-        <div className="mx-auto max-w-6xl px-6">
+        <div
+          className="mx-auto max-w-6xl px-6"
+          style={{ paddingTop: "var(--section-gap)", paddingBottom: "var(--section-gap)" }}
+        >
           <div className="text-center mb-14 ws-animate-fade-up">
             <h2
-              className="text-3xl font-bold tracking-tight"
-              style={{ color: "var(--ws-faded-charcoal)", letterSpacing: "-0.02em" }}
+              style={{
+                fontSize: "var(--text-h2)",
+                fontWeight: 600,
+                letterSpacing: "-0.005em",
+                lineHeight: "var(--leading-h2)",
+                color: "var(--color-faded-charcoal)",
+              }}
             >
               Teams love it
             </h2>
-            <p className="mt-3 text-base" style={{ color: "var(--ws-subtle-ash)" }}>
+            <p
+              className="mt-3 max-w-md mx-auto"
+              style={{ fontSize: "var(--text-base-2)", color: "var(--color-subtle-ash)", lineHeight: 1.75 }}
+            >
               From startups to enterprise — Worksphere transforms how teams feel about work.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {[
               {
-                quote:
-                  "Our team's task completion rate jumped from 71% to 96% in the first month. The XP system makes people genuinely excited to finish their work.",
+                quote: "Our team's task completion rate jumped from 71% to 96% in the first month. The XP system makes people genuinely excited to finish their work.",
                 name: "Ananya Mehta",
                 role: "Operations Lead, Fintech startup",
               },
               {
-                quote:
-                  "Approvals used to sit in a queue for days. Now managers are competing to approve fastest. It's changed the whole culture.",
+                quote: "Approvals used to sit in a queue for days. Now managers are competing to approve fastest. It's changed the whole culture.",
                 name: "David Okafor",
                 role: "Engineering Manager, SaaS company",
               },
               {
-                quote:
-                  "I didn't expect a productivity tool to actually motivate my team. The streak system alone has cut our missed deadlines by half.",
+                quote: "I didn't expect a productivity tool to actually motivate my team. The streak system alone has cut our missed deadlines by half.",
                 name: "Sarah Kim",
                 role: "HR Director, E-commerce brand",
               },
             ].map((t) => (
               <div
                 key={t.name}
-                className="rounded-xl p-6"
                 style={{
-                  background: "var(--ws-paper-white)",
-                  boxShadow: "var(--ws-shadow-subtle)",
-                  border: "1px solid rgba(37,34,30,0.08)",
-                  borderRadius: "var(--ws-radius-card)",
+                  background: "var(--color-paper-white)",
+                  borderRadius: "var(--radius-cards)",
+                  boxShadow: "var(--shadow-subtle)",
+                  border: "1px solid rgba(37,34,30,0.07)",
+                  padding: "var(--spacing-24)",
                 }}
               >
+                {/* Caecilia substitute — Georgia serif, 20px, 1.8 line-height (exact spec) */}
                 <p
-                  className="text-base leading-relaxed mb-5"
+                  className="mb-5"
                   style={{
-                    color: "var(--ws-faded-charcoal)",
                     fontFamily: "Georgia, 'Times New Roman', serif",
-                    fontStyle: "italic",
+                    fontSize: "20px",
                     lineHeight: "1.8",
+                    letterSpacing: "normal",
+                    color: "var(--color-faded-charcoal)",
+                    fontStyle: "italic",
                   }}
                 >
                   "{t.quote}"
                 </p>
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: "var(--ws-faded-charcoal)" }}>{t.name}</p>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--ws-subtle-ash)" }}>{t.role}</p>
-                </div>
+                <p style={{ fontSize: "var(--text-sm-2)", fontWeight: 600, color: "var(--color-faded-charcoal)" }}>
+                  {t.name}
+                </p>
+                <p style={{ fontSize: "var(--text-xs)", marginTop: 2, color: "var(--color-subtle-ash)" }}>
+                  {t.role}
+                </p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Final CTA ── */}
-      <section className="mx-auto max-w-6xl px-6 py-24 text-center ws-animate-fade-up">
+      {/* ══ FINAL CTA ══ */}
+      <section
+        className="mx-auto max-w-6xl px-6 text-center ws-animate-fade-up"
+        style={{ paddingTop: "var(--section-gap)", paddingBottom: "var(--section-gap)" }}
+      >
         <h2
-          className="text-4xl font-bold tracking-tight mb-5"
-          style={{ color: "var(--ws-faded-charcoal)", letterSpacing: "-0.025em" }}
+          className="mb-5"
+          style={{
+            fontSize: "var(--text-h2)",
+            fontWeight: 600,
+            letterSpacing: "-0.005em",
+            lineHeight: "var(--leading-h2)",
+            color: "var(--color-faded-charcoal)",
+          }}
         >
           Ready to level up
           <br />
           your team?
         </h2>
-        <p className="text-lg mb-8 max-w-md mx-auto" style={{ color: "var(--ws-subtle-ash)" }}>
+        <p
+          className="mb-8 max-w-sm mx-auto"
+          style={{ fontSize: "var(--text-xl-2)", lineHeight: 1.6, color: "var(--color-subtle-ash)" }}
+        >
           Join hundreds of teams already earning XP, climbing ranks, and hitting goals — together.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
+          {/* Hero Pill Button */}
           <Link
             href="/signup"
-            className="px-8 py-3.5 rounded-[15px] text-sm font-semibold text-white transition-all hover:-translate-y-0.5"
+            className="inline-block transition-all hover:-translate-y-0.5"
             style={{
-              background: "var(--ws-indigo-cta)",
-              boxShadow: "var(--ws-shadow-lg)",
+              padding: "12px 27px",
+              background: "rgba(37, 34, 30, 0.83)",
+              color: "var(--color-paper-white)",
+              border: "1px solid var(--color-paper-white)",
+              borderRadius: "var(--radius-buttons)",
+              fontSize: "var(--text-base-2)",
+              fontWeight: 600,
+              boxShadow: "var(--shadow-lg)",
             }}
           >
             Start for free
           </Link>
+          {/* Text Only Button */}
           <Link
             href="/login"
-            className="px-8 py-3.5 rounded-[15px] text-sm font-semibold border transition-colors hover:bg-black/5"
+            className="inline-block transition-colors hover:bg-black/5"
             style={{
-              color: "var(--ws-faded-charcoal)",
-              borderColor: "var(--ws-soft-gray)",
+              padding: "9px 14px",
+              background: "transparent",
+              color: "var(--color-faded-charcoal)",
+              border: "1px solid var(--color-faded-charcoal)",
+              borderRadius: "var(--radius-default)",
+              fontSize: "var(--text-base-2)",
+              fontWeight: 400,
             }}
           >
             Sign in
           </Link>
         </div>
-        <p className="mt-5 text-xs" style={{ color: "var(--ws-dusty-sage)" }}>
+        <p
+          className="mt-5"
+          style={{ fontSize: "var(--text-sm-2)", color: "var(--color-dusty-sage)" }}
+        >
           No credit card required · Cancel anytime
         </p>
       </section>
 
-      {/* ── Footer ── */}
+      {/* ══ FOOTER ══ */}
       <footer
         style={{
-          background: "var(--ws-light-peach)",
-          borderTop: "1px solid #f0e8e0",
+          background: "var(--color-light-peach)",
+          borderTop: "1px solid #edddd4",
         }}
-        className="py-12"
       >
-        <div className="mx-auto max-w-6xl px-6">
+        <div
+          className="mx-auto max-w-6xl px-6"
+          style={{ paddingTop: "var(--spacing-64)", paddingBottom: "var(--spacing-48)" }}
+        >
           <div className="flex flex-col md:flex-row items-start justify-between gap-10">
-            {/* Brand */}
             <div>
               <div className="flex items-center gap-2.5 mb-3">
                 <span
                   className="flex h-7 w-7 items-center justify-center rounded-lg text-white text-xs font-bold"
-                  style={{ background: "var(--ws-indigo-cta)" }}
+                  style={{ background: "var(--color-indigo-cta)" }}
                 >
                   W
                 </span>
-                <span className="font-semibold" style={{ color: "var(--ws-faded-charcoal)" }}>
+                <span
+                  style={{
+                    fontSize: "var(--text-base-2)",
+                    fontWeight: 600,
+                    color: "var(--color-faded-charcoal)",
+                  }}
+                >
                   Worksphere
                 </span>
               </div>
-              <p className="text-sm max-w-xs" style={{ color: "var(--ws-subtle-ash)" }}>
+              <p
+                className="max-w-xs"
+                style={{ fontSize: "var(--text-sm-2)", color: "var(--color-subtle-ash)", lineHeight: 1.6 }}
+              >
                 Gamified employee task management that makes teams want to perform.
               </p>
             </div>
 
-            {/* Links */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-8 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
               {[
-                {
-                  heading: "Product",
-                  links: ["Features", "How it works", "For Managers", "Pricing"],
-                },
-                {
-                  heading: "Company",
-                  links: ["About", "Blog", "Careers", "Contact"],
-                },
-                {
-                  heading: "Legal",
-                  links: ["Privacy", "Terms", "Security"],
-                },
+                { heading: "Product", links: ["Features", "How it works", "For Managers", "Pricing"] },
+                { heading: "Company", links: ["About", "Blog", "Careers", "Contact"] },
+                { heading: "Legal",   links: ["Privacy", "Terms", "Security"] },
               ].map((col) => (
                 <div key={col.heading}>
-                  <p className="font-semibold mb-3" style={{ color: "var(--ws-faded-charcoal)" }}>
+                  <p
+                    className="mb-3"
+                    style={{ fontSize: "var(--text-sm-2)", fontWeight: 600, color: "var(--color-faded-charcoal)" }}
+                  >
                     {col.heading}
                   </p>
                   <ul className="space-y-2">
@@ -777,7 +1051,7 @@ export default async function Home() {
                         <a
                           href="#"
                           className="transition-colors hover:underline"
-                          style={{ color: "var(--ws-subtle-ash)" }}
+                          style={{ fontSize: "var(--text-sm-2)", color: "var(--color-subtle-ash)" }}
                         >
                           {link}
                         </a>
@@ -790,14 +1064,19 @@ export default async function Home() {
           </div>
 
           <div
-            className="mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs"
-            style={{ borderTop: "1px solid #f0e8e0", color: "var(--ws-dusty-sage)" }}
+            className="mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2"
+            style={{
+              borderTop: "1px solid #edddd4",
+              fontSize: "var(--text-xs)",
+              color: "var(--color-dusty-sage)",
+            }}
           >
             <p>© 2026 Worksphere. All rights reserved.</p>
             <p>Made for teams that want to win.</p>
           </div>
         </div>
       </footer>
+
     </div>
   );
 }

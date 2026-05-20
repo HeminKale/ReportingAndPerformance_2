@@ -506,32 +506,74 @@
   }
 }
 
-/* ─── Worksphere Landing Page — Todoist Design System Tokens ─── */
+/* ─── Worksphere Landing Page — Todoist Canonical Design Tokens ─── */
+/* Exact values from /website design/variables.css */
 :root {
-  --ws-paper-white: #fefdfc;
-  --ws-faded-charcoal: #25221e;
-  --ws-subtle-ash: #6f6c69;
-  --ws-dusty-sage: #94928f;
-  --ws-soft-gray: #d7d6d4;
-  --ws-light-peach: #fff6f0;
-  --ws-indigo-cta: #4f46e5;
-  --ws-indigo-hover: #4338ca;
-  --ws-indigo-light: #eef2ff;
-  --ws-success-green: #4c7a45;
-  --ws-shadow-subtle: rgba(37, 34, 30, 0.04) 0px 1px 0px 0px;
-  --ws-shadow-card: rgba(37, 34, 30, 0.06) 0px 4px 16px 0px;
-  --ws-shadow-lg: rgba(37, 34, 30, 0.07) 0px 14px 19px -9px, rgba(37, 34, 30, 0.18) 0px 10px 48px 0px;
-  --ws-radius-btn: 15px;
-  --ws-radius-card: 10px;
-  --ws-radius-badge: 6px;
-  --ws-section-gap: 96px;
+  /* Colors */
+  --color-faded-charcoal: #25221e;
+  --color-paper-white: #fefdfc;
+  --color-soft-gray: #d7d6d4;
+  --color-light-peach: #fff6f0;
+  --color-subtle-ash: #6f6c69;
+  --color-true-black: #000000;
+  --color-dusty-sage: #94928f;
+  --color-action-red: #e34432;
+  --color-link-orange: #cf3520;
+  --color-accent-blue: #0f66ae;
+  --color-success-green: #4c7a45;
+  --color-badge-green: #446c3d;
+  --color-light-green-tint: #f0f6df;
+
+  /* Worksphere brand adaptation (Todoist red → indigo) */
+  --color-indigo-cta: #4f46e5;
+  --color-indigo-hover: #4338ca;
+  --color-indigo-light: #eef2ff;
+
+  /* Typography scale (from DESIGN.md) */
+  --text-display: 55px;
+  --leading-display: 1.15;
+  --text-h2: 44px;
+  --leading-h2: 1.15;
+  --text-h3: 38px;
+  --leading-h3: 1.28;
+  --text-xl-2: 21px;
+  --leading-xl-2: 1.6;
+  --text-base-2: 16px;
+  --leading-base-2: 1.5;
+  --text-sm-2: 14px;
+  --text-xs: 12px;
+
+  /* Spacing (from DESIGN.md) */
+  --spacing-4: 4px;
+  --spacing-8: 8px;
+  --spacing-12: 12px;
+  --spacing-16: 16px;
+  --spacing-20: 20px;
+  --spacing-24: 24px;
+  --spacing-32: 32px;
+  --spacing-48: 48px;
+  --spacing-64: 64px;
+  --spacing-128: 128px;
+  --section-gap: 64px;
+
+  /* Border radius (from DESIGN.md) */
+  --radius-cards: 10px;
+  --radius-badges: 6px;
+  --radius-images: 15px;
+  --radius-buttons: 15px;
+  --radius-default: 8px;
+
+  /* Shadows (exact from DESIGN.md) */
+  --shadow-subtle: rgba(37, 34, 30, 0.04) 0px 1px 0px 0px;
+  --shadow-card:   rgba(37, 34, 30, 0.06) 0px 4px 16px 0px;
+  --shadow-lg:     rgba(37, 34, 30, 0.07) 0px 14px 19px -9px, rgba(37, 34, 30, 0.18) 0px 10px 48px 0px;
 }
 
 /* Landing page smooth scroll */
 .ws-landing {
   scroll-behavior: smooth;
-  background-color: var(--ws-paper-white);
-  color: var(--ws-faded-charcoal);
+  background-color: var(--color-paper-white);
+  color: var(--color-faded-charcoal);
   font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -563,7 +605,7 @@
   100% { background-position:  200% center; }
 }
 .ws-xp-shimmer {
-  background: linear-gradient(90deg, #4f46e5 0%, #818cf8 40%, #4f46e5 60%, #4f46e5 100%);
+  background: linear-gradient(90deg, var(--color-indigo-cta) 0%, #818cf8 40%, var(--color-indigo-cta) 60%, var(--color-indigo-cta) 100%);
   background-size: 200% auto;
   animation: ws-shimmer 2.4s linear infinite;
 }
@@ -574,3 +616,11 @@
   50%       { box-shadow: 0 0 0 8px rgba(79, 70, 229, 0); }
 }
 .ws-rank-pulse { animation: ws-rank-pulse 2.5s ease-in-out infinite; }
+
+/* Decorative star spin (hero bg) */
+@keyframes ws-star-drift {
+  0%   { transform: translateY(0px) rotate(0deg); opacity: 0.6; }
+  50%  { transform: translateY(-12px) rotate(15deg); opacity: 0.9; }
+  100% { transform: translateY(0px) rotate(0deg); opacity: 0.6; }
+}
+.ws-star { animation: ws-star-drift var(--dur, 5s) ease-in-out infinite; }
